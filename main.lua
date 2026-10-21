@@ -1,9 +1,9 @@
--- // NyX DETECTOR - SOLS RNG MACRO (ARGON UNIVERSAL EDITION - FIXED)
--- // Giao diện Liquid Glass Menu + Nút nổi ND + Failsafe Auto Inventory
+-- // NyX DETECTOR - SOLS RNG MACRO (ARGON UNIVERSAL EDITION - FULL ENGLISH & FIXED)
+-- // Features: True Liquid Glass UI + Working ND Floating Toggle + 3 Merchants (Mari, Jester, Rin) + Webhook Config Saver
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- // Dịch vụ hệ thống
+-- // System Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
@@ -12,15 +12,15 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 local ScriptRunning = true
 local MacroStartTime = 0
 
--- // Bảng dữ liệu 16 Biome chuẩn theo Eon 1-30
+-- // 16 Standard Biomes Data (Eon 1-30)
 local BiomeData = {
-    ["NORMAL"] = {Color = 0xAAAAAA, Type = "None", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
+["NORMAL"] = {Color = 0xAAAAAA, Type = "None", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
     ["WINDY"] = {Color = 0x55FFFF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
     ["SNOWY"] = {Color = 0xAAFFFF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/8/86/DISCORICH-SNOWY.png/revision/latest/scale-to-width-down/250?cb=20260823041153"},
     ["RAINY"] = {Color = 0x4477FF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/7/77/DISCORICH-RAINY.png/revision/latest/scale-to-width-down/250?cb=20260823042833"},
@@ -38,6 +38,13 @@ local BiomeData = {
     ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Type = "Rare", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZxdhkfNNq7PMavKT9srm09DU-sH6DueoDYk9Hw1wPStkUylWMsx126nY&s=10"}
 }
 
+-- // Merchant Data (Mari, Jester, Rin)
+local MerchantData = {
+    ["Mari"] = {Color = 0x2ECC71, Ping = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["Jester"] = {Color = 0x9B59B6, Ping = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["Rin"] = {Color = 0x3498DB, Ping = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
+}
+
 local BiomeScanPriority = {
     "THE RADIANT FOREST", "LOST FOREST", "DREAMSPACE", "CYBERSPACE", "SINGULARITY",
     "CORRUPTION", "SANDSTORM", "STARFALL", "GLITCHED", "HEAVEN",
@@ -50,7 +57,7 @@ local All16Biomes = {
     "GLITCHED", "DREAMSPACE", "CYBERSPACE", "SINGULARITY", "THE RADIANT FOREST"
 }
 
--- // Cấu hình
+-- // Configuration Table
 local NyXConfig = {
     WebhookURL = "",
     DiscordID = "",
@@ -63,22 +70,60 @@ local NyXConfig = {
     StopAutoBiomes = {},
     CurrentDetectedBiome = "NORMAL",
     LiquidGlassMenu = true,
-    MenuTransparency = 0.25
+    MenuTransparency = 0.25,
+    AntiAFK = true
 }
 
 for _, bName in ipairs(All16Biomes) do
     NyXConfig.StopAutoBiomes[bName] = false
 end
 
--- // Anti-AFK
+-- ==========================================
+-- // DEDICATED WEBHOOK CONFIG SAVE / LOAD
+-- ==========================================
+local WebhookConfigFile = "NyX_WebhookConfig.json"
+
+local function SaveWebhookConfig()
+    if writefile then
+        pcall(function()
+            local data = {
+                WebhookURL = NyXConfig.WebhookURL,
+                DiscordID = NyXConfig.DiscordID,
+                PrivateServerLink = NyXConfig.PrivateServerLink
+            }
+            writefile(WebhookConfigFile, HttpService:JSONEncode(data))
+        end)
+    end
+end
+
+local function LoadWebhookConfig()
+    if isfile and readfile and isfile(WebhookConfigFile) then
+        pcall(function()
+            local decoded = HttpService:JSONDecode(readfile(WebhookConfigFile))
+            if type(decoded) == "table" then
+                NyXConfig.WebhookURL = decoded.WebhookURL or ""
+                NyXConfig.DiscordID = decoded.DiscordID or ""
+                NyXConfig.PrivateServerLink = decoded.PrivateServerLink or ""
+            end
+        end)
+    end
+end
+
+LoadWebhookConfig()
+
+-- // Anti-AFK Connection
 local IdledConn = LocalPlayer.Idled:Connect(function()
-    if not ScriptRunning then return end
-    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+    if not ScriptRunning or not NyXConfig.AntiAFK then return end
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+        VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    end)
 end)
 
--- // Hàm định dạng Thời gian Macro (Hỗ trợ truyền thời gian tĩnh khi dừng)
+-- // Format Macro Uptime (HH:MM:SS)
 local function GetMacroUptime(forcedElapsed)
     local elapsed = forcedElapsed
     if not elapsed then
@@ -94,7 +139,7 @@ local function GetMacroUptime(forcedElapsed)
 end
 
 -- ==========================================
--- // HỆ THỐNG DISCORD WEBHOOK EMBED
+-- // DISCORD WEBHOOK EMBED SYSTEM
 -- ==========================================
 local function SendRawWebhook(payload)
     if NyXConfig.WebhookURL == "" then return end
@@ -111,6 +156,7 @@ local function SendRawWebhook(payload)
     end
 end
 
+-- 1. Test Webhook Embed
 local function SendTestWebhookEmbed()
     SendRawWebhook({
         ["content"] = "",
@@ -122,6 +168,7 @@ local function SendTestWebhookEmbed()
     })
 end
 
+-- 2. Macro State Embed (Started / Stopped)
 local function SendMacroStateEmbed(isStarted, finalElapsed)
     local currentClock = os.date("%H:%M:%S")
     if isStarted then
@@ -129,7 +176,7 @@ local function SendMacroStateEmbed(isStarted, finalElapsed)
             ["content"] = "",
             ["embeds"] = {{
                 ["title"] = "🟢 Macro Started",
-                ["description"] = "Hệ thống **NyX Detector** đã bắt đầu theo dõi Biome!\n⏱️ **Thời gian Macro :** `00:00:00`",
+                ["description"] = "**NyX Detector** has started monitoring Biomes & Merchants!\n⏱️ **Macro Uptime :** `00:00:00`",
                 ["color"] = 0x00FF88,
                 ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
             }}
@@ -140,7 +187,7 @@ local function SendMacroStateEmbed(isStarted, finalElapsed)
             ["content"] = "",
             ["embeds"] = {{
                 ["title"] = "🔴 Macro Stopped",
-                ["description"] = "Đã tạm dừng **NyX Detector**.\n⏱️ **Tổng thời gian đã chạy :** `" .. uptimeStr .. "` *(Đã Reset)*",
+                ["description"] = "**NyX Detector** has been paused.\n⏱️ **Total Uptime :** `" .. uptimeStr .. "` *(Reset)*",
                 ["color"] = 0xFF3344,
                 ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
             }}
@@ -148,15 +195,16 @@ local function SendMacroStateEmbed(isStarted, finalElapsed)
     end
 end
 
+-- 3. Biome Started Embed
 local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
     local contentMsg = ""
     if pingType == "Everyone" then
         contentMsg = "@everyone " .. (NyXConfig.DiscordID ~= "" and ("<@" .. NyXConfig.DiscordID .. ">") or "")
-    elseif NyXConfig.DiscordID ~= "" and pingType == "UserPing" then
+    elseif NyXConfig.DiscordID ~= "" and (pingType == "Rare" or pingType == "UserPing") then
         contentMsg = "<@" .. NyXConfig.DiscordID .. ">"
     end
 
-    local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Nhấn để vào Server](" .. NyXConfig.PrivateServerLink .. ")") or "`Không có`"
+    local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Click to Join Server](" .. NyXConfig.PrivateServerLink .. ")") or "`None`"
     local currentClock = os.date("%H:%M:%S")
     local uptimeStr = GetMacroUptime()
 
@@ -164,7 +212,7 @@ local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
         ["content"] = contentMsg,
         ["embeds"] = {{
             ["title"] = "Biome Started - " .. biomeName,
-            ["description"] = "⏱️ **Thời gian Macro :** `" .. uptimeStr .. "`\n🔗 **Private Server :** " .. psDisplay,
+            ["description"] = "⏱️ **Macro Uptime :** `" .. uptimeStr .. "`\n🔗 **Private Server :** " .. psDisplay,
             ["color"] = color or 0x9B59B6,
             ["thumbnail"] = {["url"] = imageUrl},
             ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
@@ -172,6 +220,7 @@ local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
     })
 end
 
+-- 4. Biome Ended Embed
 local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
     local currentClock = os.date("%H:%M:%S")
     local uptimeStr = GetMacroUptime()
@@ -180,7 +229,7 @@ local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
         ["content"] = "",
         ["embeds"] = {{
             ["title"] = "Biome Ended - " .. biomeName,
-            ["description"] = "⏱️ **Thời gian Macro :** `" .. uptimeStr .. "`",
+            ["description"] = "⏱️ **Macro Uptime :** `" .. uptimeStr .. "`",
             ["color"] = color or 0x555555,
             ["thumbnail"] = {["url"] = imageUrl},
             ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
@@ -188,29 +237,100 @@ local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
     })
 end
 
+-- 5. Merchant Arrived Embed ("<Merchant Name> has arrived!")
+local function SendMerchantEmbed(merchantName)
+    local mInfo = MerchantData[merchantName] or {
+        Color = 0xF1C40F,
+        Ping = "Everyone",
+        Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"
+    }
+
+    local contentMsg = ""
+    if mInfo.Ping == "Everyone" then
+        contentMsg = "@everyone " .. (NyXConfig.DiscordID ~= "" and ("<@" .. NyXConfig.DiscordID .. ">") or "")
+    elseif NyXConfig.DiscordID ~= "" then
+        contentMsg = "<@" .. NyXConfig.DiscordID .. ">"
+    end
+
+    local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Click to Join Server](" .. NyXConfig.PrivateServerLink .. ")") or "`None`"
+    local currentClock = os.date("%H:%M:%S")
+    local uptimeStr = GetMacroUptime()
+
+    SendRawWebhook({
+        ["content"] = contentMsg,
+        ["embeds"] = {{
+            ["title"] = merchantName .. " has arrived!",
+            ["description"] = "🛒 **Merchant :** `" .. merchantName .. "`\n⏱️ **Macro Uptime :** `" .. uptimeStr .. "`\n🔗 **Private Server :** " .. psDisplay,
+            ["color"] = mInfo.Color,
+            ["thumbnail"] = {["url"] = mInfo.Image},
+            ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
+        }}
+    })
+end
+
 -- ==========================================
--- // HIỆU ỨNG LIQUID GLASS & LOGO NỔI "ND"
+-- // RAYFIELD FINDER, LIQUID GLASS & "ND" FLOATING BUTTON (FIXED)
 -- ==========================================
 local NDGui = nil
-local RayfieldMainFrame = nil
+local GlassConnections = {}
+
+local function FindRayfieldScreenGui()
+    local roots = {}
+    if gethui then pcall(function() table.insert(roots, gethui()) end) end
+    table.insert(roots, CoreGui)
+    if LocalPlayer:FindFirstChild("PlayerGui") then
+        table.insert(roots, LocalPlayer.PlayerGui)
+    end
+
+    for _, root in ipairs(roots) do
+        for _, gui in ipairs(root:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui.Name ~= "NyXDetectorLogoGui" then
+                if gui.Name == "Rayfield" or gui:FindFirstChild("Main", true) then
+                    local mainCheck = gui:FindFirstChild("Main", true)
+                    if mainCheck and mainCheck:FindFirstChild("Topbar") then
+                        return gui, mainCheck
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
 
 local function ApplyMenuLiquidGlass(enabled, trans)
     pcall(function()
-        local rfGui = CoreGui:FindFirstChild("Rayfield") or LocalPlayer.PlayerGui:FindFirstChild("Rayfield")
-        if not rfGui then return end
+        local rfGui, mainFrame = FindRayfieldScreenGui()
+        if not rfGui or not mainFrame then return end
 
-        for _, v in pairs(rfGui:GetDescendants()) do
-            if v:IsA("Frame") and (v.Name == "Main" or v.Name == "Topbar" or v.Name == "Elements" or v.Name == "TabList") then
-                if v.Name == "Main" then RayfieldMainFrame = v end
-                v.BackgroundTransparency = enabled and trans or 0
-                if enabled then
-                    v.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+        -- Hide Rayfield's default mini "Show Rayfield" bar so ND button controls everything cleanly
+        for _, child in ipairs(rfGui:GetChildren()) do
+            if child:IsA("Frame") and child ~= mainFrame and child.Name ~= "Notification" and child.Name ~= "Notifications" then
+                if child:FindFirstChildWhichIsA("TextButton", true) then
+                    child.Visible = false
                 end
-            elseif v:IsA("Frame") and v.Parent and v.Parent.Name == "Elements" then
-                v.BackgroundTransparency = enabled and (trans + 0.15) or 0
+            end
+        end
+
+        local targetMainTrans = enabled and trans or 0
+        local targetElemTrans = enabled and math.clamp(trans + 0.15, 0, 0.92) or 0
+
+        local function StyleObject(v)
+            if v:IsA("Frame") then
+                local n = v.Name
+                if n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList" then
+                    v.BackgroundTransparency = targetMainTrans
+                    if enabled then v.BackgroundColor3 = Color3.fromRGB(16, 16, 26) end
+                elseif v.Parent and (v.Parent.Name == "Elements" or v.Parent:IsA("ScrollingFrame")) then
+                    v.BackgroundTransparency = targetElemTrans
+                    if enabled then v.BackgroundColor3 = Color3.fromRGB(24, 22, 38) end
+                elseif n == "Shadow" or n == "DropShadow" then
+                    v.Visible = not enabled
+                end
+            elseif v:IsA("ScrollingFrame") then
+                v.BackgroundTransparency = 1
             elseif v:IsA("UIStroke") then
                 if enabled then
-                    v.Color = Color3.fromRGB(170, 120, 255)
+                    v.Color = Color3.fromRGB(175, 120, 255)
                     v.Transparency = 0.35
                     v.Thickness = 1.2
                 else
@@ -218,12 +338,53 @@ local function ApplyMenuLiquidGlass(enabled, trans)
                 end
             end
         end
+
+        for _, v in ipairs(mainFrame:GetDescendants()) do
+            StyleObject(v)
+            -- Lock transparency against Rayfield's internal TweenService overrides
+            if enabled and not GlassConnections[v] and v:IsA("Frame") then
+                local n = v.Name
+                if n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList" or (v.Parent and v.Parent:IsA("ScrollingFrame")) then
+                    GlassConnections[v] = v:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
+                        if not NyXConfig.LiquidGlassMenu then return end
+                        local desired = (n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList")
+                            and NyXConfig.MenuTransparency
+                            or math.clamp(NyXConfig.MenuTransparency + 0.15, 0, 0.92)
+                        if math.abs(v.BackgroundTransparency - desired) > 0.03 and v.BackgroundTransparency < 0.98 then
+                            v.BackgroundTransparency = desired
+                        end
+                    end)
+                end
+            end
+        end
+        StyleObject(mainFrame)
+    end)
+end
+
+local function ToggleRayfieldWindow()
+    pcall(function()
+        local rfGui, mainFrame = FindRayfieldScreenGui()
+        if not rfGui then return end
+
+        if mainFrame then
+            local newState = not mainFrame.Visible
+            mainFrame.Visible = newState
+            rfGui.Enabled = true
+            -- Re-apply Liquid Glass if toggled back on
+            if newState and NyXConfig.LiquidGlassMenu then
+                task.defer(function()
+                    ApplyMenuLiquidGlass(true, NyXConfig.MenuTransparency)
+                end)
+            end
+        else
+            rfGui.Enabled = not rfGui.Enabled
+        end
     end)
 end
 
 local function CreateNDLogoButton()
     pcall(function()
-        local parentTarget = (gethui and gethui()) or CoreGui or LocalPlayer.PlayerGui
+        local parentTarget = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
         if parentTarget:FindFirstChild("NyXDetectorLogoGui") then
             parentTarget.NyXDetectorLogoGui:Destroy()
         end
@@ -231,20 +392,24 @@ local function CreateNDLogoButton()
         NDGui = Instance.new("ScreenGui")
         NDGui.Name = "NyXDetectorLogoGui"
         NDGui.ResetOnSpawn = false
+        NDGui.IgnoreGuiInset = true
+        NDGui.DisplayOrder = 999999
         NDGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         NDGui.Parent = parentTarget
 
         local NDButton = Instance.new("TextButton")
         NDButton.Name = "NDLogoBtn"
-        NDButton.Size = UDim2.new(0, 52, 0, 52)
-        NDButton.Position = UDim2.new(0.05, 0, 0.18, 0)
+        NDButton.Size = UDim2.new(0, 54, 0, 54)
+        NDButton.Position = UDim2.new(0.04, 0, 0.22, 0)
         NDButton.BackgroundColor3 = Color3.fromRGB(20, 18, 32)
-        NDButton.BackgroundTransparency = 0.15
+        NDButton.BackgroundTransparency = 0.12
         NDButton.Text = "ND"
         NDButton.TextColor3 = Color3.fromRGB(235, 220, 255)
         NDButton.Font = Enum.Font.GothamBlack
         NDButton.TextSize = 22
         NDButton.AutoButtonColor = true
+        NDButton.Active = true
+        NDButton.ZIndex = 10
         NDButton.Parent = NDGui
 
         local Corner = Instance.new("UICorner")
@@ -274,39 +439,46 @@ local function CreateNDLogoButton()
         SubText.TextColor3 = Color3.fromRGB(180, 140, 255)
         SubText.Font = Enum.Font.GothamBold
         SubText.TextSize = 8
+        SubText.ZIndex = 11
         SubText.Parent = NDButton
 
-        local dragging, dragInput, dragStart, startPos
+        -- Smooth Drag + Click Separation (Fixes click not registering after touch/mouse down)
+        local dragging = false
+        local hasMoved = false
+        local dragStart = nil
+        local startPos = nil
+
         NDButton.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = true
+                hasMoved = false
                 dragStart = input.Position
                 startPos = NDButton.Position
-                input.Changed:Connect(function()
-                    if input.UserInputState == Enum.UserInputState.End then dragging = false end
-                end)
-            end
-        end)
-        NDButton.InputChanged:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-                dragInput = input
-            end
-        end)
-        game:GetService("UserInputService").InputChanged:Connect(function(input)
-            if input == dragInput and dragging then
-                local delta = input.Position - dragStart
-                NDButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
         end)
 
-        NDButton.MouseButton1Click:Connect(function()
-            local rfGui = CoreGui:FindFirstChild("Rayfield") or LocalPlayer.PlayerGui:FindFirstChild("Rayfield")
-            if rfGui then
-                local mainFrame = RayfieldMainFrame or rfGui:FindFirstChild("Main", true)
-                if mainFrame then
-                    mainFrame.Visible = not mainFrame.Visible
-                else
-                    rfGui.Enabled = not rfGui.Enabled
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                if delta.Magnitude > 6 then
+                    hasMoved = true
+                    NDButton.Position = UDim2.new(
+                        startPos.X.Scale,
+                        startPos.X.Offset + delta.X,
+                        startPos.Y.Scale,
+                        startPos.Y.Offset + delta.Y
+                    )
+                end
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if dragging then
+                    dragging = false
+                    if not hasMoved then
+                        ToggleRayfieldWindow()
+                    end
                 end
             end
         end)
@@ -314,7 +486,7 @@ local function CreateNDLogoButton()
 end
 
 -- ==========================================
--- // FAILSAFE AUTO MỞ INVENTORY & CLICK DÙNG ITEM
+-- // FAILSAFE AUTO INVENTORY & ITEM CLICKER
 -- ==========================================
 local function ClickGuiElement(guiObj)
     pcall(function()
@@ -426,7 +598,7 @@ local function UseItemWithInventoryFailsafe(itemName)
 end
 
 -- ==========================================
--- // HÀM QUÉT BIOME CHÍNH XÁC (ĐÃ SỬA LỖI RETURN SCOPE)
+-- // ACCURATE BIOME & MERCHANT SCANNERS
 -- ==========================================
 local function GetAccurateServerBiome()
     local foundBiome = "NORMAL"
@@ -486,13 +658,72 @@ local function GetAccurateServerBiome()
     return foundBiome
 end
 
+-- Deep Merchant Scanner for Mari, Jester, and Rin
+local function ScanActiveMerchant()
+    local detected = nil
+    pcall(function()
+        -- 1. Check Workspace Descendants (Models, NPCs, Dialogs, Prompts)
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") or obj:IsA("Folder") or obj:IsA("BasePart") or obj:IsA("ProximityPrompt") or obj:IsA("BillboardGui") then
+                local n = obj.Name:upper()
+                if n == "MARI" or n:find("MARI'S") or n:find("MERCHANT_MARI") then
+                    detected = "Mari"
+                    return
+                elseif n == "JESTER" or n:find("JESTER'S") or n:find("MERCHANT_JESTER") then
+                    detected = "Jester"
+                    return
+                elseif n == "RIN" or n:find("RIN'S") or n:find("MERCHANT_RIN") then
+                    detected = "Rin"
+                    return
+                end
+            elseif obj:IsA("TextLabel") and obj.Visible and obj.Text ~= "" then
+                local t = obj.Text:upper()
+                if t:find("MARI") and (t:find("MERCHANT") or t:find("SHOP") or t:find("ARRIVED")) then
+                    detected = "Mari"
+                    return
+                elseif t:find("JESTER") and (t:find("MERCHANT") or t:find("SHOP") or t:find("ARRIVED")) then
+                    detected = "Jester"
+                    return
+                elseif (t == "RIN" or t:find("RIN'S") or t:find("RIN HAS ARRIVED")) then
+                    detected = "Rin"
+                    return
+                end
+            end
+        end
+
+        -- 2. Check PlayerGui for Merchant Shop / Notification Banners
+        local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if pGui then
+            for _, v in ipairs(pGui:GetDescendants()) do
+                if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
+                    local fullName = v:GetFullName():upper()
+                    if not fullName:find("RAYFIELD") and not fullName:find("INVENTORY") then
+                        local t = v.Text:upper()
+                        if t:find("MARI HAS ARRIVED") or t:find("MARI'S SHOP") then
+                            detected = "Mari"
+                            return
+                        elseif t:find("JESTER HAS ARRIVED") or t:find("JESTER'S SHOP") then
+                            detected = "Jester"
+                            return
+                        elseif t:find("RIN HAS ARRIVED") or t:find("RIN'S SHOP") then
+                            detected = "Rin"
+                            return
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    return detected
+end
+
 -- ==========================================
--- // KHỞI TẠO MENU: NyX DETECTOR
+-- // INITIALIZE MENU: NyX DETECTOR
 -- ==========================================
 local Window = Rayfield:CreateWindow({
     Name = "🌌 NyX Detector",
     LoadingTitle = "NyX Detector",
-    LoadingSubtitle = "Biome & Merchant Macro",
+    LoadingSubtitle = "Biome & Merchant Macro (Argon Edition)",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = "NyXDetector",
@@ -502,44 +733,56 @@ local Window = Rayfield:CreateWindow({
 })
 
 task.spawn(function()
-    task.wait(1.2)
+    task.wait(1)
     CreateNDLogoButton()
     ApplyMenuLiquidGlass(NyXConfig.LiquidGlassMenu, NyXConfig.MenuTransparency)
 end)
 
 -- ==========================================
--- // TAB 1: WEBHOOK & BIOME DETECTOR
+-- // TAB 1: DETECTOR & WEBHOOK
 -- ==========================================
 local WebhookTab = Window:CreateTab("🌐 Detector & Webhook", 4483362458)
-WebhookTab:CreateSection("Cấu hình Discord & Private Server")
+WebhookTab:CreateSection("Discord & Private Server Configuration")
 
 WebhookTab:CreateInput({
     Name = "Webhook URL",
-    PlaceholderText = "Dán link Discord Webhook vào đây...",
+    PlaceholderText = NyXConfig.WebhookURL ~= "" and NyXConfig.WebhookURL or "Paste your Discord Webhook URL here...",
     RemoveTextAfterFocusLost = false,
     Callback = function(Text) NyXConfig.WebhookURL = Text end,
 })
 
 WebhookTab:CreateInput({
-    Name = "Discord ID",
-    PlaceholderText = "VD: 123456789012345678",
+    Name = "Discord User ID (For Pings)",
+    PlaceholderText = NyXConfig.DiscordID ~= "" and NyXConfig.DiscordID or "Ex: 123456789012345678",
     RemoveTextAfterFocusLost = false,
     Callback = function(Text) NyXConfig.DiscordID = Text end,
 })
 
 WebhookTab:CreateInput({
-    Name = "Link Private Server",
-    PlaceholderText = "https://www.roblox.com/games/...",
+    Name = "Private Server Link",
+    PlaceholderText = NyXConfig.PrivateServerLink ~= "" and NyXConfig.PrivateServerLink or "https://www.roblox.com/games/...",
     RemoveTextAfterFocusLost = false,
     Callback = function(Text) NyXConfig.PrivateServerLink = Text end,
 })
 
-WebhookTab:CreateSection("Điều khiển NyX Detector")
+WebhookTab:CreateButton({
+    Name = "💾 Save Webhook Config (Webhook, User ID & Private Server)",
+    Callback = function()
+        SaveWebhookConfig()
+        Rayfield:Notify({
+            Title = "Config Saved",
+            Content = "Webhook URL, User ID, and Private Server Link have been saved!",
+            Duration = 3
+        })
+    end,
+})
+
+WebhookTab:CreateSection("NyX Detector Controls")
 
 local BiomeStatusLabel = WebhookTab:CreateLabel("🌍 Biome: NORMAL | ⏱️ Uptime: 00:00:00")
 
 WebhookTab:CreateToggle({
-    Name = "▶️ Start Detector (Tự báo Macro Started / Stopped & Biome)",
+    Name = "▶️ Start Detector (Auto Macro Started / Stopped & Biome Logs)",
     CurrentValue = false,
     Flag = "ToggleBiomeWebhook",
     Callback = function(Value)
@@ -558,13 +801,13 @@ WebhookTab:CreateToggle({
 })
 
 WebhookTab:CreateToggle({
-    Name = "🛒 Bật Detect Merchant (Mari / Jester)",
+    Name = "🛒 Enable Merchant Detector (Mari / Jester / Rin)",
     CurrentValue = false,
     Flag = "ToggleMerchantWebhook",
     Callback = function(Value) NyXConfig.EnableMerchantWebhook = Value end,
 })
 
-WebhookTab:CreateSection("Kiểm tra Kết nối")
+WebhookTab:CreateSection("Connection Test")
 
 WebhookTab:CreateButton({
     Name = "🔔 Test Webhook",
@@ -572,7 +815,7 @@ WebhookTab:CreateButton({
         SendTestWebhookEmbed()
         Rayfield:Notify({
             Title = "NyX Detector",
-            Content = "Đã gửi 'Webhook Test - Successfully' tới Discord!",
+            Content = "Sent 'Webhook Test - Successfully' to Discord!",
             Duration = 2.5
         })
     end,
@@ -582,29 +825,29 @@ WebhookTab:CreateButton({
 -- // TAB 2: INVENTORY
 -- ==========================================
 local InventoryTab = Window:CreateTab("🎒 Inventory", 4483362458)
-InventoryTab:CreateSection("Sử dụng Item (Tự mở Inventory + Click Failsafe)")
+InventoryTab:CreateSection("Instant Item Use (Auto-Open Inventory + Failsafe Click)")
 
 InventoryTab:CreateButton({
-    Name = "🎲 Dùng ngay: Biome Randomizer",
+    Name = "🎲 Use Now: Biome Randomizer",
     Callback = function()
         task.spawn(function() UseItemWithInventoryFailsafe("Biome Randomizer") end)
     end,
 })
 
 InventoryTab:CreateButton({
-    Name = "🕹️ Dùng ngay: Strange Controller",
+    Name = "🕹️ Use Now: Strange Controller",
     Callback = function()
         task.spawn(function() UseItemWithInventoryFailsafe("Strange Controller") end)
     end,
 })
 
-InventoryTab:CreateSection("Tự động hóa theo Thời gian yêu cầu")
+InventoryTab:CreateSection("Timed Item Automation")
 
 InventoryTab:CreateSlider({
-    Name = "Thời gian lặp lại (Cooldown mở Inventory dùng item)",
+    Name = "Use Interval (Cooldown between Inventory actions)",
     Range = {5, 300},
     Increment = 5,
-    Suffix = " giây",
+    Suffix = " Seconds",
     CurrentValue = 20,
     Flag = "UseIntervalSlider",
     Callback = function(Value)
@@ -613,23 +856,23 @@ InventoryTab:CreateSlider({
 })
 
 InventoryTab:CreateToggle({
-    Name = "Auto Biome Randomizer (Failsafe Tự Mở Balo)",
+    Name = "Auto Biome Randomizer (Failsafe Auto-Inventory)",
     CurrentValue = false,
     Flag = "AutoBR",
     Callback = function(Value) NyXConfig.AutoBiomeRandomizer = Value end,
 })
 
 InventoryTab:CreateToggle({
-    Name = "Auto Strange Controller (Failsafe Tự Mở Balo)",
+    Name = "Auto Strange Controller (Failsafe Auto-Inventory)",
     CurrentValue = false,
     Flag = "AutoSC",
     Callback = function(Value) NyXConfig.AutoStrangeController = Value end,
 })
 
-InventoryTab:CreateSection("🛑 Stop Auto in (Tự dừng Random khi trúng Biome)")
+InventoryTab:CreateSection("🛑 Stop Auto In (Pause Item Use on Target Biomes)")
 
 InventoryTab:CreateDropdown({
-    Name = "Stop Auto in (Chọn Biome muốn dừng Randomizer)",
+    Name = "Stop Auto In (Select Biomes to Pause Randomizer)",
     Options = All16Biomes,
     CurrentOption = {"GLITCHED", "DREAMSPACE", "CYBERSPACE"},
     MultipleOptions = true,
@@ -648,10 +891,26 @@ InventoryTab:CreateDropdown({
 -- // TAB 3: SETTINGS
 -- ==========================================
 local SettingsTab = Window:CreateTab("⚙️ Settings", 4483362458)
-SettingsTab:CreateSection("Hiệu ứng Liquid Glass (Trong suốt Menu Script)")
+SettingsTab:CreateSection("Player & Macro Utilities")
 
 SettingsTab:CreateToggle({
-    Name = "Bật Liquid Glass cho Menu NyX Detector",
+    Name = "🛡️ Enable Anti-AFK (Prevent 20m Idle Disconnect)",
+    CurrentValue = true,
+    Flag = "AntiAFKToggle",
+    Callback = function(Value)
+        NyXConfig.AntiAFK = Value
+        Rayfield:Notify({
+            Title = "Anti-AFK",
+            Content = Value and "Anti-AFK is now Enabled." or "Anti-AFK is now Disabled.",
+            Duration = 2.5
+        })
+    end,
+})
+
+SettingsTab:CreateSection("Liquid Glass UI Theme")
+
+SettingsTab:CreateToggle({
+    Name = "Enable Liquid Glass Effect for Menu",
     CurrentValue = true,
     Flag = "LiquidGlassMenuToggle",
     Callback = function(Value)
@@ -661,7 +920,7 @@ SettingsTab:CreateToggle({
 })
 
 SettingsTab:CreateSlider({
-    Name = "Độ trong suốt của Menu (Menu Glass Transparency)",
+    Name = "Menu Glass Transparency",
     Range = {0, 80},
     Increment = 5,
     Suffix = "%",
@@ -675,10 +934,10 @@ SettingsTab:CreateSlider({
     end,
 })
 
-SettingsTab:CreateSection("Quản lý Script")
+SettingsTab:CreateSection("Script Management")
 
 SettingsTab:CreateButton({
-    Name = "🗑️ Destroy UI / Uninstall (Tắt hoàn toàn NyX Detector)",
+    Name = "🗑️ Destroy UI / Uninstall NyX Detector",
     Callback = function()
         ScriptRunning = false
         if NyXConfig.EnableBiomeWebhook then
@@ -689,6 +948,9 @@ SettingsTab:CreateButton({
         NyXConfig.AutoBiomeRandomizer = false
         NyXConfig.AutoStrangeController = false
         
+        for _, conn in pairs(GlassConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
         if IdledConn then IdledConn:Disconnect() end
         if NDGui then NDGui:Destroy() end
         Rayfield:Destroy()
@@ -696,10 +958,10 @@ SettingsTab:CreateButton({
 })
 
 -- ==========================================
--- // VÒNG LẶP XỬ LÝ NGẦM (TỐI ƯU HÓA FPS)
+-- // BACKGROUND LOOPS (BIOME, MERCHANT, AUTO-ITEM)
 -- ==========================================
 
--- 1. Vòng lặp Detect Biome & Đếm thời gian Uptime
+-- 1. Biome Detection & Uptime Loop
 task.spawn(function()
     local lastBiome = GetAccurateServerBiome()
     NyXConfig.CurrentDetectedBiome = lastBiome
@@ -709,8 +971,6 @@ task.spawn(function()
         NyXConfig.CurrentDetectedBiome = detectedBiome
         local uptimeStr = GetMacroUptime()
         BiomeStatusLabel:Set("🌍 Biome: " .. detectedBiome .. " | ⏱️ Uptime: " .. uptimeStr)
-
-        -- Đã lược bỏ hàm ApplyMenuLiquidGlass khỏi vòng lặp mỗi giây để chống tụt FPS/lag máy
 
         if detectedBiome ~= lastBiome then
             local previousBiome = lastBiome
@@ -730,8 +990,8 @@ task.spawn(function()
 
             if NyXConfig.StopAutoBiomes[detectedBiome] then
                 Rayfield:Notify({
-                    Title = "🛑 Stop Auto in!",
-                    Content = "Đã gặp " .. detectedBiome .. "! Tạm dừng dùng Item cho đến khi hết Biome.",
+                    Title = "🛑 Stop Auto In Triggered!",
+                    Content = "Detected " .. detectedBiome .. "! Pausing item usage until biome ends.",
                     Duration = 4
                 })
             end
@@ -739,39 +999,28 @@ task.spawn(function()
     end
 end)
 
--- 2. Vòng lặp Detect Merchant (Mari & Jester)
+-- 2. Merchant Detection Loop (Mari, Jester, Rin)
 task.spawn(function()
-    local merchantSpawned = false
-    while ScriptRunning and task.wait(2.5) do
+    local lastMerchant = nil
+    while ScriptRunning and task.wait(2) do
         if NyXConfig.EnableMerchantWebhook then
-            pcall(function()
-                local foundMerchant = nil
-                for _, obj in pairs(Workspace:GetChildren()) do
-                    local nameUpper = obj.Name:upper()
-                    if string.find(nameUpper, "MARI") or string.find(nameUpper, "JESTER") or string.find(nameUpper, "MERCHANT") then
-                        foundMerchant = obj.Name
-                        break
-                    end
-                end
-
-                if foundMerchant and not merchantSpawned then
-                    merchantSpawned = true
-                    local isJester = string.find(foundMerchant:upper(), "JESTER")
-                    SendBiomeStartedEmbed(
-                        "Merchant (" .. foundMerchant .. ")",
-                        isJester and 0x9B59B6 or 0x2ECC71,
-                        isJester and "Everyone" or "Normal",
-                        "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"
-                    )
-                elseif not foundMerchant then
-                    merchantSpawned = false
-                end
-            end)
+            local currentMerchant = ScanActiveMerchant()
+            if currentMerchant and currentMerchant ~= lastMerchant then
+                lastMerchant = currentMerchant
+                SendMerchantEmbed(currentMerchant)
+                Rayfield:Notify({
+                    Title = "🛒 Merchant Detected!",
+                    Content = currentMerchant .. " has arrived!",
+                    Duration = 4
+                })
+            elseif not currentMerchant then
+                lastMerchant = nil
+            end
         end
     end
 end)
 
--- 3. Vòng lặp Auto Biome Randomizer & Strange Controller
+-- 3. Auto Biome Randomizer & Strange Controller Loop
 task.spawn(function()
     while ScriptRunning do
         task.wait(1)
