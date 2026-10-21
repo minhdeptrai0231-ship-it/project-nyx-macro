@@ -1,5 +1,5 @@
--- // PROJECT NyX - SOLS RNG ULTIMATE MACRO (LIQUID GLASS EDITION)
--- // Tối ưu hóa cho Argon Executor | Đã Fix Bug Detect Biome & Smart Fishing
+-- // PROJECT NyX - SOLS RNG & FISHING ULTIMATE (DELTA MOBILE EDITION)
+-- // Tối ưu hóa chuyên sâu cho Delta Executor trên Mobile
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
@@ -13,7 +13,6 @@ local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
--- // Biến kiểm soát trạng thái sống của Script (Dùng cho Uninstall)
 local ScriptRunning = true
 
 -- // Bảng dữ liệu 16 Biome chuẩn theo Eon 1-30
@@ -36,20 +35,13 @@ local BiomeData = {
     ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Type = "Rare", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
 }
 
--- Sắp xếp ưu tiên tên dài trước để tránh quét nhầm chữ (VD: "THE RADIANT FOREST" trước "LOST FOREST")
-local BiomeScanPriority = {
-    "THE RADIANT FOREST", "LOST FOREST", "DREAMSPACE", "CYBERSPACE", "SINGULARITY",
-    "CORRUPTION", "SANDSTORM", "STARFALL", "GLITCHED", "HEAVEN",
-    "WINDY", "SNOWY", "RAINY", "HELL", "NULL", "NORMAL"
-}
-
 local All16Biomes = {
     "NORMAL", "WINDY", "SNOWY", "RAINY", "SANDSTORM", "HELL", 
     "STARFALL", "HEAVEN", "LOST FOREST", "CORRUPTION", "NULL", 
     "GLITCHED", "DREAMSPACE", "CYBERSPACE", "SINGULARITY", "THE RADIANT FOREST"
 }
 
--- // Biến lưu trữ Cấu hình (Settings)
+-- // Cấu hình Settings & Trạng thái
 local NyXConfig = {
     WebhookURL = "",
     DiscordID = "",
@@ -61,652 +53,408 @@ local NyXConfig = {
     StopAutoBiomes = {},
     CurrentDetectedBiome = "NORMAL",
     
-    -- Cấu hình Fishsol Macro
+    -- Fishing & Checkpoint
     AutoCast = false,
     AutoSellFish = false,
-    SellAtAmount = 25, -- Số lượng cá trong kho để tự động bán
+    SellAtAmount = 25,
     CurrentFishCount = 0,
+    SavedCheckpoint = nil, -- Lưu tọa độ vị trí câu cá
+    AutoReturnToCheckpoint = true,
     
-    -- Cấu hình Liquid Glass UI
+    -- Liquid Glass
     LiquidGlassEnabled = true,
-    GlassTransparency = 0.25,
-    BlurSize = 12
+    GlassTransparency = 0.2,
+    BlurSize = 10
 }
 
 for _, bName in ipairs(All16Biomes) do
     NyXConfig.StopAutoBiomes[bName] = false
 end
 
--- // Anti-AFK Connection (Có thể ngắt khi Uninstall)
-local IdledConnection = LocalPlayer.Idled:Connect(function()
+-- Anti-AFK Mobile
+local IdledConn = LocalPlayer.Idled:Connect(function()
     if not ScriptRunning then return end
     VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
     task.wait(1)
     VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
 end)
 
--- ==========================================
--- // HIỆU ỨNG LIQUID GLASS UI (KÍNH MỜ TRONG SUỐT)
--- ==========================================
-local NyXBlur = Lighting:FindFirstChild("NyXLiquidBlur") or Instance.new("BlurEffect")
-NyXBlur.Name = "NyXLiquidBlur"
+-- // Hiệu ứng Liquid Glass trên Mobile
+local NyXBlur = Lighting:FindFirstChild("NyXDeltaBlur") or Instance.new("BlurEffect")
+NyXBlur.Name = "NyXDeltaBlur"
 NyXBlur.Size = 0
 NyXBlur.Parent = Lighting
 
-local function ApplyLiquidGlass(enabled, transparency, blurStrength)
+local function ApplyLiquidGlass(enabled, transparency)
     pcall(function()
-        NyXBlur.Size = enabled and blurStrength or 0
-        -- Quét UI Rayfield trong CoreGui hoặc PlayerGui để làm hiệu ứng kính trong suốt
+        NyXBlur.Size = enabled and NyXConfig.BlurSize or 0
         local targetGui = CoreGui:FindFirstChild("Rayfield") or LocalPlayer.PlayerGui:FindFirstChild("Rayfield")
         if targetGui then
             for _, obj in pairs(targetGui:GetDescendants()) do
                 if obj:IsA("Frame") and (obj.Name == "Main" or obj.Name == "Topbar" or obj.Name == "Elements") then
                     obj.BackgroundTransparency = enabled and transparency or 0
-                elseif obj:IsA("UIStroke") then
-                    obj.Transparency = enabled and 0.4 or 0
-                    obj.Color = enabled and Color3.fromRGB(190, 140, 255) or obj.Color
                 end
             end
         end
     end)
 end
 
--- ==========================================
--- // HỆ THỐNG EMBED TỐI ƯU NHỎ GỌN (COMPACT EMBED)
--- ==========================================
-local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
+-- // Hàm Webhook Embed gọn gàng
+local function SendDiscordEmbed(title, desc, color, pingType, imageUrl, hasPS)
     if NyXConfig.WebhookURL == "" then return end
     
     local contentMsg = ""
     if pingType == "Everyone" then
         contentMsg = "@everyone " .. (NyXConfig.DiscordID ~= "" and ("<@" .. NyXConfig.DiscordID .. ">") or "")
-    elseif NyXConfig.DiscordID ~= "" and pingType == "UserPing" then
-        contentMsg = "<@" .. NyXConfig.DiscordID .. ">"
     end
 
-    local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Click to Join](" .. NyXConfig.PrivateServerLink .. ")") or "`None`"
+    local descText = desc
+    if hasPS then
+        local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Click to Join](" .. NyXConfig.PrivateServerLink .. ")") or "`None`"
+        descText = "**Private Server :** " .. psDisplay
+    end
 
     local embedData = {
         ["content"] = contentMsg,
         ["embeds"] = {{
-            ["title"] = "Biome Started - " .. biomeName,
-            ["description"] = "**Private Server :** " .. psDisplay,
+            ["title"] = title,
+            ["description"] = descText,
             ["color"] = color or 0x9B59B6,
-            ["thumbnail"] = {["url"] = imageUrl},
-            ["footer"] = {["text"] = "Project NyX"}
+            ["thumbnail"] = {["url"] = imageUrl or BiomeData["NORMAL"].Image},
+            ["footer"] = {["text"] = "Project NyX • Delta Mobile"}
         }}
     }
 
-    local req = (syn and syn.request) or http_request or request or HttpPost
-    if req then
-        pcall(function()
-            req({
-                Url = NyXConfig.WebhookURL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(embedData)
-            })
-        end)
-    end
-end
-
-local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
-    if NyXConfig.WebhookURL == "" then return end
-
-    local embedData = {
-        ["content"] = "",
-        ["embeds"] = {{
-            ["title"] = "Biome Ended - " .. biomeName,
-            ["color"] = color or 0x555555,
-            ["thumbnail"] = {["url"] = imageUrl},
-            ["footer"] = {["text"] = "Project NyX"}
-        }}
-    }
-
-    local req = (syn and syn.request) or http_request or request or HttpPost
-    if req then
-        pcall(function()
-            req({
-                Url = NyXConfig.WebhookURL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(embedData)
-            })
-        end)
-    end
-end
-
--- ==========================================
--- // HÀM TƯƠNG TÁC GAME (BYPASS INVENTORY & ĐẾM SLOT CÁ)
--- ==========================================
-local function FireItemRemote(itemName, extraArg)
     pcall(function()
-        local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
-        local UseItemRemote = Remotes:FindFirstChild("UseItem") or Remotes:FindFirstChild("ItemRemote") or Remotes:FindFirstChild("InventoryRemote")
-        if UseItemRemote then
-            if extraArg then
-                UseItemRemote:FireServer(itemName, extraArg)
-            else
-                UseItemRemote:FireServer(itemName)
+        request({
+            Url = NyXConfig.WebhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(embedData)
+        })
+    end)
+end
+
+-- // Hàm gọi Remote Game (Bypass Inventory)
+local function FireGameRemote(remoteName, ...)
+    pcall(function()
+        local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
+        local remote = remotesFolder:FindFirstChild(remoteName, true)
+        if remote then
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(...)
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer(...)
             end
         end
     end)
 end
 
--- Hàm đọc số lượng cá hiện tại trong kho (Inventory Slot Counter)
-local function GetCurrentFishInventoryCount()
-    local count = 0
+-- // DETECT BIOME & MERCHANT TỪ BỘ NHỚ GAME (DELTA MEMORY INJECT)
+local function GetTrueGameBiome()
+    local detected = "NORMAL"
     pcall(function()
-        -- Cách 1: Kiểm tra dữ liệu Inventory/FishFolder của Player
-        local fishData = LocalPlayer:FindFirstChild("FishInventory") or LocalPlayer:FindFirstChild("Inventory") or (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Fish"))
-        if fishData then
-            count = #fishData:GetChildren()
-            return
-        end
-
-        -- Cách 2: Đọc từ UI kho cá hoặc đếm số item cá trong Backpack
-        for _, v in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
-            if v:IsA("TextLabel") and (v.Name == "FishCount" or v.Name == "InventorySlots" or v.Name == "SlotCount") then
-                local currentNum = string.match(v.Text, "(%d+)%s*/%s*%d+") or string.match(v.Text, "%d+")
-                if currentNum then
-                    count = tonumber(currentNum) or 0
-                    return
+        -- Đọc trực tiếp từ Workspace hoặc ReplicatedStorage attributes/values của Sols RNG
+        for _, obj in pairs({Workspace, ReplicatedStorage, LocalPlayer}) do
+            local attr = obj:GetAttribute("Biome") or obj:GetAttribute("CurrentBiome")
+            if type(attr) == "string" then
+                local upper = attr:upper()
+                for bName, _ in pairs(BiomeData) do
+                    if string.find(upper, bName, 1, true) then
+                        return bName
+                    end
                 end
             end
         end
 
-        -- Cách 3: Đếm trực tiếp số item cá nằm trong Backpack
-        if LocalPlayer:FindFirstChild("Backpack") then
-            for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-                if item:GetAttribute("IsFish") or string.find(item.Name:lower(), "fish") then
-                    count = count + 1
-                end
-            end
-        end
-    end)
-    return count
-end
-
--- Hàm Bán Cá trực tiếp không cần mở Inventory
-local function ExecuteInstantSellFish()
-    pcall(function()
-        local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
-        local SellRemote = Remotes:FindFirstChild("SellFish") or Remotes:FindFirstChild("SellAll") or Remotes:FindFirstChild("FishingRemote") or Remotes:FindFirstChild("MerchantRemote")
-        if SellRemote then
-            SellRemote:FireServer("SellAll")
-            SellRemote:FireServer("Sell")
-        end
-    end)
-end
-
--- ==========================================
--- // HÀM QUÉT BIOME ĐÃ FIX TOÀN BỘ BUG
--- ==========================================
-local function GetAccurateServerBiome()
-    local foundBiome = "NORMAL"
-    pcall(function()
-        -- Bước 1: Ưu tiên đọc từ Attribute hoặc Value của Server (Chính xác 100% không sợ lỗi UI)
-        local serverBiomeAttr = Workspace:GetAttribute("Biome") or Workspace:GetAttribute("CurrentBiome") or ReplicatedStorage:GetAttribute("Biome")
-        if serverBiomeAttr and type(serverBiomeAttr) == "string" then
-            local upperAttr = serverBiomeAttr:upper()
-            for _, bName in ipairs(BiomeScanPriority) do
-                if string.find(upperAttr, bName, 1, true) then
-                    foundBiome = bName
-                    return
-                end
-            end
-        end
-
-        local biomeValObj = ReplicatedStorage:FindFirstChild("Biome") or ReplicatedStorage:FindFirstChild("CurrentBiome") or Workspace:FindFirstChild("Biome")
-        if biomeValObj and biomeValObj:IsA("StringValue") then
-            local upperVal = biomeValObj.Value:upper()
-            for _, bName in ipairs(BiomeScanPriority) do
-                if string.find(upperVal, bName, 1, true) then
-                    foundBiome = bName
-                    return
-                end
-            end
-        end
-
-        -- Bước 2: Quét trên HUD chính (Loại trừ hoàn toàn Inventory/Backpack/Chat để không dính bug đọc nhầm tên Item)
-        for _, v in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
-            if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
-                local fullName = v:GetFullName():upper()
-                -- Bỏ qua nếu TextLabel nằm trong Inventory, Backpack, Shop, Chat hoặc chính UI Rayfield
-                if not string.find(fullName, "INVENTORY") 
-                   and not string.find(fullName, "BACKPACK") 
-                   and not string.find(fullName, "RAYFIELD") 
-                   and not string.find(fullName, "CHAT") 
-                   and not string.find(fullName, "SHOP") then
-                    
-                    local textUpper = v.Text:upper()
-                    -- Chỉ xét các TextLabel ngắn hiển thị trạng thái Biome trên HUD
-                    if #textUpper <= 35 and (v.Name:upper():find("BIOME") or textUpper:find("%[") or BiomeData[textUpper]) then
-                        for _, bName in ipairs(BiomeScanPriority) do
-                            if string.find(textUpper, bName, 1, true) then
-                                foundBiome = bName
-                                return
-                            end
-                        end
+        -- Quét qua các StringValue lưu trạng thái Biome trong game
+        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+            if v:IsA("StringValue") and (v.Name:upper():find("BIOME") or v.Name:upper():find("WEATHER")) then
+                local val = v.Value:upper()
+                for bName, _ in pairs(BiomeData) do
+                    if string.find(val, bName, 1, true) then
+                        detected = bName
+                        return detected
                     end
                 end
             end
         end
     end)
-    return foundBiome
+    return detected
 end
 
--- ==========================================
--- // KHỞI TẠO MENU GIAO DIỆN: PROJECT NyX
--- ==========================================
+-- // KHỞI TẠO RAYFIELD UI
 local Window = Rayfield:CreateWindow({
-    Name = "🌌 Project NyX | Liquid Glass Edition",
-    LoadingTitle = "Project NyX",
-    LoadingSubtitle = "Smart Biome & Fishsol Macro",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "ProjectNyX",
-        FileName = "NyXConfig"
-    },
+    Name = "🌌 Project NyX | Delta Mobile",
+    LoadingTitle = "Project NyX Engine",
+    LoadingSubtitle = "Delta Mobile Inject Edition",
+    ConfigurationSaving = { Enabled = true, FolderName = "ProjectNyXDelta", FileName = "Config" },
     KeySystem = false
 })
 
--- Kích hoạt hiệu ứng Liquid Glass ngay khi mở Menu
 task.spawn(function()
     task.wait(1)
-    ApplyLiquidGlass(NyXConfig.LiquidGlassEnabled, NyXConfig.GlassTransparency, NyXConfig.BlurSize)
+    ApplyLiquidGlass(NyXConfig.LiquidGlassEnabled, NyXConfig.GlassTransparency)
 end)
 
 -- ==========================================
--- // PHẦN 1: WEBHOOK TAB
+-- // TAB 1: WEBHOOK
 -- ==========================================
 local WebhookTab = Window:CreateTab("🌐 Webhook", 4483362458)
-WebhookTab:CreateSection("Kết nối Discord & Private Server")
+WebhookTab:CreateSection("Cấu hình Discord")
 
 WebhookTab:CreateInput({
-    Name = "Webhook URL",
-    PlaceholderText = "Dán link Discord Webhook...",
+    Name = "Webhook URL", PlaceholderText = "Dán link Discord Webhook...",
     RemoveTextAfterFocusLost = false,
     Callback = function(Text) NyXConfig.WebhookURL = Text end,
 })
 
 WebhookTab:CreateInput({
-    Name = "Discord ID",
-    PlaceholderText = "VD: 123456789012345678",
+    Name = "Discord ID", PlaceholderText = "VD: 123456789012345678",
     RemoveTextAfterFocusLost = false,
     Callback = function(Text) NyXConfig.DiscordID = Text end,
 })
 
 WebhookTab:CreateInput({
-    Name = "Link Private Server",
-    PlaceholderText = "https://www.roblox.com/games/...",
+    Name = "Link Private Server", PlaceholderText = "https://www.roblox.com/games/...",
     RemoveTextAfterFocusLost = false,
     Callback = function(Text) NyXConfig.PrivateServerLink = Text end,
 })
 
-WebhookTab:CreateSection("Chức năng Tự động Thông báo")
-
-local BiomeStatusLabel = WebhookTab:CreateLabel("🌍 Biome Hiện Tại: Đang quét...")
+WebhookTab:CreateSection("Trạng thái & Detect")
+local CurrentBiomeLabel = WebhookTab:CreateLabel("🌍 Biome Hiện Tại: Đang khởi tạo...")
 
 WebhookTab:CreateToggle({
-    Name = "Bật Detect Biome (Started & Ended)",
-    CurrentValue = false,
-    Flag = "ToggleBiomeWebhook",
+    Name = "Bật Detect Biome (Started & Ended)", CurrentValue = false,
     Callback = function(Value) NyXConfig.EnableBiomeWebhook = Value end,
 })
 
 WebhookTab:CreateToggle({
-    Name = "Bật Detect Merchant (Mari / Jester)",
-    CurrentValue = false,
-    Flag = "ToggleMerchantWebhook",
+    Name = "Bật Detect Merchant (Mari / Jester)", CurrentValue = false,
     Callback = function(Value) NyXConfig.EnableMerchantWebhook = Value end,
 })
 
-WebhookTab:CreateSection("Test Embed Nhỏ Gọn")
-
 WebhookTab:CreateButton({
-    Name = "🔔 Test Biome Started (Có @everyone)",
+    Name = "🔔 Test Webhook Embed",
     Callback = function()
-        local info = BiomeData["GLITCHED"]
-        SendBiomeStartedEmbed("GLITCHED", info.Color, "Everyone", info.Image)
-        Rayfield:Notify({Title = "Project NyX", Content = "Đã gửi Test Started (Glitched)!", Duration = 2})
-    end,
-})
-
-WebhookTab:CreateButton({
-    Name = "🔔 Test Biome Started (Message Thường)",
-    Callback = function()
-        local info = BiomeData["NULL"]
-        SendBiomeStartedEmbed("NULL", info.Color, "Normal", info.Image)
-        Rayfield:Notify({Title = "Project NyX", Content = "Đã gửi Test Started (Null)!", Duration = 2})
-    end,
-})
-
-WebhookTab:CreateButton({
-    Name = "🔕 Test Biome Ended (Gọn, Không PS)",
-    Callback = function()
-        local info = BiomeData["GLITCHED"]
-        SendBiomeEndedEmbed("GLITCHED", info.Color, info.Image)
-        Rayfield:Notify({Title = "Project NyX", Content = "Đã gửi Test Ended!", Duration = 2})
+        SendDiscordEmbed("Biome Started - GLITCHED", "", 0x228855, "Everyone", BiomeData["GLITCHED"].Image, true)
+        Rayfield:Notify({Title = "Project NyX", Content = "Đã gửi Test Webhook!", Duration = 2})
     end,
 })
 
 -- ==========================================
--- // PHẦN 2: INVENTORY TAB
+-- // TAB 2: INVENTORY (BYPASS & STOP AUTO)
 -- ==========================================
 local InventoryTab = Window:CreateTab("🎒 Inventory", 4483362458)
-InventoryTab:CreateSection("Auto Biome Randomizer & Strange Controller")
+InventoryTab:CreateSection("Randomizer & Strange Controller")
 
 InventoryTab:CreateButton({
     Name = "🎲 Dùng ngay: Biome Randomizer",
-    Callback = function()
-        FireItemRemote("Biome Randomizer")
-        Rayfield:Notify({Title = "Project NyX", Content = "Đã dùng Biome Randomizer!", Duration = 2})
-    end,
+    Callback = function() FireGameRemote("UseItem", "Biome Randomizer") end,
 })
 
 InventoryTab:CreateButton({
     Name = "🕹️ Dùng ngay: Strange Controller",
-    Callback = function()
-        FireItemRemote("Strange Controller")
-        Rayfield:Notify({Title = "Project NyX", Content = "Đã dùng Strange Controller!", Duration = 2})
-    end,
+    Callback = function() FireGameRemote("UseItem", "Strange Controller") end,
 })
 
 InventoryTab:CreateToggle({
-    Name = "Auto Biome Randomizer",
-    CurrentValue = false,
-    Flag = "AutoBR",
+    Name = "Auto Biome Randomizer (Tự ngắt khi gặp Stop Auto)", CurrentValue = false,
     Callback = function(Value) NyXConfig.AutoBiomeRandomizer = Value end,
 })
 
 InventoryTab:CreateToggle({
-    Name = "Auto Strange Controller",
-    CurrentValue = false,
-    Flag = "AutoSC",
+    Name = "Auto Strange Controller (Tự ngắt khi gặp Stop Auto)", CurrentValue = false,
     Callback = function(Value) NyXConfig.AutoStrangeController = Value end,
 })
 
-InventoryTab:CreateSection("🛑 Stop Auto in (Tự dừng Random khi gặp Biome)")
-
+InventoryTab:CreateSection("🛑 Stop Auto in (Dừng Random khi trúng Biome)")
 InventoryTab:CreateDropdown({
-    Name = "Stop Auto in (Chọn các Biome muốn giữ lại)",
+    Name = "Chọn Biome cần giữ lại (Không Random nữa)",
     Options = All16Biomes,
     CurrentOption = {"GLITCHED", "DREAMSPACE", "CYBERSPACE"},
     MultipleOptions = true,
-    Flag = "StopAutoInDropdown",
-    Callback = function(SelectedOptions)
-        for _, bName in ipairs(All16Biomes) do
-            NyXConfig.StopAutoBiomes[bName] = false
-        end
-        for _, chosenBiome in ipairs(SelectedOptions) do
-            NyXConfig.StopAutoBiomes[chosenBiome] = true
-        end
+    Callback = function(Selected)
+        for _, b in ipairs(All16Biomes) do NyXConfig.StopAutoBiomes[b] = false end
+        for _, b in ipairs(Selected) do NyXConfig.StopAutoBiomes[b] = true end
     end,
 })
 
-InventoryTab:CreateSection("✨ 16 Nút Chọn Nhanh Biome (Biome Selector)")
-
-for index, biomeName in ipairs(All16Biomes) do
+InventoryTab:CreateSection("✨ 16 Nút Chọn Biome Trực Tiếp (Biome Selector)")
+for i, bName in ipairs(All16Biomes) do
     InventoryTab:CreateButton({
-        Name = "[" .. index .. "] Chọn Biome: " .. biomeName,
+        Name = "["..i.."] Selector -> " .. bName,
         Callback = function()
-            FireItemRemote("Biome Selector", biomeName)
-            Rayfield:Notify({Title = "Project NyX", Content = "Đã chọn Biome: " .. biomeName, Duration = 2})
+            FireGameRemote("UseItem", "Biome Selector", bName)
+            Rayfield:Notify({Title = "Project NyX", Content = "Đã dùng Selector cho: " .. bName, Duration = 2})
         end,
     })
 end
 
 -- ==========================================
--- // PHẦN 3: FISHING TAB (CHUẨN FISHSOL + SELL AT SLOT)
+-- // TAB 3: FISHING & CHECKPOINT
 -- ==========================================
 local FishingTab = Window:CreateTab("🎣 Fishing", 4483362458)
-FishingTab:CreateSection("Fishsol Macro & Kiểm Soát Kho Cá (Chống Lag)")
+FishingTab:CreateSection("Hệ Thống Checkpoint & Auto Fishsol")
 
-local FishSlotLabel = FishingTab:CreateLabel("🐟 Số cá trong kho hiện tại: 0 | Tự bán ở mốc: 25")
+local FishCountLabel = FishingTab:CreateLabel("🐟 Số cá trong kho: 0 | Mốc tự bán: 25")
+
+FishingTab:CreateButton({
+    Name = "📍 Set Checkpoint (Lưu vị trí đứng câu cá hiện tại)",
+    Callback = function()
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            NyXConfig.SavedCheckpoint = hrp.CFrame
+            Rayfield:Notify({Title = "Checkpoint Saved!", Content = "Đã lưu tọa độ vị trí câu cá!", Duration = 3})
+        end
+    end,
+})
 
 FishingTab:CreateToggle({
-    Name = "Auto Cast & Catch (Câu tự động chuẩn Fishsol)",
-    CurrentValue = false,
-    Flag = "AutoCastToggle",
+    Name = "Auto Return to Checkpoint (Tự kéo về chỗ cũ nếu bị lệch)", CurrentValue = true,
+    Callback = function(Value) NyXConfig.AutoReturnToCheckpoint = Value end,
+})
+
+FishingTab:CreateToggle({
+    Name = "Auto Cast & Catch (Fishsol Mobile Macro)", CurrentValue = false,
     Callback = function(Value) NyXConfig.AutoCast = Value end,
 })
 
 FishingTab:CreateToggle({
-    Name = "Auto Sell At (Tự bán khi đạt mốc số cá đã chọn)",
-    CurrentValue = false,
-    Flag = "AutoSellToggle",
+    Name = "Auto Sell At (Tự bán khi đầy kho)", CurrentValue = false,
     Callback = function(Value) NyXConfig.AutoSellFish = Value end,
 })
 
 FishingTab:CreateSlider({
-    Name = "Sell At (Số lượng cá trong Inventory để tự bán)",
-    Range = {1, 200},
-    Increment = 1,
-    Suffix = " con cá",
-    CurrentValue = 25,
-    Flag = "SellAtSlider",
-    Callback = function(Value)
-        NyXConfig.SellAtAmount = Value
-        FishSlotLabel:Set("🐟 Số cá trong kho hiện tại: " .. NyXConfig.CurrentFishCount .. " | Tự bán ở mốc: " .. NyXConfig.SellAtAmount)
-    end,
+    Name = "Sell At (Số lượng cá để tự bán)",
+    Range = {1, 200}, Increment = 1, Suffix = " con", CurrentValue = 25,
+    Callback = function(Val) NyXConfig.SellAtAmount = Val end,
 })
 
 FishingTab:CreateButton({
-    Name = "💰 Sell All Fish Ngay Lập Tức (Bypass Inventory)",
+    Name = "💰 Bán Cá Ngay Lập Tức (Instant Sell)",
     Callback = function()
-        ExecuteInstantSellFish()
-        NyXConfig.CurrentFishCount = 0
-        FishSlotLabel:Set("🐟 Số cá trong kho hiện tại: 0 | Tự bán ở mốc: " .. NyXConfig.SellAtAmount)
-        Rayfield:Notify({Title = "Project NyX", Content = "Đã bán sạch cá trong kho!", Duration = 2})
+        FireGameRemote("SellAll")
+        FireGameRemote("SellFish")
+        Rayfield:Notify({Title = "Project NyX", Content = "Đã gửi lệnh bán cá!", Duration = 2})
     end,
 })
 
 -- ==========================================
--- // PHẦN 4: SETTINGS TAB (LIQUID GLASS & UNINSTALL)
+-- // TAB 4: SETTINGS & UNINSTALL
 -- ==========================================
 local SettingsTab = Window:CreateTab("⚙️ Settings", 4483362458)
-SettingsTab:CreateSection("Giao diện Liquid Glass (Hiệu ứng Kính Mờ)")
+SettingsTab:CreateSection("Giao diện Liquid Glass")
 
 SettingsTab:CreateToggle({
-    Name = "Bật hiệu ứng Liquid Glass UI",
-    CurrentValue = true,
-    Flag = "LiquidGlassToggle",
+    Name = "Bật hiệu ứng Kính Mờ (Liquid Glass)", CurrentValue = true,
     Callback = function(Value)
         NyXConfig.LiquidGlassEnabled = Value
-        ApplyLiquidGlass(Value, NyXConfig.GlassTransparency, NyXConfig.BlurSize)
+        ApplyLiquidGlass(Value, NyXConfig.GlassTransparency)
     end,
 })
 
 SettingsTab:CreateSlider({
-    Name = "Độ trong suốt Kính (Glass Transparency)",
-    Range = {0, 80},
-    Increment = 5,
-    Suffix = "%",
-    CurrentValue = 25,
-    Flag = "GlassTransSlider",
-    Callback = function(Value)
-        NyXConfig.GlassTransparency = Value / 100
-        if NyXConfig.LiquidGlassEnabled then
-            ApplyLiquidGlass(true, NyXConfig.GlassTransparency, NyXConfig.BlurSize)
-        end
+    Name = "Độ mờ nền UI", Range = {0, 80}, Increment = 5, Suffix = "%", CurrentValue = 20,
+    Callback = function(Val)
+        NyXConfig.GlassTransparency = Val / 100
+        if NyXConfig.LiquidGlassEnabled then ApplyLiquidGlass(true, NyXConfig.GlassTransparency) end
     end,
 })
 
-SettingsTab:CreateSlider({
-    Name = "Độ mờ Nền (Background Blur)",
-    Range = {0, 30},
-    Increment = 1,
-    Suffix = " px",
-    CurrentValue = 12,
-    Flag = "BlurSizeSlider",
-    Callback = function(Value)
-        NyXConfig.BlurSize = Value
-        if NyXConfig.LiquidGlassEnabled then
-            ApplyLiquidGlass(true, NyXConfig.GlassTransparency, NyXConfig.BlurSize)
-        end
-    end,
-})
-
-SettingsTab:CreateSection("Quản lý Script & Hệ thống")
-
+SettingsTab:CreateSection("Quản lý Script")
 SettingsTab:CreateButton({
-    Name = "🗑️ Destroy UI / Uninstall (Tắt hoàn toàn Script)",
+    Name = "🗑️ Destroy UI / Uninstall (Tắt sạch Script)",
     Callback = function()
-        -- 1. Dừng toàn bộ vòng lặp
         ScriptRunning = false
-        NyXConfig.AutoBiomeRandomizer = false
-        NyXConfig.AutoStrangeController = false
-        NyXConfig.AutoCast = false
-        NyXConfig.AutoSellFish = false
-        
-        -- 2. Ngắt kết nối Anti-AFK và xóa hiệu ứng Blur
-        if IdledConnection then IdledConnection:Disconnect() end
+        if IdledConn then IdledConn:Disconnect() end
         if NyXBlur then NyXBlur:Destroy() end
-        
-        -- 3. Hủy giao diện Rayfield
         Rayfield:Destroy()
     end,
 })
 
 -- ==========================================
--- // VÒNG LẶP XỬ LÝ NGẦM (ĐÃ TỐI ƯU & CHỐNG BUG)
+-- // VÒNG LẶP XỬ LÝ NGẦM (BACKGROUND TASKS)
 -- ==========================================
 
--- 1. Vòng lặp Detect Biome Chuẩn Xác
+-- 1. Detect Biome & Merchant ngầm (Delta Memory)
 task.spawn(function()
-    local lastBiome = GetAccurateServerBiome()
+    local lastBiome = GetTrueGameBiome()
     NyXConfig.CurrentDetectedBiome = lastBiome
-    BiomeStatusLabel:Set("🌍 Biome Hiện Tại: " .. lastBiome)
 
-    while ScriptRunning and task.wait(0.8) do
-        local detectedBiome = GetAccurateServerBiome()
-        NyXConfig.CurrentDetectedBiome = detectedBiome
-        BiomeStatusLabel:Set("🌍 Biome Hiện Tại: " .. detectedBiome)
+    while ScriptRunning and task.wait(1) do
+        local currentBiome = GetTrueGameBiome()
+        NyXConfig.CurrentDetectedBiome = currentBiome
+        CurrentBiomeLabel:Set("🌍 Biome Hiện Tại: " .. currentBiome)
 
-        if detectedBiome ~= lastBiome then
-            local previousBiome = lastBiome
-            lastBiome = detectedBiome
+        if currentBiome ~= lastBiome then
+            local oldBiome = lastBiome
+            lastBiome = currentBiome
 
             if NyXConfig.EnableBiomeWebhook then
-                -- Nếu Biome cũ kết thúc -> Gửi Embed Ended nhỏ gọn
-                if previousBiome ~= "NORMAL" and BiomeData[previousBiome] then
-                    local prevInfo = BiomeData[previousBiome]
-                    SendBiomeEndedEmbed(previousBiome, prevInfo.Color, prevInfo.Image)
+                if oldBiome ~= "NORMAL" and BiomeData[oldBiome] then
+                    SendDiscordEmbed("Biome Ended - " .. oldBiome, "", 0x555555, "None", BiomeData[oldBiome].Image, false)
                 end
-
-                -- Nếu Biome mới bắt đầu -> Gửi Embed Started
-                if detectedBiome ~= "NORMAL" and BiomeData[detectedBiome] then
-                    local newInfo = BiomeData[detectedBiome]
-                    SendBiomeStartedEmbed(detectedBiome, newInfo.Color, newInfo.Type, newInfo.Image)
+                if currentBiome ~= "NORMAL" and BiomeData[currentBiome] then
+                    local info = BiomeData[currentBiome]
+                    SendDiscordEmbed("Biome Started - " .. currentBiome, "", info.Color, info.Type, info.Image, true)
                 end
-            end
-
-            -- Kiểm tra nếu trúng Biome trong Stop Auto in
-            if NyXConfig.StopAutoBiomes[detectedBiome] then
-                Rayfield:Notify({
-                    Title = "🛑 Đã Dừng Auto Randomizer!",
-                    Content = "Phát hiện Biome: " .. detectedBiome .. ". Sẽ tự chạy lại khi hết Biome!",
-                    Duration = 4
-                })
             end
         end
     end
 end)
 
--- 2. Vòng lặp Detect Merchant (Mari & Jester)
+-- 2. Auto Randomizer thông minh (Tự ngắt khi trúng Stop Auto)
 task.spawn(function()
-    local merchantSpawned = false
-    while ScriptRunning and task.wait(2.5) do
-        if NyXConfig.EnableMerchantWebhook then
-            pcall(function()
-                local foundMerchant = nil
-                for _, obj in pairs(Workspace:GetChildren()) do
-                    local nameUpper = obj.Name:upper()
-                    if string.find(nameUpper, "MARI") or string.find(nameUpper, "JESTER") or string.find(nameUpper, "MERCHANT") then
-                        foundMerchant = obj.Name
-                        break
-                    end
-                end
+    while ScriptRunning and task.wait(1.5) do
+        local activeBiome = NyXConfig.CurrentDetectedBiome
+        local isStopped = NyXConfig.StopAutoBiomes[activeBiome] == true
 
-                if foundMerchant and not merchantSpawned then
-                    merchantSpawned = true
-                    local isJester = string.find(foundMerchant:upper(), "JESTER")
-                    SendBiomeStartedEmbed(
-                        "Merchant (" .. foundMerchant .. ")",
-                        isJester and 0x9B59B6 or 0x2ECC71,
-                        isJester and "Everyone" or "Normal",
-                        "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"
-                    )
-                elseif not foundMerchant then
-                    merchantSpawned = false
+        if not isStopped then
+            if NyXConfig.AutoBiomeRandomizer then FireGameRemote("UseItem", "Biome Randomizer") end
+            if NyXConfig.AutoStrangeController then FireGameRemote("UseItem", "Strange Controller") end
+        end
+    end
+end)
+
+-- 3. Auto Fishing, Checkpoint & Sell At
+task.spawn(function()
+    local fishCounter = 0
+    while ScriptRunning and task.wait(1) do
+        -- Kiểm tra Checkpoint
+        if NyXConfig.AutoReturnToCheckpoint and NyXConfig.SavedCheckpoint then
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp and (hrp.Position - NyXConfig.SavedCheckpoint.Position).Magnitude > 15 then
+                    hrp.CFrame = NyXConfig.SavedCheckpoint
                 end
             end)
         end
-    end
-end)
 
--- 3. Vòng lặp Auto Randomizer / Strange Controller (Tự ngắt khi trúng Stop Auto in)
-task.spawn(function()
-    while ScriptRunning and task.wait(1.5) do
-        local currentB = NyXConfig.CurrentDetectedBiome
-        local isPausedByBiome = NyXConfig.StopAutoBiomes[currentB] == true
-
-        if not isPausedByBiome then
-            if NyXConfig.AutoBiomeRandomizer then
-                FireItemRemote("Biome Randomizer")
-            end
-            if NyXConfig.AutoStrangeController then
-                FireItemRemote("Strange Controller")
-            end
-        end
-    end
-end)
-
--- 4. Vòng lặp Fishsol Macro & Smart Sell At Inventory Count
-task.spawn(function()
-    local internalCatchCounter = 0
-    while ScriptRunning and task.wait(1) do
-        -- Đọc số cá thực tế từ Inventory, nếu game ẩn thông số thì dùng bộ đếm dự phòng
-        local realFishCount = GetCurrentFishInventoryCount()
-        if realFishCount > 0 then
-            NyXConfig.CurrentFishCount = realFishCount
-        else
-            NyXConfig.CurrentFishCount = internalCatchCounter
-        end
-
-        FishSlotLabel:Set("🐟 Số cá trong kho hiện tại: " .. NyXConfig.CurrentFishCount .. " | Tự bán ở mốc: " .. NyXConfig.SellAtAmount)
-
-        -- Logic Auto Cast & Minigame Bypass kiểu Fishsol
+        -- Auto Cast
         if NyXConfig.AutoCast then
             pcall(function()
                 local char = LocalPlayer.Character
                 local tool = char and char:FindFirstChildOfClass("Tool")
                 if tool then tool:Activate() end
                 
-                local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
-                local CastRemote = Remotes:FindFirstChild("Cast") or Remotes:FindFirstChild("FishingRemote") or Remotes:FindFirstChild("FishRemote")
-                if CastRemote then
-                    CastRemote:FireServer("Cast")
-                    task.wait(0.4)
-                    CastRemote:FireServer("Catch", true)
-                    CastRemote:FireServer("Reel")
-                end
-                internalCatchCounter = internalCatchCounter + 1
+                FireGameRemote("Cast")
+                FireGameRemote("Catch", true)
+                FireGameRemote("Reel")
+                fishCounter = fishCounter + 1
             end)
         end
 
-        -- Logic Kiểm tra mốc Sell At (Chống đầy kho gây lag)
-        if NyXConfig.AutoSellFish and NyXConfig.CurrentFishCount >= NyXConfig.SellAtAmount then
-            ExecuteInstantSellFish()
-            internalCatchCounter = 0
-            NyXConfig.CurrentFishCount = 0
-            FishSlotLabel:Set("🐟 Số cá trong kho hiện tại: 0 | Tự bán ở mốc: " .. NyXConfig.SellAtAmount)
-            Rayfield:Notify({
-                Title = "🎣 Auto Sell At Kích Hoạt!",
-                Content = "Kho cá đã chạm mốc " .. NyXConfig.SellAtAmount .. " con! Đã tự động bán sạch để chống lag.",
-                Duration = 2.5
-            })
+        -- Auto Sell At
+        if NyXConfig.AutoSellFish and fishCounter >= NyXConfig.SellAtAmount then
+            FireGameRemote("SellAll")
+            FireGameRemote("SellFish")
+            fishCounter = 0
+            Rayfield:Notify({Title = "Auto Sell At", Content = "Đã tự động bán cá để chống đầy kho!", Duration = 2})
         end
+
+        FishCountLabel:Set("🐟 Số cá câu được: " .. fishCounter .. " | Mốc tự bán: " .. NyXConfig.SellAtAmount)
     end
 end)
