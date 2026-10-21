@@ -1,7 +1,7 @@
--- // NyX DETECTOR - SOLS RNG MACRO (ARGON UNIVERSAL EDITION)
+-- // NyX DETECTOR - SOLS RNG MACRO (ARGON UNIVERSAL EDITION - FIXED)
 -- // Giao diện Liquid Glass Menu + Nút nổi ND + Failsafe Auto Inventory
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/sirius'))()
 
 -- // Dịch vụ hệ thống
 local Players = game:GetService("Players")
@@ -20,22 +20,22 @@ local MacroStartTime = 0
 
 -- // Bảng dữ liệu 16 Biome chuẩn theo Eon 1-30
 local BiomeData = {
-    ["NORMAL"] = {Color = 0xAAAAAA, Type = "None", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["WINDY"] = {Color = 0x55FFFF, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["SNOWY"] = {Color = 0xAAFFFF, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["RAINY"] = {Color = 0x4477FF, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["SANDSTORM"] = {Color = 0xCC9955, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["HELL"] = {Color = 0xFF3300, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["STARFALL"] = {Color = 0x2266FF, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["HEAVEN"] = {Color = 0xFFEEAA, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["LOST FOREST"] = {Color = 0x33FF33, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["CORRUPTION"] = {Color = 0x8833FF, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["NULL"] = {Color = 0x777777, Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["GLITCHED"] = {Color = 0x228855, Type = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["DREAMSPACE"] = {Color = 0xFF66CC, Type = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["CYBERSPACE"] = {Color = 0x2255AA, Type = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["SINGULARITY"] = {Color = 0xFF9955, Type = "Rare", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Type = "Rare", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
+    ["NORMAL"] = {Color = 0xAAAAAA, Type = "None", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
+    ["WINDY"] = {Color = 0x55FFFF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
+    ["SNOWY"] = {Color = 0xAAFFFF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/8/86/DISCORICH-SNOWY.png/revision/latest/scale-to-width-down/250?cb=20260823041153"},
+    ["RAINY"] = {Color = 0x4477FF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/7/77/DISCORICH-RAINY.png/revision/latest/scale-to-width-down/250?cb=20260823042833"},
+    ["SANDSTORM"] = {Color = 0xCC9955, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHyGYg2pr47DNuAlzWPvO8GvfI4Q-10h4EEqne__0LCA&s"},
+    ["HELL"] = {Color = 0xFF3300, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/b/b9/DISCORICH-HELL.png/revision/latest/scale-to-width-down/250?cb=20260823044812"},
+    ["STARFALL"] = {Color = 0x2266FF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/1/11/DISCORICH-STARFALL.png/revision/latest/scale-to-width-down/250?cb=20260823041135"},
+    ["HEAVEN"] = {Color = 0xFFEEAA, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA7MvgAC3DxYVI4jt4DQ8YUvNRgHnLhtYIOJjnhvLJGUMhYvd4wtctOZ0l&s=10"},
+    ["LOST FOREST"] = {Color = 0x33FF33, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT7cTBAkzKDZO8sb9wAPHDpuVwRyWhAuHfEUkqEzH3CLw&s"},
+    ["CORRUPTION"] = {Color = 0x8833FF, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHLaYqUpmoLGJiST12FRbfmlWzorC4J4LVUBFSxKG9TA&s"},
+    ["NULL"] = {Color = 0x777777, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXSoTVgOGdurb913lQNnreYlm68Nd1zthlDWnt-uzl0qY5QcvV7FZDZ8o&s=10"},
+    ["GLITCHED"] = {Color = 0x228855, Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRZDgmOTmOuKCus91vLwkxmxVdYN9ZmO55GJwEW9Mk9A&s=10"},
+    ["DREAMSPACE"] = {Color = 0xFF66CC, Type = "Everyone", Image = "https://i1.sndcdn.com/artworks-4REvzocas0Xf3WZQ-wlFSVw-t500x500.jpg"},
+    ["CYBERSPACE"] = {Color = 0x2255AA, Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWnzl06DTg0F8rYnpLbHJhIj3pV58GaRfJLrkwCWhTAYa1GOyhlzflCj_M&s=10"},
+    ["SINGULARITY"] = {Color = 0xFF9955, Type = "Rare", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR9sl4YUs1-pBY2SJgepOHHrBAxjha7AP2_fxjx0eJ_ag&s"},
+    ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Type = "Rare", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZxdhkfNNq7PMavKT9srm09DU-sH6DueoDYk9Hw1wPStkUylWMsx126nY&s=10"}
 }
 
 local BiomeScanPriority = {
@@ -59,7 +59,7 @@ local NyXConfig = {
     EnableMerchantWebhook = false,
     AutoBiomeRandomizer = false,
     AutoStrangeController = false,
-    UseInterval = 20, -- Thời gian chờ giữa mỗi lần mở Inventory dùng thuốc (giây)
+    UseInterval = 20,
     StopAutoBiomes = {},
     CurrentDetectedBiome = "NORMAL",
     LiquidGlassMenu = true,
@@ -78,12 +78,15 @@ local IdledConn = LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
 end)
 
--- // Hàm định dạng Thời gian Macro (Đếm vô hạn HH:MM:SS)
-local function GetMacroUptime()
-    if not NyXConfig.EnableBiomeWebhook or MacroStartTime == 0 then
-        return "00:00:00"
+-- // Hàm định dạng Thời gian Macro (Hỗ trợ truyền thời gian tĩnh khi dừng)
+local function GetMacroUptime(forcedElapsed)
+    local elapsed = forcedElapsed
+    if not elapsed then
+        if not NyXConfig.EnableBiomeWebhook or MacroStartTime == 0 then
+            return "00:00:00"
+        end
+        elapsed = math.floor(os.time() - MacroStartTime)
     end
-    local elapsed = math.floor(os.time() - MacroStartTime)
     local hours = math.floor(elapsed / 3600)
     local mins = math.floor((elapsed % 3600) / 60)
     local secs = elapsed % 60
@@ -91,11 +94,11 @@ local function GetMacroUptime()
 end
 
 -- ==========================================
--- // HỆ THỐNG DISCORD WEBHOOK EMBED CHUẨN MỚI
+-- // HỆ THỐNG DISCORD WEBHOOK EMBED
 -- ==========================================
 local function SendRawWebhook(payload)
     if NyXConfig.WebhookURL == "" then return end
-    local req = (syn and syn.request) or http_request or request or HttpPost
+    local req = (syn and syn.request) or http_request or request
     if req then
         pcall(function()
             req({
@@ -108,22 +111,18 @@ local function SendRawWebhook(payload)
     end
 end
 
--- 1. Nút Test Webhook duy nhất: "Webhook Test - Successfully" + "Project NyX"
 local function SendTestWebhookEmbed()
     SendRawWebhook({
         ["content"] = "",
         ["embeds"] = {{
             ["title"] = "Webhook Test - Successfully",
             ["color"] = 0x2ECC71,
-            ["footer"] = {
-                ["text"] = "Project NyX"
-            }
+            ["footer"] = {["text"] = "Project NyX"}
         }}
     })
 end
 
--- 2. Embed khi bật/tắt Start Detector: "Macro Started" & "Macro Stopped"
-local function SendMacroStateEmbed(isStarted)
+local function SendMacroStateEmbed(isStarted, finalElapsed)
     local currentClock = os.date("%H:%M:%S")
     if isStarted then
         SendRawWebhook({
@@ -132,28 +131,23 @@ local function SendMacroStateEmbed(isStarted)
                 ["title"] = "🟢 Macro Started",
                 ["description"] = "Hệ thống **NyX Detector** đã bắt đầu theo dõi Biome!\n⏱️ **Thời gian Macro :** `00:00:00`",
                 ["color"] = 0x00FF88,
-                ["footer"] = {
-                    ["text"] = "NyX Detector • " .. currentClock
-                }
+                ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
             }}
         })
     else
-        local finalUptime = GetMacroUptime()
+        local uptimeStr = GetMacroUptime(finalElapsed or 0)
         SendRawWebhook({
             ["content"] = "",
             ["embeds"] = {{
                 ["title"] = "🔴 Macro Stopped",
-                ["description"] = "Đã tạm dừng **NyX Detector**.\n⏱️ **Tổng thời gian đã chạy :** `" .. finalUptime .. "` *(Đã Reset)*",
+                ["description"] = "Đã tạm dừng **NyX Detector**.\n⏱️ **Tổng thời gian đã chạy :** `" .. uptimeStr .. "` *(Đã Reset)*",
                 ["color"] = 0xFF3344,
-                ["footer"] = {
-                    ["text"] = "NyX Detector • " .. currentClock
-                }
+                ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
             }}
         })
     end
 end
 
--- 3. Embed khi phát hiện Biome Started
 local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
     local contentMsg = ""
     if pingType == "Everyone" then
@@ -173,14 +167,11 @@ local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
             ["description"] = "⏱️ **Thời gian Macro :** `" .. uptimeStr .. "`\n🔗 **Private Server :** " .. psDisplay,
             ["color"] = color or 0x9B59B6,
             ["thumbnail"] = {["url"] = imageUrl},
-            ["footer"] = {
-                ["text"] = "NyX Detector • " .. currentClock
-            }
+            ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
         }}
     })
 end
 
--- 4. Embed khi Biome Ended (Không có Private Server)
 local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
     local currentClock = os.date("%H:%M:%S")
     local uptimeStr = GetMacroUptime()
@@ -192,15 +183,13 @@ local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
             ["description"] = "⏱️ **Thời gian Macro :** `" .. uptimeStr .. "`",
             ["color"] = color or 0x555555,
             ["thumbnail"] = {["url"] = imageUrl},
-            ["footer"] = {
-                ["text"] = "NyX Detector • " .. currentClock
-            }
+            ["footer"] = {["text"] = "NyX Detector • " .. currentClock}
         }}
     })
 end
 
 -- ==========================================
--- // HIỆU ỨNG LIQUID GLASS MENU & LOGO NỔI "ND"
+-- // HIỆU ỨNG LIQUID GLASS & LOGO NỔI "ND"
 -- ==========================================
 local NDGui = nil
 local RayfieldMainFrame = nil
@@ -211,17 +200,13 @@ local function ApplyMenuLiquidGlass(enabled, trans)
         if not rfGui then return end
 
         for _, v in pairs(rfGui:GetDescendants()) do
-            -- Ẩn thanh Rayfield nhỏ mặc định để dùng Logo ND riêng
-            if v:IsA("Frame") and (v.Name == "Notice" or v.Name == "LoadingFrame") then
-                -- Giữ nguyên
-            elseif v:IsA("Frame") and (v.Name == "Main" or v.Name == "Topbar" or v.Name == "Elements" or v.Name == "TabList") then
+            if v:IsA("Frame") and (v.Name == "Main" or v.Name == "Topbar" or v.Name == "Elements" or v.Name == "TabList") then
                 if v.Name == "Main" then RayfieldMainFrame = v end
                 v.BackgroundTransparency = enabled and trans or 0
                 if enabled then
                     v.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
                 end
             elseif v:IsA("Frame") and v.Parent and v.Parent.Name == "Elements" then
-                -- Làm trong suốt các nút và khung bên trong Menu
                 v.BackgroundTransparency = enabled and (trans + 0.15) or 0
             elseif v:IsA("UIStroke") then
                 if enabled then
@@ -236,7 +221,6 @@ local function ApplyMenuLiquidGlass(enabled, trans)
     end)
 end
 
--- Hàm tạo Logo hình vuông "ND" (Decor đẹp, kéo thả được, bấm vào để đóng/mở Menu)
 local function CreateNDLogoButton()
     pcall(function()
         local parentTarget = (gethui and gethui()) or CoreGui or LocalPlayer.PlayerGui
@@ -263,12 +247,10 @@ local function CreateNDLogoButton()
         NDButton.AutoButtonColor = true
         NDButton.Parent = NDGui
 
-        -- Bo góc vuông mềm
         local Corner = Instance.new("UICorner")
         Corner.CornerRadius = UDim.new(0, 12)
         Corner.Parent = NDButton
 
-        -- Viền Neon Gradient
         local Stroke = Instance.new("UIStroke")
         Stroke.Thickness = 2.2
         Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -284,7 +266,6 @@ local function CreateNDLogoButton()
         Gradient.Rotation = 45
         Gradient.Parent = Stroke
 
-        -- Chữ nhỏ trang trí bên dưới chữ ND
         local SubText = Instance.new("TextLabel")
         SubText.Size = UDim2.new(1, 0, 0, 12)
         SubText.Position = UDim2.new(0, 0, 0.72, 0)
@@ -295,7 +276,6 @@ local function CreateNDLogoButton()
         SubText.TextSize = 8
         SubText.Parent = NDButton
 
-        -- Tính năng kéo thả nút ND trên màn hình
         local dragging, dragInput, dragStart, startPos
         NDButton.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -319,7 +299,6 @@ local function CreateNDLogoButton()
             end
         end)
 
-        -- Bấm vào Logo ND để Đóng / Mở Menu chính
         NDButton.MouseButton1Click:Connect(function()
             local rfGui = CoreGui:FindFirstChild("Rayfield") or LocalPlayer.PlayerGui:FindFirstChild("Rayfield")
             if rfGui then
@@ -339,7 +318,6 @@ end
 -- ==========================================
 local function ClickGuiElement(guiObj)
     pcall(function()
-        -- Ưu tiên 1: Gọi trực tiếp sự kiện MouseButton1Click thông qua getconnections (nếu Executor hỗ trợ)
         if getconnections then
             for _, conn in pairs(getconnections(guiObj.MouseButton1Click)) do conn:Fire() end
             for _, conn in pairs(getconnections(guiObj.Activated)) do conn:Fire() end
@@ -349,7 +327,6 @@ local function ClickGuiElement(guiObj)
             pcall(firesignal, guiObj.Activated)
         end
 
-        -- Ưu tiên 2: Dùng VirtualInputManager click thẳng vào tọa độ nút trên màn hình (Failsafe 100% ăn)
         local pos = guiObj.AbsolutePosition
         local size = guiObj.AbsoluteSize
         local inset = GuiService:GetGuiInset()
@@ -369,7 +346,6 @@ local function UseItemWithInventoryFailsafe(itemName)
     isUsingInventoryFailsafe = true
 
     pcall(function()
-        -- Bước 1: Thử gọi các dạng Remote thông dụng trước
         local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
         for _, r in pairs(Remotes:GetDescendants()) do
             if r:IsA("RemoteEvent") and (r.Name:lower():find("use") or r.Name:lower():find("item") or r.Name:lower():find("inventory")) then
@@ -379,11 +355,9 @@ local function UseItemWithInventoryFailsafe(itemName)
             end
         end
 
-        -- Bước 2: FAILSAFE TỰ MỞ INVENTORY TRÊN MÀN HÌNH VÀ BẤM NÚT USE
         local pGui = LocalPlayer:FindFirstChild("PlayerGui")
         if not pGui then return end
 
-        -- Tìm khung Inventory của Sols RNG
         local invFrame = nil
         for _, v in pairs(pGui:GetDescendants()) do
             if v:IsA("Frame") and (v.Name == "Inventory" or v.Name == "InventoryFrame" or v.Name == "ItemsFrame") then
@@ -392,14 +366,12 @@ local function UseItemWithInventoryFailsafe(itemName)
             end
         end
 
-        -- Nếu Inventory đang đóng -> Tìm nút mở Inventory hoặc bật Visible lên
         local wasClosed = false
         if invFrame and not invFrame.Visible then
             wasClosed = true
             invFrame.Visible = true
             task.wait(0.25)
         elseif not invFrame then
-            -- Tìm nút chữ "Inventory" hoặc "Items" bên góc màn hình để bấm mở
             for _, btn in pairs(pGui:GetDescendants()) do
                 if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and (btn.Name:lower():find("inv") or (btn:IsA("TextButton") and btn.Text:lower():find("inventory"))) then
                     wasClosed = true
@@ -410,7 +382,6 @@ local function UseItemWithInventoryFailsafe(itemName)
             end
         end
 
-        -- Tìm ô Search trong Inventory (nếu có) để gõ tên Item cho lẹ
         for _, box in pairs(pGui:GetDescendants()) do
             if box:IsA("TextBox") and box.Visible and (box.PlaceholderText:lower():find("search") or box.Name:lower():find("search")) then
                 box.Text = itemName
@@ -419,7 +390,6 @@ local function UseItemWithInventoryFailsafe(itemName)
             end
         end
 
-        -- Tìm đúng ô chứa tên Item (Biome Randomizer / Strange Controller) và click vào nó
         local foundItemSlot = nil
         for _, lbl in pairs(pGui:GetDescendants()) do
             if lbl:IsA("TextLabel") and lbl.Visible and string.find(lbl.Text:lower(), itemName:lower(), 1, true) then
@@ -433,7 +403,6 @@ local function UseItemWithInventoryFailsafe(itemName)
             end
         end
 
-        -- Sau khi chọn Item, tìm nút "Use" màu xanh và bấm vào
         if foundItemSlot then
             for _, btn in pairs(pGui:GetDescendants()) do
                 if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and btn.Visible then
@@ -448,7 +417,6 @@ local function UseItemWithInventoryFailsafe(itemName)
             end
         end
 
-        -- Tự động đóng lại Inventory nếu trước đó đang đóng
         if wasClosed and invFrame then
             invFrame.Visible = false
         end
@@ -458,12 +426,12 @@ local function UseItemWithInventoryFailsafe(itemName)
 end
 
 -- ==========================================
--- // HÀM QUÉT BIOME CHÍNH XÁC (FIX BUG)
+-- // HÀM QUÉT BIOME CHÍNH XÁC (ĐÃ SỬA LỖI RETURN SCOPE)
 -- ==========================================
 local function GetAccurateServerBiome()
     local foundBiome = "NORMAL"
+
     pcall(function()
-        -- 1. Đọc từ Attribute hoặc Value của Server
         local serverBiomeAttr = Workspace:GetAttribute("Biome") or Workspace:GetAttribute("CurrentBiome") or ReplicatedStorage:GetAttribute("Biome")
         if serverBiomeAttr and type(serverBiomeAttr) == "string" then
             local upperAttr = serverBiomeAttr:upper()
@@ -474,7 +442,10 @@ local function GetAccurateServerBiome()
                 end
             end
         end
+    end)
+    if foundBiome ~= "NORMAL" then return foundBiome end
 
+    pcall(function()
         local biomeValObj = ReplicatedStorage:FindFirstChild("Biome") or ReplicatedStorage:FindFirstChild("CurrentBiome") or Workspace:FindFirstChild("Biome")
         if biomeValObj and biomeValObj:IsA("StringValue") then
             local upperVal = biomeValObj.Value:upper()
@@ -485,8 +456,10 @@ local function GetAccurateServerBiome()
                 end
             end
         end
+    end)
+    if foundBiome ~= "NORMAL" then return foundBiome end
 
-        -- 2. Đọc từ HUD (Loại bỏ hoàn toàn Inventory, Chat và Menu NyX Detector)
+    pcall(function()
         for _, v in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
             if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
                 local fullName = v:GetFullName():upper()
@@ -509,6 +482,7 @@ local function GetAccurateServerBiome()
             end
         end
     end)
+
     return foundBiome
 end
 
@@ -527,7 +501,6 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false
 })
 
--- Khởi tạo Logo vuông "ND" và phủ Liquid Glass cho Menu
 task.spawn(function()
     task.wait(1.2)
     CreateNDLogoButton()
@@ -570,13 +543,15 @@ WebhookTab:CreateToggle({
     CurrentValue = false,
     Flag = "ToggleBiomeWebhook",
     Callback = function(Value)
-        NyXConfig.EnableBiomeWebhook = Value
         if Value then
-            MacroStartTime = os.time() -- Bắt đầu đếm thời gian từ 00:00:00
-            SendMacroStateEmbed(true)  -- Gửi Embed "Macro Started"
+            NyXConfig.EnableBiomeWebhook = true
+            MacroStartTime = os.time()
+            SendMacroStateEmbed(true)
         else
-            SendMacroStateEmbed(false) -- Gửi Embed "Macro Stopped"
-            MacroStartTime = 0         -- Reset thời gian về 0
+            local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
+            NyXConfig.EnableBiomeWebhook = false
+            SendMacroStateEmbed(false, finalElapsed)
+            MacroStartTime = 0
             BiomeStatusLabel:Set("🌍 Biome: " .. NyXConfig.CurrentDetectedBiome .. " | ⏱️ Uptime: 00:00:00")
         end
     end,
@@ -591,7 +566,6 @@ WebhookTab:CreateToggle({
 
 WebhookTab:CreateSection("Kiểm tra Kết nối")
 
--- Đúng 1 nút Test Webhook duy nhất theo yêu cầu
 WebhookTab:CreateButton({
     Name = "🔔 Test Webhook",
     Callback = function()
@@ -605,7 +579,7 @@ WebhookTab:CreateButton({
 })
 
 -- ==========================================
--- // TAB 2: INVENTORY (FAILSAFE AUTO USE & STOP AUTO IN)
+-- // TAB 2: INVENTORY
 -- ==========================================
 local InventoryTab = Window:CreateTab("🎒 Inventory", 4483362458)
 InventoryTab:CreateSection("Sử dụng Item (Tự mở Inventory + Click Failsafe)")
@@ -671,7 +645,7 @@ InventoryTab:CreateDropdown({
 })
 
 -- ==========================================
--- // TAB 3: SETTINGS (LIQUID GLASS MENU & UNINSTALL)
+-- // TAB 3: SETTINGS
 -- ==========================================
 local SettingsTab = Window:CreateTab("⚙️ Settings", 4483362458)
 SettingsTab:CreateSection("Hiệu ứng Liquid Glass (Trong suốt Menu Script)")
@@ -708,7 +682,8 @@ SettingsTab:CreateButton({
     Callback = function()
         ScriptRunning = false
         if NyXConfig.EnableBiomeWebhook then
-            SendMacroStateEmbed(false)
+            local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
+            SendMacroStateEmbed(false, finalElapsed)
         end
         NyXConfig.EnableBiomeWebhook = false
         NyXConfig.AutoBiomeRandomizer = false
@@ -721,7 +696,7 @@ SettingsTab:CreateButton({
 })
 
 -- ==========================================
--- // VÒNG LẶP XỬ LÝ NGẦM (UPTIME, DETECT BIOME & FAILSAFE AUTO ITEM)
+-- // VÒNG LẶP XỬ LÝ NGẦM (TỐI ƯU HÓA FPS)
 -- ==========================================
 
 -- 1. Vòng lặp Detect Biome & Đếm thời gian Uptime
@@ -735,23 +710,18 @@ task.spawn(function()
         local uptimeStr = GetMacroUptime()
         BiomeStatusLabel:Set("🌍 Biome: " .. detectedBiome .. " | ⏱️ Uptime: " .. uptimeStr)
 
-        -- Giữ hiệu ứng Liquid Glass luôn phủ đều trên Menu
-        if NyXConfig.LiquidGlassMenu then
-            ApplyMenuLiquidGlass(true, NyXConfig.MenuTransparency)
-        end
+        -- Đã lược bỏ hàm ApplyMenuLiquidGlass khỏi vòng lặp mỗi giây để chống tụt FPS/lag máy
 
         if detectedBiome ~= lastBiome then
             local previousBiome = lastBiome
             lastBiome = detectedBiome
 
             if NyXConfig.EnableBiomeWebhook then
-                -- Gửi Biome Ended nếu Biome cũ kết thúc
                 if previousBiome ~= "NORMAL" and BiomeData[previousBiome] then
                     local prevInfo = BiomeData[previousBiome]
                     SendBiomeEndedEmbed(previousBiome, prevInfo.Color, prevInfo.Image)
                 end
 
-                -- Gửi Biome Started nếu Biome mới xuất hiện
                 if detectedBiome ~= "NORMAL" and BiomeData[detectedBiome] then
                     local newInfo = BiomeData[detectedBiome]
                     SendBiomeStartedEmbed(detectedBiome, newInfo.Color, newInfo.Type, newInfo.Image)
@@ -801,7 +771,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Vòng lặp Auto Biome Randomizer & Strange Controller (Có Failsafe Mở Inventory)
+-- 3. Vòng lặp Auto Biome Randomizer & Strange Controller
 task.spawn(function()
     while ScriptRunning do
         task.wait(1)
@@ -819,7 +789,6 @@ task.spawn(function()
                 end
             end
 
-            -- Đợi theo đúng số giây yêu cầu trên thanh trượt trước khi lặp lại
             local waited = 0
             while ScriptRunning and waited < NyXConfig.UseInterval do
                 task.wait(1)
