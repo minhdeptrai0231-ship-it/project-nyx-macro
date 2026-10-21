@@ -1,7 +1,7 @@
 -- // NyX DETECTOR - SOLS RNG MACRO (ARGON UNIVERSAL EDITION - FIXED)
 -- // Giao diện Liquid Glass Menu + Nút nổi ND + Failsafe Auto Inventory
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/sirius'))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- // Dịch vụ hệ thống
 local Players = game:GetService("Players")
