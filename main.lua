@@ -1,7 +1,7 @@
--- // NyX DETECTOR - SOLS RNG MACRO (AIRFLOW UI EDITION)
--- // Modern Airflow UI + No-Emoji Plain Text Embeds + 3 Merchants (Mari, Jester, Rin) + Custom UI Color Picker
+-- // NyX DETECTOR - SOLS RNG MACRO (SIRIUS RAYFIELD EDITION - FINAL FIXED)
+-- // Features: Working ND Button + Liquid Glass & Color Picker + Clean Plain-Text Embeds + 3 Merchants (Mari, Jester, Rin)
 
-local Airflow = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/AirFlow/refs/heads/main/src/source.luau"))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- // System Services
 local Players = game:GetService("Players")
@@ -75,9 +75,11 @@ local NyXConfig = {
         ["CYBERSPACE"] = true
     },
     CurrentDetectedBiome = "NORMAL",
-    AntiAFK = true,
-    UIAccentColor = Color3.fromRGB(165, 105, 255),
-    UIBackgroundColor = Color3.fromRGB(16, 16, 24)
+    LiquidGlassMenu = true,
+    MenuTransparency = 0.25,
+    UIAccentColor = Color3.fromRGB(175, 120, 255),
+    UIBackgroundColor = Color3.fromRGB(18, 18, 28),
+    AntiAFK = true
 }
 
 -- ==========================================
@@ -112,25 +114,6 @@ local function LoadWebhookConfig()
 end
 
 LoadWebhookConfig()
-
--- // Helper Notification Wrapper for Airflow
-local function NotifyUser(title, content, duration)
-    pcall(function()
-        if Airflow and Airflow.Notify then
-            Airflow:Notify({
-                Title = title,
-                Content = content,
-                Duration = duration or 3
-            })
-        else
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = title,
-                Text = content,
-                Duration = duration or 3
-            })
-        end
-    end)
-end
 
 -- // Anti-AFK Connection
 local IdledConn = LocalPlayer.Idled:Connect(function()
@@ -305,15 +288,20 @@ local function TriggerMerchantArrival(merchantName)
         }}
     })
 
-    NotifyUser("Merchant Detected", merchantName .. " has arrived!", 5)
+    Rayfield:Notify({
+        Title = "Merchant Detected",
+        Content = merchantName .. " has arrived!",
+        Duration = 4
+    })
 end
 
 -- ==========================================
--- // AIRFLOW UI FINDER, COLOR CUSTOMIZER & "ND" BUTTON
+-- // RAYFIELD LIQUID GLASS, COLOR STYLER & "ND" FLOATING BUTTON
 -- ==========================================
 local NDGui = nil
+local GlassConnections = {}
 
-local function FindAirflowGui()
+local function FindRayfieldScreenGui()
     local roots = {}
     if gethui then pcall(function() table.insert(roots, gethui()) end) end
     table.insert(roots, CoreGui)
@@ -324,57 +312,112 @@ local function FindAirflowGui()
     for _, root in ipairs(roots) do
         for _, gui in ipairs(root:GetChildren()) do
             if gui:IsA("ScreenGui") and gui.Name ~= "NyXDetectorLogoGui" then
-                if gui.Name:lower():find("airflow") or gui:FindFirstChild("NyX Detector", true) then
-                    return gui
-                end
-                for _, lbl in ipairs(gui:GetDescendants()) do
-                    if lbl:IsA("TextLabel") and lbl.Text:find("NyX Detector") then
-                        return gui
-                    end
+                local mainCheck = gui:FindFirstChild("Main", true)
+                if mainCheck and mainCheck:FindFirstChild("Topbar") then
+                    return gui, mainCheck
                 end
             end
         end
     end
-    return nil
+    return nil, nil
 end
 
-local function ApplyCustomUIColors(accentColor, bgColor)
+local function ApplyMenuThemeAndGlass()
     pcall(function()
-        if Airflow and Airflow.Config then
-            Airflow.Config.Highlight = accentColor
-        end
-        local afGui = FindAirflowGui()
-        if not afGui then return end
+        local rfGui, mainFrame = FindRayfieldScreenGui()
+        if not rfGui or not mainFrame then return end
 
-        for _, v in ipairs(afGui:GetDescendants()) do
-            if v:IsA("UIStroke") then
-                if v.Thickness >= 1.2 then
-                    v.Color = accentColor
-                end
-            elseif v:IsA("Frame") then
-                local c = v.BackgroundColor3
-                -- Recolor main dark backgrounds
-                if c.R < 0.15 and c.G < 0.15 and c.B < 0.18 and v.BackgroundTransparency < 0.5 then
-                    v.BackgroundColor3 = bgColor
-                -- Recolor active accent toggles / sliders
-                elseif (c.R > 0.3 or c.B > 0.3) and v.Size.Y.Offset <= 26 then
-                    v.BackgroundColor3 = accentColor
+        local enabled = NyXConfig.LiquidGlassMenu
+        local trans = NyXConfig.MenuTransparency
+        local bgCol = NyXConfig.UIBackgroundColor
+        local accentCol = NyXConfig.UIAccentColor
+
+        -- Hide Rayfield's default mini "Show Rayfield" bar so ND button controls everything
+        for _, child in ipairs(rfGui:GetChildren()) do
+            if child:IsA("Frame") and child ~= mainFrame and child.Name ~= "Notifications" then
+                if child:FindFirstChildWhichIsA("TextButton", true) then
+                    child.Visible = false
                 end
             end
         end
+
+        local targetMainTrans = enabled and trans or 0
+        local targetElemTrans = enabled and math.clamp(trans + 0.15, 0, 0.92) or 0
+        local elemColor = Color3.new(
+            math.clamp(bgCol.R + 0.04, 0, 1),
+            math.clamp(bgCol.G + 0.04, 0, 1),
+            math.clamp(bgCol.B + 0.05, 0, 1)
+        )
+
+        local function StyleObject(v)
+            if v:IsA("Frame") then
+                local n = v.Name
+                if n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList" then
+                    v.BackgroundTransparency = targetMainTrans
+                    v.BackgroundColor3 = bgCol
+                elseif v.Parent and (v.Parent.Name == "Elements" or v.Parent:IsA("ScrollingFrame")) then
+                    v.BackgroundTransparency = targetElemTrans
+                    v.BackgroundColor3 = elemColor
+                elseif n == "Shadow" or n == "DropShadow" then
+                    v.Visible = not enabled
+                end
+            elseif v:IsA("ScrollingFrame") then
+                v.BackgroundTransparency = 1
+            elseif v:IsA("UIStroke") then
+                v.Color = accentCol
+                v.Transparency = enabled and 0.35 or 0
+                v.Thickness = 1.2
+            end
+        end
+
+        for _, v in ipairs(mainFrame:GetDescendants()) do
+            StyleObject(v)
+            if not GlassConnections[v] and v:IsA("Frame") then
+                local n = v.Name
+                if n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList" or (v.Parent and v.Parent:IsA("ScrollingFrame")) then
+                    GlassConnections[v] = v:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
+                        if not NyXConfig.LiquidGlassMenu then return end
+                        local desired = (n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList")
+                            and NyXConfig.MenuTransparency
+                            or math.clamp(NyXConfig.MenuTransparency + 0.15, 0, 0.92)
+                        if math.abs(v.BackgroundTransparency - desired) > 0.03 and v.BackgroundTransparency < 0.98 then
+                            v.BackgroundTransparency = desired
+                        end
+                    end)
+                end
+            end
+        end
+        StyleObject(mainFrame)
     end)
 end
 
-local function ToggleAirflowWindow()
+local function ToggleRayfieldMenu()
     pcall(function()
-        local afGui = FindAirflowGui()
-        if afGui then
-            afGui.Enabled = not afGui.Enabled
-        else
-            -- Fallback: Send LeftControl keybind (Airflow's default toggle key)
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftControl, false, game)
+        local rfGui, mainFrame = FindRayfieldScreenGui()
+        if rfGui and mainFrame then
+            -- Trigger Rayfield's native toggle keybind (RightShift) AND fallback to direct visibility
+            local wasVisible = mainFrame.Visible
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.RightShift, false, game)
             task.wait(0.05)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.RightShift, false, game)
+            task.wait(0.08)
+
+            -- Direct fallback if Rayfield didn't process the keybind (e.g., on mobile executors)
+            if mainFrame.Visible == wasVisible then
+                mainFrame.Visible = not wasVisible
+            end
+            rfGui.Enabled = true
+
+            -- Hide any "Show Rayfield" prompt bar that Rayfield tries to spawn when minimized
+            for _, child in ipairs(rfGui:GetChildren()) do
+                if child:IsA("Frame") and child ~= mainFrame and child.Name ~= "Notifications" then
+                    child.Visible = false
+                end
+            end
+
+            if mainFrame.Visible then
+                task.defer(ApplyMenuThemeAndGlass)
+            end
         end
     end)
 end
@@ -396,14 +439,14 @@ local function CreateNDLogoButton()
 
         local NDButton = Instance.new("TextButton")
         NDButton.Name = "NDLogoBtn"
-        NDButton.Size = UDim2.new(0, 52, 0, 52)
+        NDButton.Size = UDim2.new(0, 54, 0, 54)
         NDButton.Position = UDim2.new(0.04, 0, 0.22, 0)
-        NDButton.BackgroundColor3 = Color3.fromRGB(18, 16, 28)
-        NDButton.BackgroundTransparency = 0.08
+        NDButton.BackgroundColor3 = NyXConfig.UIBackgroundColor
+        NDButton.BackgroundTransparency = 0.1
         NDButton.Text = "ND"
         NDButton.TextColor3 = Color3.fromRGB(240, 230, 255)
         NDButton.Font = Enum.Font.GothamBlack
-        NDButton.TextSize = 21
+        NDButton.TextSize = 22
         NDButton.AutoButtonColor = true
         NDButton.Active = true
         NDButton.ZIndex = 10
@@ -414,7 +457,7 @@ local function CreateNDLogoButton()
         Corner.Parent = NDButton
 
         local Stroke = Instance.new("UIStroke")
-        Stroke.Thickness = 2
+        Stroke.Thickness = 2.2
         Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         Stroke.Color = NyXConfig.UIAccentColor
         Stroke.Parent = NDButton
@@ -424,7 +467,7 @@ local function CreateNDLogoButton()
         SubText.Position = UDim2.new(0, 0, 0.72, 0)
         SubText.BackgroundTransparency = 1
         SubText.Text = "NYX"
-        SubText.TextColor3 = Color3.fromRGB(185, 145, 255)
+        SubText.TextColor3 = NyXConfig.UIAccentColor
         SubText.Font = Enum.Font.GothamBold
         SubText.TextSize = 8
         SubText.ZIndex = 11
@@ -464,7 +507,7 @@ local function CreateNDLogoButton()
                 if dragging then
                     dragging = false
                     if not hasMoved then
-                        ToggleAirflowWindow()
+                        ToggleRayfieldMenu()
                     end
                 end
             end
@@ -636,7 +679,7 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
-    -- Layer 3: Scan HUD TextLabels (Excluding Menus, Inventory, Chat, Airflow UI)
+    -- Layer 3: Scan HUD TextLabels (Strictly filtering out Inventory, Chat, Leaderboards, and Rayfield UI)
     pcall(function()
         local pGui = LocalPlayer:FindFirstChild("PlayerGui")
         if not pGui then return end
@@ -652,7 +695,7 @@ local function GetAccurateServerBiome()
                    and not fullName:find("QUEST")
                    and not fullName:find("CRAFT")
                    and not fullName:find("SETTING")
-                   and not fullName:find("AIRFLOW")
+                   and not fullName:find("RAYFIELD")
                    and not fullName:find("PLAYERLIST") then
 
                     local cleanTxt = CleanRichText(v.Text):upper()
@@ -749,13 +792,16 @@ local function ScanActiveMerchantInWorld()
         if pGui then
             for _, v in ipairs(pGui:GetDescendants()) do
                 if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
-                    local clean = CleanRichText(v.Text):upper()
-                    if clean:find("MARI HAS ARRIVED") or clean:find("MARI'S SHOP") then
-                        detected = "Mari" return
-                    elseif clean:find("JESTER HAS ARRIVED") or clean:find("JESTER'S SHOP") then
-                        detected = "Jester" return
-                    elseif clean:find("RIN HAS ARRIVED") or clean:find("RIN'S SHOP") then
-                        detected = "Rin" return
+                    local fullName = v:GetFullName():upper()
+                    if not fullName:find("RAYFIELD") and not fullName:find("INVENTORY") then
+                        local clean = CleanRichText(v.Text):upper()
+                        if clean:find("MARI HAS ARRIVED") or clean:find("MARI'S SHOP") then
+                            detected = "Mari" return
+                        elseif clean:find("JESTER HAS ARRIVED") or clean:find("JESTER'S SHOP") then
+                            detected = "Jester" return
+                        elseif clean:find("RIN HAS ARRIVED") or clean:find("RIN'S SHOP") then
+                            detected = "Rin" return
+                        end
                     end
                 end
             end
@@ -765,199 +811,256 @@ local function ScanActiveMerchantInWorld()
 end
 
 -- ==========================================
--- // AIRFLOW UI WINDOW & TABS INITIALIZATION
+-- // INITIALIZE SIRIUS RAYFIELD WINDOW
 -- ==========================================
-local Window = Airflow:Init({
+local Window = Rayfield:CreateWindow({
     Name = "NyX Detector | Sols RNG Macro",
-    Keybind = "LeftControl",
-    Logo = "http://www.roblox.com/asset/?id=118752982916680",
-    Highlight = NyXConfig.UIAccentColor
+    LoadingTitle = "NyX Detector",
+    LoadingSubtitle = "Biome & Merchant Macro (Argon Edition)",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "NyXDetector",
+        FileName = "NyXConfig"
+    },
+    KeySystem = false,
+    DisableBuildWarnings = true
 })
 
-CreateNDLogoButton()
-
-local DetectorTab = Window:DrawTab({
-    Name = "Detector & Webhook",
-    Icon = "globe"
-})
-
-local InventoryTab = Window:DrawTab({
-    Name = "Inventory",
-    Icon = "archive"
-})
-
-local SettingsTab = Window:DrawTab({
-    Name = "Settings & UI",
-    Icon = "settings"
-})
+task.spawn(function()
+    task.wait(1)
+    CreateNDLogoButton()
+    ApplyMenuThemeAndGlass()
+end)
 
 -- ==========================================
--- // TAB 1: DETECTOR & WEBHOOK (AIRFLOW SECTIONS)
+-- // TAB 1: DETECTOR & WEBHOOK
 -- ==========================================
-local WebhookSection = DetectorTab:AddLeftSection("Discord & Server Configuration")
-local ControlSection = DetectorTab:AddRightSection("Detector Controls & Status")
+local WebhookTab = Window:CreateTab("Detector & Webhook", 4483362458)
+WebhookTab:CreateSection("Discord & Private Server Configuration")
 
-WebhookSection:AddTextbox({
+WebhookTab:CreateInput({
     Name = "Webhook URL",
-    Default = NyXConfig.WebhookURL,
-    Placeholder = "Paste Discord Webhook URL...",
-    Callback = function(Value)
-        NyXConfig.WebhookURL = Value
-    end
+    PlaceholderText = NyXConfig.WebhookURL ~= "" and NyXConfig.WebhookURL or "Paste your Discord Webhook URL here...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text) NyXConfig.WebhookURL = Text end,
 })
 
-WebhookSection:AddTextbox({
+WebhookTab:CreateInput({
     Name = "Discord User ID (For Pings)",
-    Default = NyXConfig.DiscordID,
-    Placeholder = "Ex: 123456789012345678",
-    Callback = function(Value)
-        NyXConfig.DiscordID = Value
-    end
+    PlaceholderText = NyXConfig.DiscordID ~= "" and NyXConfig.DiscordID or "Ex: 123456789012345678",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text) NyXConfig.DiscordID = Text end,
 })
 
-WebhookSection:AddTextbox({
+WebhookTab:CreateInput({
     Name = "Private Server Link",
-    Default = NyXConfig.PrivateServerLink,
-    Placeholder = "https://www.roblox.com/games/...",
-    Callback = function(Value)
-        NyXConfig.PrivateServerLink = Value
-    end
+    PlaceholderText = NyXConfig.PrivateServerLink ~= "" and NyXConfig.PrivateServerLink or "https://www.roblox.com/games/...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text) NyXConfig.PrivateServerLink = Text end,
 })
 
-WebhookSection:AddButton({
-    Name = "Save Webhook Config",
+WebhookTab:CreateButton({
+    Name = "Save Webhook Config (Webhook, User ID & Private Server)",
     Callback = function()
         SaveWebhookConfig()
-        NotifyUser("Config Saved", "Webhook URL, User ID, and Private Server Link saved!", 3)
-    end
+        Rayfield:Notify({
+            Title = "Config Saved",
+            Content = "Webhook URL, User ID, and Private Server Link have been saved!",
+            Duration = 3
+        })
+    end,
 })
 
-WebhookSection:AddButton({
-    Name = "Test Webhook",
-    Callback = function()
-        SendTestWebhookEmbed()
-        NotifyUser("NyX Detector", "Sent 'Webhook Test - Successfully' to Discord!", 3)
-    end
-})
+WebhookTab:CreateSection("NyX Detector Controls")
 
-local StatusBiomeLabel = ControlSection:AddLabel("Current Biome: NORMAL")
-local StatusUptimeLabel = ControlSection:AddLabel("Macro Uptime: 00:00:00")
+local BiomeStatusLabel = WebhookTab:CreateLabel("Biome: NORMAL | Uptime: 00:00:00")
 
-ControlSection:AddToggle({
-    Name = "Start Detector (Biome & State Logs)",
-    Default = false,
+WebhookTab:CreateToggle({
+    Name = "Start Detector (Auto Macro Started / Stopped & Biome Logs)",
+    CurrentValue = false,
+    Flag = "ToggleBiomeWebhook",
     Callback = function(Value)
         if Value then
             NyXConfig.EnableBiomeWebhook = true
             MacroStartTime = os.time()
             SendMacroStateEmbed(true)
-            NotifyUser("NyX Detector", "Macro Started!", 2.5)
         else
             local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
             NyXConfig.EnableBiomeWebhook = false
             SendMacroStateEmbed(false, finalElapsed)
             MacroStartTime = 0
-            pcall(function() StatusUptimeLabel:SetText("Macro Uptime: 00:00:00") end)
-            pcall(function() StatusUptimeLabel:Set("Macro Uptime: 00:00:00") end)
-            NotifyUser("NyX Detector", "Macro Stopped!", 2.5)
+            BiomeStatusLabel:Set("Biome: " .. NyXConfig.CurrentDetectedBiome .. " | Uptime: 00:00:00")
         end
-    end
+    end,
 })
 
-ControlSection:AddToggle({
+WebhookTab:CreateToggle({
     Name = "Enable Merchant Detector (Mari / Jester / Rin)",
-    Default = false,
-    Callback = function(Value)
-        NyXConfig.EnableMerchantWebhook = Value
-    end
+    CurrentValue = false,
+    Flag = "ToggleMerchantWebhook",
+    Callback = function(Value) NyXConfig.EnableMerchantWebhook = Value end,
+})
+
+WebhookTab:CreateSection("Connection Test")
+
+WebhookTab:CreateButton({
+    Name = "Test Webhook",
+    Callback = function()
+        SendTestWebhookEmbed()
+        Rayfield:Notify({
+            Title = "NyX Detector",
+            Content = "Sent 'Webhook Test - Successfully' to Discord!",
+            Duration = 2.5
+        })
+    end,
 })
 
 -- ==========================================
 -- // TAB 2: INVENTORY AUTOMATION
 -- ==========================================
-local ManualItemSection = InventoryTab:AddLeftSection("Instant Item Actions")
-local AutoItemSection = InventoryTab:AddRightSection("Timed Item Automation")
+local InventoryTab = Window:CreateTab("Inventory", 4483362458)
+InventoryTab:CreateSection("Instant Item Use (Auto-Open Inventory + Failsafe Click)")
 
-ManualItemSection:AddButton({
+InventoryTab:CreateButton({
     Name = "Use Now: Biome Randomizer",
     Callback = function()
         task.spawn(function() UseItemWithInventoryFailsafe("Biome Randomizer") end)
-    end
+    end,
 })
 
-ManualItemSection:AddButton({
+InventoryTab:CreateButton({
     Name = "Use Now: Strange Controller",
     Callback = function()
         task.spawn(function() UseItemWithInventoryFailsafe("Strange Controller") end)
-    end
+    end,
 })
 
-AutoItemSection:AddSlider({
-    Name = "Use Interval (Seconds)",
-    Min = 5,
-    Max = 300,
-    Default = 20,
-    Round = 0,
+InventoryTab:CreateSection("Timed Item Automation")
+
+InventoryTab:CreateSlider({
+    Name = "Use Interval (Cooldown between Inventory actions)",
+    Range = {5, 300},
+    Increment = 5,
+    Suffix = " Seconds",
+    CurrentValue = 20,
+    Flag = "UseIntervalSlider",
     Callback = function(Value)
         NyXConfig.UseInterval = Value
-    end
+    end,
 })
 
-AutoItemSection:AddToggle({
-    Name = "Auto Biome Randomizer",
-    Default = false,
-    Callback = function(Value)
-        NyXConfig.AutoBiomeRandomizer = Value
-    end
+InventoryTab:CreateToggle({
+    Name = "Auto Biome Randomizer (Failsafe Auto-Inventory)",
+    CurrentValue = false,
+    Flag = "AutoBR",
+    Callback = function(Value) NyXConfig.AutoBiomeRandomizer = Value end,
 })
 
-AutoItemSection:AddToggle({
-    Name = "Auto Strange Controller",
-    Default = false,
-    Callback = function(Value)
-        NyXConfig.AutoStrangeController = Value
-    end
+InventoryTab:CreateToggle({
+    Name = "Auto Strange Controller (Failsafe Auto-Inventory)",
+    CurrentValue = false,
+    Flag = "AutoSC",
+    Callback = function(Value) NyXConfig.AutoStrangeController = Value end,
 })
 
-AutoItemSection:AddDropdown({
-    Name = "Stop Auto In (Target Biomes)",
-    Values = All16Biomes,
-    Default = {"GLITCHED", "DREAMSPACE", "CYBERSPACE"},
-    Multi = true,
-    Callback = function(Selected)
+InventoryTab:CreateSection("Stop Auto In (Pause Item Use on Target Biomes)")
+
+InventoryTab:CreateDropdown({
+    Name = "Stop Auto In (Select Biomes to Pause Randomizer)",
+    Options = All16Biomes,
+    CurrentOption = {"GLITCHED", "DREAMSPACE", "CYBERSPACE"},
+    MultipleOptions = true,
+    Flag = "StopAutoInDropdown",
+    Callback = function(SelectedOptions)
         for _, bName in ipairs(All16Biomes) do
             NyXConfig.StopAutoBiomes[bName] = false
         end
-        if type(Selected) == "table" then
-            for k, v in pairs(Selected) do
-                if type(k) == "number" and type(v) == "string" then
-                    NyXConfig.StopAutoBiomes[v] = true
-                elseif type(k) == "string" and v == true then
-                    NyXConfig.StopAutoBiomes[k] = true
-                end
-            end
-        elseif type(Selected) == "string" then
-            NyXConfig.StopAutoBiomes[Selected] = true
+        for _, chosenBiome in ipairs(SelectedOptions) do
+            NyXConfig.StopAutoBiomes[chosenBiome] = true
+        end
+    end,
+})
+
+-- ==========================================
+-- // TAB 3: SETTINGS & UI COLOR CUSTOMIZATION
+-- ==========================================
+local SettingsTab = Window:CreateTab("Settings & UI", 4483362458)
+SettingsTab:CreateSection("Player & Macro Utilities")
+
+SettingsTab:CreateToggle({
+    Name = "Enable Anti-AFK (Prevent 20m Idle Disconnect)",
+    CurrentValue = true,
+    Flag = "AntiAFKToggle",
+    Callback = function(Value)
+        NyXConfig.AntiAFK = Value
+        Rayfield:Notify({
+            Title = "Anti-AFK",
+            Content = Value and "Anti-AFK is now Enabled." or "Anti-AFK is now Disabled.",
+            Duration = 2.5
+        })
+    end,
+})
+
+SettingsTab:CreateSection("UI Colors & Liquid Glass Theme")
+
+SettingsTab:CreateColorPicker({
+    Name = "UI Accent / Border Color",
+    Color = NyXConfig.UIAccentColor,
+    Flag = "UIAccentColorPicker",
+    Callback = function(Value)
+        NyXConfig.UIAccentColor = Value
+        ApplyMenuThemeAndGlass()
+        if NDGui and NDGui:FindFirstChild("NDLogoBtn") then
+            local btn = NDGui.NDLogoBtn
+            local st = btn:FindFirstChildWhichIsA("UIStroke")
+            local sub = btn:FindFirstChildWhichIsA("TextLabel")
+            if st then st.Color = Value end
+            if sub then sub.TextColor3 = Value end
         end
     end
 })
 
--- ==========================================
--- // TAB 3: SETTINGS & UI COLOR PICKER
--- ==========================================
-local UtilitySection = SettingsTab:AddLeftSection("System & Anti-AFK")
-local ThemeSection = SettingsTab:AddRightSection("UI Color Customization")
-
-UtilitySection:AddToggle({
-    Name = "Enable Anti-AFK",
-    Default = true,
+SettingsTab:CreateColorPicker({
+    Name = "UI Background Color",
+    Color = NyXConfig.UIBackgroundColor,
+    Flag = "UIBgColorPicker",
     Callback = function(Value)
-        NyXConfig.AntiAFK = Value
-        NotifyUser("Anti-AFK", Value and "Anti-AFK Enabled" or "Anti-AFK Disabled", 2.5)
+        NyXConfig.UIBackgroundColor = Value
+        ApplyMenuThemeAndGlass()
+        if NDGui and NDGui:FindFirstChild("NDLogoBtn") then
+            NDGui.NDLogoBtn.BackgroundColor3 = Value
+        end
     end
 })
 
-UtilitySection:AddButton({
+SettingsTab:CreateToggle({
+    Name = "Enable Liquid Glass Effect for Menu",
+    CurrentValue = true,
+    Flag = "LiquidGlassMenuToggle",
+    Callback = function(Value)
+        NyXConfig.LiquidGlassMenu = Value
+        ApplyMenuThemeAndGlass()
+    end,
+})
+
+SettingsTab:CreateSlider({
+    Name = "Menu Glass Transparency",
+    Range = {0, 80},
+    Increment = 5,
+    Suffix = "%",
+    CurrentValue = 25,
+    Flag = "MenuTransSlider",
+    Callback = function(Value)
+        NyXConfig.MenuTransparency = Value / 100
+        if NyXConfig.LiquidGlassMenu then
+            ApplyMenuThemeAndGlass()
+        end
+    end,
+})
+
+SettingsTab:CreateSection("Script Management")
+
+SettingsTab:CreateButton({
     Name = "Destroy UI / Uninstall NyX Detector",
     Callback = function()
         ScriptRunning = false
@@ -968,33 +1071,14 @@ UtilitySection:AddButton({
         NyXConfig.EnableBiomeWebhook = false
         NyXConfig.AutoBiomeRandomizer = false
         NyXConfig.AutoStrangeController = false
+        
+        for _, conn in pairs(GlassConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
         if IdledConn then IdledConn:Disconnect() end
         if NDGui then NDGui:Destroy() end
-        local afGui = FindAirflowGui()
-        if afGui then afGui:Destroy() end
-    end
-})
-
-ThemeSection:AddColorPicker({
-    Name = "UI Accent / Highlight Color",
-    Default = NyXConfig.UIAccentColor,
-    Callback = function(Color)
-        NyXConfig.UIAccentColor = Color
-        ApplyCustomUIColors(NyXConfig.UIAccentColor, NyXConfig.UIBackgroundColor)
-        if NDGui and NDGui:FindFirstChild("NDLogoBtn") then
-            local st = NDGui.NDLogoBtn:FindFirstChildWhichIsA("UIStroke")
-            if st then st.Color = Color end
-        end
-    end
-})
-
-ThemeSection:AddColorPicker({
-    Name = "UI Background Color",
-    Default = NyXConfig.UIBackgroundColor,
-    Callback = function(Color)
-        NyXConfig.UIBackgroundColor = Color
-        ApplyCustomUIColors(NyXConfig.UIAccentColor, NyXConfig.UIBackgroundColor)
-    end
+        Rayfield:Destroy()
+    end,
 })
 
 -- ==========================================
@@ -1010,16 +1094,7 @@ task.spawn(function()
         local detectedBiome = GetAccurateServerBiome()
         NyXConfig.CurrentDetectedBiome = detectedBiome
         local uptimeStr = GetMacroUptime()
-
-        pcall(function()
-            if StatusBiomeLabel.SetText then
-                StatusBiomeLabel:SetText("Current Biome: " .. detectedBiome)
-                StatusUptimeLabel:SetText("Macro Uptime: " .. uptimeStr)
-            elseif StatusBiomeLabel.Set then
-                StatusBiomeLabel:Set("Current Biome: " .. detectedBiome)
-                StatusUptimeLabel:Set("Macro Uptime: " .. uptimeStr)
-            end
-        end)
+        BiomeStatusLabel:Set("Biome: " .. detectedBiome .. " | Uptime: " .. uptimeStr)
 
         if detectedBiome ~= lastBiome then
             local previousBiome = lastBiome
@@ -1038,7 +1113,11 @@ task.spawn(function()
             end
 
             if NyXConfig.StopAutoBiomes[detectedBiome] then
-                NotifyUser("Stop Auto In", "Detected " .. detectedBiome .. "! Pausing item usage.", 4)
+                Rayfield:Notify({
+                    Title = "Stop Auto In Triggered",
+                    Content = "Detected " .. detectedBiome .. "! Pausing item usage until biome ends.",
+                    Duration = 4
+                })
             end
         end
     end
