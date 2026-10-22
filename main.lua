@@ -1,5 +1,5 @@
--- // NYX DETECTOR MACRO - STANDALONE EDITION
--- // Real-Time Biome & Merchant Detection + Strict Ping Rules (Glitched/Dreamspace/Cyberspace Only)
+-- // NYX DETECTOR MACRO - STANDALONE EDITION (FIXED FALSE BIOME DETECTION)
+-- // Real-Time Biome (Strict HUD Filter) & Real Merchant Detection + Strict Ping Rules
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,25 +21,25 @@ local MacroStartTime = 0
 
 -- // 16 Standard Biomes Data
 local BiomeData = {
-    ["NORMAL"] = {Color = 0xAAAAAA, Hex = Color3.fromRGB(80, 250, 123), Type = "None", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
-    ["WINDY"] = {Color = 0x55FFFF, Hex = Color3.fromRGB(85, 255, 255), Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
-    ["SNOWY"] = {Color = 0xAAFFFF, Hex = Color3.fromRGB(170, 255, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOUXKzPjkds7zbMEq3A861d7V3QVJpL1-TczhgaktD2Q&s=10"},
-    ["RAINY"] = {Color = 0x4477FF, Hex = Color3.fromRGB(68, 119, 255), Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/7/77/DISCORICH-RAINY.png/revision/latest/scale-to-width-down/250?cb=20260823042833"},
-    ["SANDSTORM"] = {Color = 0xCC9955, Hex = Color3.fromRGB(235, 180, 90), Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/9/92/DISCORICH-SANDSTORM.png/revision/latest/scale-to-width-down/250?cb=20260823202219"},
-    ["HELL"] = {Color = 0xFF3300, Hex = Color3.fromRGB(255, 65, 35), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdVb905ylmcIBQos_e7jfMXivZgvY6hBkFFIvrXyH27g&s=10"},
-    ["STARFALL"] = {Color = 0x2266FF, Hex = Color3.fromRGB(80, 140, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTVMr3p41F85Oo6vaUcu9TGSkQhHUxFEAClzSjIckCytA&s=10"},
-    ["HEAVEN"] = {Color = 0xFFEEAA, Hex = Color3.fromRGB(255, 238, 170), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRabM1sg3YzizyQUZtiK92fZa7aXKWmGsrKW0CEBY8JZA&s=10"},
-    ["LOST FOREST"] = {Color = 0x33FF33, Hex = Color3.fromRGB(51, 255, 51), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR82qzAd_-zixFo31jcKTfJ8LcnNSafRj2NO1aUvkHfxw&s=10"},
-    ["CORRUPTION"] = {Color = 0x8833FF, Hex = Color3.fromRGB(165, 90, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHLaYqUpmoLGJiST12FRbfmlWzorC4J4LVUBFSxKG9TA&s"},
-    ["NULL"] = {Color = 0x777777, Hex = Color3.fromRGB(160, 160, 160), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5XeQvNZtLhXzo8x2N-hYpm61TgbcECwxHSWYiQrmW3A&s=10"},
-    ["GLITCHED"] = {Color = 0x228855, Hex = Color3.fromRGB(60, 220, 140), Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRZDgmOTmOuKCus91vLwkxmxVdYN9ZmO55GJwEW9Mk9A&s=10"},
-    ["DREAMSPACE"] = {Color = 0xFF66CC, Hex = Color3.fromRGB(255, 102, 204), Type = "Everyone", Image = "https://i1.sndcdn.com/artworks-4REvzocas0Xf3WZQ-wlFSVw-t500x500.jpg"},
-    ["CYBERSPACE"] = {Color = 0x2255AA, Hex = Color3.fromRGB(70, 150, 255), Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUv6mm81S7Y4LT9fXY-QHmv5TLnaVKASv-E-SIMYv_pgkv5Kj2OoBW2YM&s=10"},
-    ["SINGULARITY"] = {Color = 0xFF9955, Hex = Color3.fromRGB(255, 153, 85), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMT9FH9iRVwGnOPCurDe-4a5c-w1IawDZLrEgEhQ7FsNQiJ5D1cJksX08&s=10"},
-    ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Hex = Color3.fromRGB(204, 51, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSJho-qLxevg6mcrSW1YPUJciaoPMD1bJq70_xUe2UMPzv1jWhS33aGs_Zc&s=10"}
+    ["NORMAL"] = {Color = 0xAAAAAA, Hex = Color3.fromRGB(80, 250, 123), Type = "None", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["WINDY"] = {Color = 0x55FFFF, Hex = Color3.fromRGB(85, 255, 255), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["SNOWY"] = {Color = 0xAAFFFF, Hex = Color3.fromRGB(170, 255, 255), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["RAINY"] = {Color = 0x4477FF, Hex = Color3.fromRGB(68, 119, 255), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["SANDSTORM"] = {Color = 0xCC9955, Hex = Color3.fromRGB(235, 180, 90), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["HELL"] = {Color = 0xFF3300, Hex = Color3.fromRGB(255, 65, 35), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["STARFALL"] = {Color = 0x2266FF, Hex = Color3.fromRGB(80, 140, 255), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["HEAVEN"] = {Color = 0xFFEEAA, Hex = Color3.fromRGB(255, 238, 170), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["LOST FOREST"] = {Color = 0x33FF33, Hex = Color3.fromRGB(51, 255, 51), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["CORRUPTION"] = {Color = 0x8833FF, Hex = Color3.fromRGB(165, 90, 255), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["NULL"] = {Color = 0x777777, Hex = Color3.fromRGB(160, 160, 160), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["GLITCHED"] = {Color = 0x228855, Hex = Color3.fromRGB(60, 220, 140), Type = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["DREAMSPACE"] = {Color = 0xFF66CC, Hex = Color3.fromRGB(255, 102, 204), Type = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["CYBERSPACE"] = {Color = 0x2255AA, Hex = Color3.fromRGB(70, 150, 255), Type = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["SINGULARITY"] = {Color = 0xFF9955, Hex = Color3.fromRGB(255, 153, 85), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Hex = Color3.fromRGB(204, 51, 255), Type = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
 }
 
--- // Multi-format Biome Aliases (Fixes SANDSTORM / SAND STORM)
+-- // Biome Aliases (Fixes SANDSTORM / SAND STORM)
 local BiomeAliases = {
     ["SANDSTORM"] = {"SANDSTORM", "SAND STORM", "SAND_STORM", "SAND-STORM", "SANDY"},
     ["THE RADIANT FOREST"] = {"THE RADIANT FOREST", "RADIANT FOREST", "RADIANT_FOREST"},
@@ -63,9 +63,9 @@ local All16Biomes = {
 }
 
 local MerchantData = {
-    ["Mari"] = {Color = 0x2ECC71, Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTa3N1jMM3zL9RtUTCQrhRQMqIEqgu_DcIn96nx2t_1Gg&s=10"},
-    ["Jester"] = {Color = 0x9B59B6, Image = "https://static.wikia.nocookie.net/sols-rng/images/d/db/Headshot_of_Jester.png/revision/latest/thumbnail/width/360/height/450?cb=20240714045217&path-prefix=vi"},
-    ["Rin"] = {Color = 0x3498DB, Image = "https://static.wikia.nocookie.net/sol-rng/images/0/04/RinHeadShot.png/revision/latest/scale-to-width-down/250?cb=20260214165200"}
+    ["Mari"] = {Color = 0x2ECC71, Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["Jester"] = {Color = 0x9B59B6, Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["Rin"] = {Color = 0x3498DB, Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
 }
 
 -- // Configuration Table
@@ -93,7 +93,7 @@ local NyXConfig = {
 }
 
 -- ==========================================
--- // DEDICATED CONFIG SAVE / LOAD
+-- // CONFIG SAVE / LOAD
 -- ==========================================
 local WebhookConfigFile = "NyX_WebhookConfig.json"
 
@@ -125,7 +125,7 @@ end
 
 LoadWebhookConfig()
 
--- // Anti-AFK Connection
+-- // Anti-AFK
 local IdledConn = LocalPlayer.Idled:Connect(function()
     if not ScriptRunning or not NyXConfig.AntiAFK then return end
     pcall(function()
@@ -137,7 +137,6 @@ local IdledConn = LocalPlayer.Idled:Connect(function()
     end)
 end)
 
--- // Format Macro Uptime (HH:MM:SS)
 local function GetMacroUptime(forcedElapsed)
     local elapsed = forcedElapsed
     if not elapsed then
@@ -152,7 +151,6 @@ local function GetMacroUptime(forcedElapsed)
     return string.format("%02d:%02d:%02d", hours, mins, secs)
 end
 
--- // Strip RichText / HTML Tags
 local function CleanRichText(str)
     if type(str) ~= "string" then return "" end
     local s = str:gsub("<[^>]+>", "")
@@ -161,7 +159,7 @@ local function CleanRichText(str)
 end
 
 -- ==========================================
--- // DISCORD WEBHOOK EMBED SYSTEM (STRICT PING RULES)
+-- // DISCORD WEBHOOK SYSTEM
 -- ==========================================
 local function SendRawWebhook(payload)
     local cleanUrl = tostring(NyXConfig.WebhookURL or ""):gsub("%s+", "")
@@ -220,7 +218,7 @@ end
 
 local function SendBiomeStartedEmbed(biomeName, color, imageUrl)
     local contentMsg = ""
-    -- STRICT RULE: Chỉ cho phép ping tự động nếu đúng là 1 trong 3 biome: GLITCHED, DREAMSPACE, CYBERSPACE
+    -- STRICT RULE: Chỉ cho phép ping tự động nếu đúng là GLITCHED, DREAMSPACE, CYBERSPACE
     if biomeName == "GLITCHED" or biomeName == "DREAMSPACE" or biomeName == "CYBERSPACE" then
         local cleanID = tostring(NyXConfig.DiscordID or ""):gsub("%D+", "")
         local parts = {"@everyone"}
@@ -313,7 +311,7 @@ local function TriggerMerchantArrival(merchantName)
         Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"
     }
 
-    -- STRICT RULE: Merchant KHÔNG BAO GIỜ ĐƯỢC PING
+    -- STRICT RULE: Merchant KHÔNG BAO GIỜ PING
     local contentMsg = ""
 
     local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Click to Join Server](" .. NyXConfig.PrivateServerLink .. ")") or "`None`"
@@ -333,7 +331,7 @@ local function TriggerMerchantArrival(merchantName)
 end
 
 -- ==========================================
--- // ACCURATE BIOME & REAL MERCHANT SCANNERS
+-- // ACCURATE BIOME (STRICT HUD FILTER) & MERCHANT SCANNERS
 -- ==========================================
 local function MatchExactBiomeString(rawText)
     local clean = CleanRichText(rawText):upper()
@@ -361,6 +359,7 @@ end
 local function GetAccurateServerBiome()
     local foundBiome = nil
 
+    -- 1. Quét Server Attributes (ưu tiên độ chính xác tuyệt đối)
     pcall(function()
         local candidates = {
             Workspace:GetAttribute("Biome"),
@@ -380,6 +379,7 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
+    -- 2. Quét StringValues trong ReplicatedStorage / Workspace
     pcall(function()
         for _, root in ipairs({ReplicatedStorage, Workspace, Lighting}) do
             for _, obj in ipairs(root:GetDescendants()) do
@@ -392,6 +392,7 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
+    -- 3. Quét HUD nghiêm ngặt: LOẠI BỎ hoàn toàn Collection, Bestiary, Shop, Chat, v.v.
     pcall(function()
         local pGui = LocalPlayer:FindFirstChild("PlayerGui")
         if not pGui then return end
@@ -400,25 +401,34 @@ local function GetAccurateServerBiome()
         for _, v in ipairs(pGui:GetDescendants()) do
             if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
                 local fullName = v:GetFullName():upper()
+                -- Chặn tất cả các khung giao diện không phải thanh hiển thị Biome chính
                 if not fullName:find("INVENTORY")
                    and not fullName:find("BACKPACK")
                    and not fullName:find("CHAT")
                    and not fullName:find("SHOP")
                    and not fullName:find("COLLECTION")
+                   and not fullName:find("BESTIARY")
+                   and not fullName:find("ENCYCLOPEDIA")
+                   and not fullName:find("INDEX")
                    and not fullName:find("QUEST")
                    and not fullName:find("CRAFT")
                    and not fullName:find("SETTING")
                    and not fullName:find("NYXMACROUI")
-                   and not fullName:find("PLAYERLIST") then
+                   and not fullName:find("PLAYERLIST")
+                   and not fullName:find("MENU") then
 
+                    local parentName = v.Parent and v.Parent.Name:upper() or ""
+                    local labelName = v.Name:upper()
                     local cleanTxt = CleanRichText(v.Text):upper()
+                    
+                    -- Chỉ chấp nhận nếu label chứa ngoặc vuông hiển thị HUD [ Biome ] hoặc tên khung chứa Biome/Weather
                     if #cleanTxt <= 45 then
                         local m = MatchExactBiomeString(cleanTxt)
-                        if m then
+                        if m and (cleanTxt:find("%[") or labelName:find("BIOME") or parentName:find("BIOME") or parentName:find("WEATHER")) then
                             if m ~= "NORMAL" then
                                 foundBiome = m
                                 return
-                            elseif v.Name:upper():find("BIOME") or cleanTxt:find("%[") then
+                            else
                                 detectedNormal = true
                             end
                         end
@@ -495,7 +505,7 @@ local WorkspaceDescConn = Workspace.DescendantAdded:Connect(function(obj)
                     NyXConfig.CurrentMerchant = "RIN"
                     TriggerMerchantArrival("Rin")
                 elseif n == "MARI" or n:find("MERCHANT_MARI") or n == "MARINPC" then
-                    NyXConfig.CurrentMerchant = "MARI"
+                    NyXConfig.CurrentMerchant = "Mari"
                     TriggerMerchantArrival("Mari")
                 end
             elseif obj:IsA("ProximityPrompt") then
@@ -507,7 +517,7 @@ local WorkspaceDescConn = Workspace.DescendantAdded:Connect(function(obj)
                     NyXConfig.CurrentMerchant = "RIN"
                     TriggerMerchantArrival("Rin")
                 elseif combined:find("%f[%a]MARI%f[%A]") then
-                    NyXConfig.CurrentMerchant = "MARI"
+                    NyXConfig.CurrentMerchant = "Mari"
                     TriggerMerchantArrival("Mari")
                 end
             end
@@ -566,7 +576,7 @@ local function ScanActiveMerchantInWorld()
 end
 
 -- ==========================================
--- // FAILSAFE AUTO INVENTORY & ITEM CLICKER
+-- // FAILSAFE AUTO INVENTORY
 -- ==========================================
 local function ClickGuiElement(guiObj)
     pcall(function()
@@ -678,7 +688,7 @@ local function UseItemWithInventoryFailsafe(itemName)
 end
 
 -- ==========================================
--- // NYX DETECTOR MACRO UI LIBRARY
+-- // UI CREATION
 -- ==========================================
 local ParentGui = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
 if ParentGui:FindFirstChild("NyXMacroUI") then
@@ -1198,7 +1208,7 @@ local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, call
 end
 
 -- ==========================================
--- // BUILD THE 5 TABS (HOME, MAIN, CONNECTIONS, PINGS, SETTING)
+-- // BUILD TABS
 -- ==========================================
 local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage("Home", "Dashboard, live status & macro overview.")
 local MainScroll = CreateTabPage("Main", "Detector switches, inventory automation & biome filter.")
@@ -1211,7 +1221,7 @@ HomeNavBtn.BackgroundTransparency = 0.15
 HomeNavBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 HomeNavBar.Visible = true
 
--- // TAB 1: HOME DASHBOARD
+-- // TAB 1: HOME
 local WelcomeCard = Instance.new("Frame", HomeScroll)
 WelcomeCard.Size = UDim2.new(1, -6, 0, 74)
 WelcomeCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
@@ -1350,7 +1360,7 @@ MerchantValueLabel.TextXAlignment = Enum.TextXAlignment.Right
 -- // TAB 2: MAIN
 AddSectionLabel(MainScroll, "Detector Core")
 
-AddToggle(MainScroll, "Start Biome & State Detector", "Sends Macro Started/Stopped and all 16 Biome embeds (including Sandstorm).", false, function(val)
+AddToggle(MainScroll, "Start Biome & State Detector", "Sends Macro Started/Stopped and all 16 Biome embeds (Sandstorm fixed).", false, function(val)
     if val then
         NyXConfig.EnableBiomeWebhook = true
         MacroStartTime = os.time()
@@ -1366,7 +1376,7 @@ AddToggle(MainScroll, "Start Biome & State Detector", "Sends Macro Started/Stopp
     end
 end)
 
-AddToggle(MainScroll, "Enable Real Merchant Detector (Mari / Jester / Rin)", "Automatically detects real merchant spawns in-game and sends embeds (No Ping).", false, function(val)
+AddToggle(MainScroll, "Enable Real Merchant Detector (Mari / Jester / Rin)", "Automatically detects real merchant spawns in-game (No Ping).", false, function(val)
     NyXConfig.EnableMerchantWebhook = val
 end)
 
@@ -1442,11 +1452,10 @@ AddButton(ConnScroll, "Test Webhook Connection", function()
     Notify("Webhook Test", "Sent 'Webhook Test - Successfully' to Discord!", 3)
 end)
 
--- // TAB 4: PINGS (STRICT RULE: ONLY GLITCHED/DREAMSPACE/CYBERSPACE PING)
-AddSectionLabel(PingsScroll, "Strict Biome Ping Rules")
+-- // TAB 4: PINGS (STRICT RULE: ONLY GLITCHED/DREAMSPACE/CYBERSPACE PING, MERCHANTS NEVER PING)
+AddSectionLabel(PingsScroll, "Strict Ping Configuration")
 
-AddToggle(PingsScroll, "Only Ping on Glitched / Dreamspace / Cyberspace", "Enforces strict rule: Only these 3 biomes trigger automatic pings. All other biomes and merchants never ping.", true, function(val)
-    -- Luôn tuân thủ nguyên tắc chỉ ping 3 biome này
+AddToggle(PingsScroll, "Strict Biome Ping Rule (Glitched / Dreamspace / Cyberspace Only)", "Enforces strict rule: Only these 3 biomes trigger automatic pings. All other biomes and merchants never ping.", true, function(val)
 end)
 
 AddToggle(PingsScroll, "Auto Teleport to Merchant on Spawn", "Automatically teleports your character to Mari, Jester, or Rin when detected.", false, function(val)
@@ -1541,9 +1550,8 @@ AddButton(SettingScroll, "Uninstall / Destroy NyX Detector Macro", function()
 end)
 
 -- ==========================================
--- // BACKGROUND LOOPS
+-- // LOOPS
 -- ==========================================
-
 task.spawn(function()
     local lastBiome = GetAccurateServerBiome()
     NyXConfig.CurrentDetectedBiome = lastBiome
