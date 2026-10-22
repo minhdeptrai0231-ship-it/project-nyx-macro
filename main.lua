@@ -1,9 +1,6 @@
--- // NyX DETECTOR - SOLS RNG MACRO (SIRIUS RAYFIELD EDITION - FINAL FIXED)
--- // Features: Working ND Button + Liquid Glass & Color Picker + Clean Plain-Text Embeds + 3 Merchants (Mari, Jester, Rin)
+-- // NYX DETECTOR MACRO - STANDALONE EDITION
+-- // Real-Time Biome & Merchant Detection + Strict Ping Rules (Glitched/Dreamspace/Cyberspace Only)
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
--- // System Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
@@ -15,6 +12,8 @@ local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local TextChatService = game:GetService("TextChatService")
 local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 local ScriptRunning = true
@@ -22,29 +21,33 @@ local MacroStartTime = 0
 
 -- // 16 Standard Biomes Data
 local BiomeData = {
-    ["NORMAL"] = {Color = 0xAAAAAA, Type = "None", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
-    ["WINDY"] = {Color = 0x55FFFF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
-    ["SNOWY"] = {Color = 0xAAFFFF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/8/86/DISCORICH-SNOWY.png/revision/latest/scale-to-width-down/250?cb=20260823041153"},
-    ["RAINY"] = {Color = 0x4477FF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/7/77/DISCORICH-RAINY.png/revision/latest/scale-to-width-down/250?cb=20260823042833"},
-    ["SANDSTORM"] = {Color = 0xCC9955, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHyGYg2pr47DNuAlzWPvO8GvfI4Q-10h4EEqne__0LCA&s"},
-    ["HELL"] = {Color = 0xFF3300, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/b/b9/DISCORICH-HELL.png/revision/latest/scale-to-width-down/250?cb=20260823044812"},
-    ["STARFALL"] = {Color = 0x2266FF, Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/1/11/DISCORICH-STARFALL.png/revision/latest/scale-to-width-down/250?cb=20260823041135"},
-    ["HEAVEN"] = {Color = 0xFFEEAA, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA7MvgAC3DxYVI4jt4DQ8YUvNRgHnLhtYIOJjnhvLJGUMhYvd4wtctOZ0l&s=10"},
-    ["LOST FOREST"] = {Color = 0x33FF33, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT7cTBAkzKDZO8sb9wAPHDpuVwRyWhAuHfEUkqEzH3CLw&s"},
-    ["CORRUPTION"] = {Color = 0x8833FF, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHLaYqUpmoLGJiST12FRbfmlWzorC4J4LVUBFSxKG9TA&s"},
-    ["NULL"] = {Color = 0x777777, Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXSoTVgOGdurb913lQNnreYlm68Nd1zthlDWnt-uzl0qY5QcvV7FZDZ8o&s=10"},
-    ["GLITCHED"] = {Color = 0x228855, Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRZDgmOTmOuKCus91vLwkxmxVdYN9ZmO55GJwEW9Mk9A&s=10"},
-    ["DREAMSPACE"] = {Color = 0xFF66CC, Type = "Everyone", Image = "https://i1.sndcdn.com/artworks-4REvzocas0Xf3WZQ-wlFSVw-t500x500.jpg"},
-    ["CYBERSPACE"] = {Color = 0x2255AA, Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWnzl06DTg0F8rYnpLbHJhIj3pV58GaRfJLrkwCWhTAYa1GOyhlzflCj_M&s=10"},
-    ["SINGULARITY"] = {Color = 0xFF9955, Type = "Rare", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR9sl4YUs1-pBY2SJgepOHHrBAxjha7AP2_fxjx0eJ_ag&s"},
-    ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Type = "Rare", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZxdhkfNNq7PMavKT9srm09DU-sH6DueoDYk9Hw1wPStkUylWMsx126nY&s=10"}
+    ["NORMAL"] = {Color = 0xAAAAAA, Hex = Color3.fromRGB(80, 250, 123), Type = "None", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
+    ["WINDY"] = {Color = 0x55FFFF, Hex = Color3.fromRGB(85, 255, 255), Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/0/07/DISCORICH-NORMAL.png/revision/latest/scale-to-width-down/250?cb=20260823042008"},
+    ["SNOWY"] = {Color = 0xAAFFFF, Hex = Color3.fromRGB(170, 255, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOUXKzPjkds7zbMEq3A861d7V3QVJpL1-TczhgaktD2Q&s=10"},
+    ["RAINY"] = {Color = 0x4477FF, Hex = Color3.fromRGB(68, 119, 255), Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/7/77/DISCORICH-RAINY.png/revision/latest/scale-to-width-down/250?cb=20260823042833"},
+    ["SANDSTORM"] = {Color = 0xCC9955, Hex = Color3.fromRGB(235, 180, 90), Type = "Normal", Image = "https://static.wikia.nocookie.net/sol-rng/images/9/92/DISCORICH-SANDSTORM.png/revision/latest/scale-to-width-down/250?cb=20260823202219"},
+    ["HELL"] = {Color = 0xFF3300, Hex = Color3.fromRGB(255, 65, 35), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdVb905ylmcIBQos_e7jfMXivZgvY6hBkFFIvrXyH27g&s=10"},
+    ["STARFALL"] = {Color = 0x2266FF, Hex = Color3.fromRGB(80, 140, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTVMr3p41F85Oo6vaUcu9TGSkQhHUxFEAClzSjIckCytA&s=10"},
+    ["HEAVEN"] = {Color = 0xFFEEAA, Hex = Color3.fromRGB(255, 238, 170), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRabM1sg3YzizyQUZtiK92fZa7aXKWmGsrKW0CEBY8JZA&s=10"},
+    ["LOST FOREST"] = {Color = 0x33FF33, Hex = Color3.fromRGB(51, 255, 51), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR82qzAd_-zixFo31jcKTfJ8LcnNSafRj2NO1aUvkHfxw&s=10"},
+    ["CORRUPTION"] = {Color = 0x8833FF, Hex = Color3.fromRGB(165, 90, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHLaYqUpmoLGJiST12FRbfmlWzorC4J4LVUBFSxKG9TA&s"},
+    ["NULL"] = {Color = 0x777777, Hex = Color3.fromRGB(160, 160, 160), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5XeQvNZtLhXzo8x2N-hYpm61TgbcECwxHSWYiQrmW3A&s=10"},
+    ["GLITCHED"] = {Color = 0x228855, Hex = Color3.fromRGB(60, 220, 140), Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRZDgmOTmOuKCus91vLwkxmxVdYN9ZmO55GJwEW9Mk9A&s=10"},
+    ["DREAMSPACE"] = {Color = 0xFF66CC, Hex = Color3.fromRGB(255, 102, 204), Type = "Everyone", Image = "https://i1.sndcdn.com/artworks-4REvzocas0Xf3WZQ-wlFSVw-t500x500.jpg"},
+    ["CYBERSPACE"] = {Color = 0x2255AA, Hex = Color3.fromRGB(70, 150, 255), Type = "Everyone", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUv6mm81S7Y4LT9fXY-QHmv5TLnaVKASv-E-SIMYv_pgkv5Kj2OoBW2YM&s=10"},
+    ["SINGULARITY"] = {Color = 0xFF9955, Hex = Color3.fromRGB(255, 153, 85), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMT9FH9iRVwGnOPCurDe-4a5c-w1IawDZLrEgEhQ7FsNQiJ5D1cJksX08&s=10"},
+    ["THE RADIANT FOREST"] = {Color = 0xCC33FF, Hex = Color3.fromRGB(204, 51, 255), Type = "Normal", Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSJho-qLxevg6mcrSW1YPUJciaoPMD1bJq70_xUe2UMPzv1jWhS33aGs_Zc&s=10"}
 }
 
--- // Merchant Data (Mari, Jester, Rin)
-local MerchantData = {
-    ["Mari"] = {Color = 0x2ECC71, Ping = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["Jester"] = {Color = 0x9B59B6, Ping = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["Rin"] = {Color = 0x3498DB, Ping = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
+-- // Multi-format Biome Aliases (Fixes SANDSTORM / SAND STORM)
+local BiomeAliases = {
+    ["SANDSTORM"] = {"SANDSTORM", "SAND STORM", "SAND_STORM", "SAND-STORM", "SANDY"},
+    ["THE RADIANT FOREST"] = {"THE RADIANT FOREST", "RADIANT FOREST", "RADIANT_FOREST"},
+    ["LOST FOREST"] = {"LOST FOREST", "LOST_FOREST"},
+    ["DREAMSPACE"] = {"DREAMSPACE", "DREAM SPACE", "DREAM_SPACE"},
+    ["CYBERSPACE"] = {"CYBERSPACE", "CYBER SPACE", "CYBER_SPACE"},
+    ["STARFALL"] = {"STARFALL", "STAR FALL", "STAR_FALL"},
+    ["GLITCHED"] = {"GLITCHED", "GLITCH"}
 }
 
 local BiomeScanPriority = {
@@ -59,6 +62,12 @@ local All16Biomes = {
     "GLITCHED", "DREAMSPACE", "CYBERSPACE", "SINGULARITY", "THE RADIANT FOREST"
 }
 
+local MerchantData = {
+    ["Mari"] = {Color = 0x2ECC71, Image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTa3N1jMM3zL9RtUTCQrhRQMqIEqgu_DcIn96nx2t_1Gg&s=10"},
+    ["Jester"] = {Color = 0x9B59B6, Image = "https://static.wikia.nocookie.net/sols-rng/images/d/db/Headshot_of_Jester.png/revision/latest/thumbnail/width/360/height/450?cb=20240714045217&path-prefix=vi"},
+    ["Rin"] = {Color = 0x3498DB, Image = "https://static.wikia.nocookie.net/sol-rng/images/0/04/RinHeadShot.png/revision/latest/scale-to-width-down/250?cb=20260214165200"}
+}
+
 -- // Configuration Table
 local NyXConfig = {
     WebhookURL = "",
@@ -66,6 +75,7 @@ local NyXConfig = {
     PrivateServerLink = "",
     EnableBiomeWebhook = false,
     EnableMerchantWebhook = false,
+    AutoTeleportMerchant = false,
     AutoBiomeRandomizer = false,
     AutoStrangeController = false,
     UseInterval = 20,
@@ -75,15 +85,15 @@ local NyXConfig = {
         ["CYBERSPACE"] = true
     },
     CurrentDetectedBiome = "NORMAL",
-    LiquidGlassMenu = true,
-    MenuTransparency = 0.25,
-    UIAccentColor = Color3.fromRGB(175, 120, 255),
-    UIBackgroundColor = Color3.fromRGB(18, 18, 28),
-    AntiAFK = true
+    CurrentMerchant = "NONE",
+    AntiAFK = true,
+    Disable3DRendering = false,
+    UIAccentColor = Color3.fromRGB(135, 95, 255),
+    GlassTransparency = 0.08
 }
 
 -- ==========================================
--- // DEDICATED WEBHOOK CONFIG SAVE / LOAD
+-- // DEDICATED CONFIG SAVE / LOAD
 -- ==========================================
 local WebhookConfigFile = "NyX_WebhookConfig.json"
 
@@ -105,9 +115,9 @@ local function LoadWebhookConfig()
         pcall(function()
             local decoded = HttpService:JSONDecode(readfile(WebhookConfigFile))
             if type(decoded) == "table" then
-                NyXConfig.WebhookURL = decoded.WebhookURL or ""
-                NyXConfig.DiscordID = decoded.DiscordID or ""
-                NyXConfig.PrivateServerLink = decoded.PrivateServerLink or ""
+                NyXConfig.WebhookURL = tostring(decoded.WebhookURL or ""):gsub("%s+", "")
+                NyXConfig.DiscordID = tostring(decoded.DiscordID or ""):gsub("%D+", "")
+                NyXConfig.PrivateServerLink = tostring(decoded.PrivateServerLink or "")
             end
         end)
     end
@@ -151,15 +161,17 @@ local function CleanRichText(str)
 end
 
 -- ==========================================
--- // DISCORD WEBHOOK EMBED SYSTEM (NO EMOJIS)
+-- // DISCORD WEBHOOK EMBED SYSTEM (STRICT PING RULES)
 -- ==========================================
 local function SendRawWebhook(payload)
-    if NyXConfig.WebhookURL == "" then return end
+    local cleanUrl = tostring(NyXConfig.WebhookURL or ""):gsub("%s+", "")
+    if cleanUrl == "" then return end
+
     local req = (syn and syn.request) or http_request or request
     if req then
         pcall(function()
             req({
-                Url = NyXConfig.WebhookURL,
+                Url = cleanUrl,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
                 Body = HttpService:JSONEncode(payload)
@@ -168,19 +180,18 @@ local function SendRawWebhook(payload)
     end
 end
 
--- 1. Test Webhook Embed
 local function SendTestWebhookEmbed()
     SendRawWebhook({
         ["content"] = "",
         ["embeds"] = {{
             ["title"] = "Webhook Test - Successfully",
+            ["description"] = "Connection verified. NyX Detector Macro is ready.",
             ["color"] = 0x2ECC71,
             ["footer"] = {["text"] = "Project NyX"}
         }}
     })
 end
 
--- 2. Macro State Embed (Started / Stopped - Clean Plain Text)
 local function SendMacroStateEmbed(isStarted, finalElapsed)
     local currentClock = os.date("%H:%M:%S")
     if isStarted then
@@ -188,9 +199,9 @@ local function SendMacroStateEmbed(isStarted, finalElapsed)
             ["content"] = "",
             ["embeds"] = {{
                 ["title"] = "Macro Started",
-                ["description"] = "**NyX Detector** has started monitoring Biomes and Merchants.\n**Macro Uptime :** `00:00:00`",
+                ["description"] = "**NyX Detector Macro** has started monitoring Biomes and Merchants.\n**Macro Uptime :** `00:00:00`",
                 ["color"] = 0x00FF88,
-                ["footer"] = {["text"] = "NyX Detector | " .. currentClock}
+                ["footer"] = {["text"] = "NyX Detector Macro | " .. currentClock}
             }}
         })
     else
@@ -199,21 +210,24 @@ local function SendMacroStateEmbed(isStarted, finalElapsed)
             ["content"] = "",
             ["embeds"] = {{
                 ["title"] = "Macro Stopped",
-                ["description"] = "**NyX Detector** has been stopped.\n**Total Uptime :** `" .. uptimeStr .. "` *(Reset)*",
+                ["description"] = "**NyX Detector Macro** has been stopped.\n**Total Uptime :** `" .. uptimeStr .. "` *(Reset)*",
                 ["color"] = 0xFF3344,
-                ["footer"] = {["text"] = "NyX Detector | " .. currentClock}
+                ["footer"] = {["text"] = "NyX Detector Macro | " .. currentClock}
             }}
         })
     end
 end
 
--- 3. Biome Started Embed (Clean Plain Text)
-local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
+local function SendBiomeStartedEmbed(biomeName, color, imageUrl)
     local contentMsg = ""
-    if pingType == "Everyone" then
-        contentMsg = "@everyone " .. (NyXConfig.DiscordID ~= "" and ("<@" .. NyXConfig.DiscordID .. ">") or "")
-    elseif NyXConfig.DiscordID ~= "" and (pingType == "Rare" or pingType == "UserPing") then
-        contentMsg = "<@" .. NyXConfig.DiscordID .. ">"
+    -- STRICT RULE: Chỉ cho phép ping tự động nếu đúng là 1 trong 3 biome: GLITCHED, DREAMSPACE, CYBERSPACE
+    if biomeName == "GLITCHED" or biomeName == "DREAMSPACE" or biomeName == "CYBERSPACE" then
+        local cleanID = tostring(NyXConfig.DiscordID or ""):gsub("%D+", "")
+        local parts = {"@everyone"}
+        if cleanID ~= "" then
+            table.insert(parts, "<@" .. cleanID .. ">")
+        end
+        contentMsg = table.concat(parts, " ")
     end
 
     local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Click to Join Server](" .. NyXConfig.PrivateServerLink .. ")") or "`None`"
@@ -222,17 +236,17 @@ local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
 
     SendRawWebhook({
         ["content"] = contentMsg,
+        ["allowed_mentions"] = {["parse"] = {"everyone", "users"}},
         ["embeds"] = {{
             ["title"] = "Biome Started - " .. biomeName,
             ["description"] = "**Macro Uptime :** `" .. uptimeStr .. "`\n**Private Server :** " .. psDisplay,
             ["color"] = color or 0x9B59B6,
             ["thumbnail"] = {["url"] = imageUrl},
-            ["footer"] = {["text"] = "NyX Detector | " .. currentClock}
+            ["footer"] = {["text"] = "NyX Detector Macro | " .. currentClock}
         }}
     })
 end
 
--- 4. Biome Ended Embed (Clean Plain Text)
 local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
     local currentClock = os.date("%H:%M:%S")
     local uptimeStr = GetMacroUptime()
@@ -244,34 +258,63 @@ local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
             ["description"] = "**Macro Uptime :** `" .. uptimeStr .. "`",
             ["color"] = color or 0x555555,
             ["thumbnail"] = {["url"] = imageUrl},
-            ["footer"] = {["text"] = "NyX Detector | " .. currentClock}
+            ["footer"] = {["text"] = "NyX Detector Macro | " .. currentClock}
         }}
     })
 end
 
--- 5. Merchant Arrived Embed ("<Merchant Name> has arrived!" - Clean Plain Text)
 local LastMerchantSentTime = {["Mari"] = 0, ["Jester"] = 0, ["Rin"] = 0}
 
+local function TeleportToActiveMerchant()
+    pcall(function()
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") or obj:IsA("BasePart") then
+                local n = obj.Name:upper()
+                if n == "MARI" or n == "JESTER" or n == "RIN" or n:find("MERCHANT_MARI") or n:find("MERCHANT_JESTER") or n:find("MERCHANT_RIN") then
+                    local targetCFrame = obj:IsA("Model") and obj:GetPivot() or obj.CFrame
+                    if targetCFrame then
+                        root.CFrame = targetCFrame * CFrame.new(0, 3, 4)
+                        return
+                    end
+                end
+            elseif obj:IsA("ProximityPrompt") then
+                local combined = (obj.ObjectText .. " " .. obj.ActionText .. " " .. (obj.Parent and obj.Parent.Name or "")):upper()
+                if combined:find("%f[%a]MARI%f[%A]") or combined:find("%f[%a]JESTER%f[%A]") or combined:find("%f[%a]RIN%f[%A]") then
+                    local part = obj:FindFirstAncestorWhichIsA("BasePart") or (obj.Parent and obj.Parent:IsA("Model") and obj.Parent.PrimaryPart)
+                    if part then
+                        root.CFrame = part.CFrame * CFrame.new(0, 3, 4)
+                        return
+                    end
+                end
+            end
+        end
+    end)
+end
+
 local function TriggerMerchantArrival(merchantName)
+    if NyXConfig.AutoTeleportMerchant then
+        task.spawn(TeleportToActiveMerchant)
+    end
+
     if not NyXConfig.EnableMerchantWebhook then return end
+
     local now = os.time()
-    if LastMerchantSentTime[merchantName] and (now - LastMerchantSentTime[merchantName]) < 90 then
+    if LastMerchantSentTime[merchantName] and (now - LastMerchantSentTime[merchantName]) < 75 then
         return
     end
     LastMerchantSentTime[merchantName] = now
 
     local mInfo = MerchantData[merchantName] or {
         Color = 0xF1C40F,
-        Ping = "Everyone",
         Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"
     }
 
+    -- STRICT RULE: Merchant KHÔNG BAO GIỜ ĐƯỢC PING
     local contentMsg = ""
-    if mInfo.Ping == "Everyone" then
-        contentMsg = "@everyone " .. (NyXConfig.DiscordID ~= "" and ("<@" .. NyXConfig.DiscordID .. ">") or "")
-    elseif NyXConfig.DiscordID ~= "" then
-        contentMsg = "<@" .. NyXConfig.DiscordID .. ">"
-    end
 
     local psDisplay = NyXConfig.PrivateServerLink ~= "" and ("[Click to Join Server](" .. NyXConfig.PrivateServerLink .. ")") or "`None`"
     local currentClock = os.date("%H:%M:%S")
@@ -284,235 +327,242 @@ local function TriggerMerchantArrival(merchantName)
             ["description"] = "**Merchant :** `" .. merchantName .. "`\n**Macro Uptime :** `" .. uptimeStr .. "`\n**Private Server :** " .. psDisplay,
             ["color"] = mInfo.Color,
             ["thumbnail"] = {["url"] = mInfo.Image},
-            ["footer"] = {["text"] = "NyX Detector | " .. currentClock}
+            ["footer"] = {["text"] = "NyX Detector Macro | " .. currentClock}
         }}
     })
-
-    Rayfield:Notify({
-        Title = "Merchant Detected",
-        Content = merchantName .. " has arrived!",
-        Duration = 4
-    })
 end
 
 -- ==========================================
--- // RAYFIELD LIQUID GLASS, COLOR STYLER & "ND" FLOATING BUTTON
+-- // ACCURATE BIOME & REAL MERCHANT SCANNERS
 -- ==========================================
-local NDGui = nil
-local GlassConnections = {}
+local function MatchExactBiomeString(rawText)
+    local clean = CleanRichText(rawText):upper()
+    if clean == "" or #clean > 60 then return nil end
 
-local function FindRayfieldScreenGui()
-    local roots = {}
-    if gethui then pcall(function() table.insert(roots, gethui()) end) end
-    table.insert(roots, CoreGui)
-    if LocalPlayer:FindFirstChild("PlayerGui") then
-        table.insert(roots, LocalPlayer.PlayerGui)
-    end
+    local condensed = clean:gsub("[%s_%-]+", "")
 
-    for _, root in ipairs(roots) do
-        for _, gui in ipairs(root:GetChildren()) do
-            if gui:IsA("ScreenGui") and gui.Name ~= "NyXDetectorLogoGui" then
-                local mainCheck = gui:FindFirstChild("Main", true)
-                if mainCheck and mainCheck:FindFirstChild("Topbar") then
-                    return gui, mainCheck
-                end
+    for _, bName in ipairs(BiomeScanPriority) do
+        local aliases = BiomeAliases[bName] or {bName}
+        for _, alias in ipairs(aliases) do
+            if clean == alias
+               or clean:find("%[%s*" .. alias .. "%s*%]")
+               or clean:find("%f[%a]" .. alias .. "%f[%A]") then
+                return bName
             end
         end
+        local condensedTarget = bName:gsub("[%s_%-]+", "")
+        if condensed == condensedTarget or condensed:find("%[" .. condensedTarget .. "%]") or condensed:find("BIOME:" .. condensedTarget) then
+            return bName
+        end
     end
-    return nil, nil
+    return nil
 end
 
-local function ApplyMenuThemeAndGlass()
+local function GetAccurateServerBiome()
+    local foundBiome = nil
+
     pcall(function()
-        local rfGui, mainFrame = FindRayfieldScreenGui()
-        if not rfGui or not mainFrame then return end
+        local candidates = {
+            Workspace:GetAttribute("Biome"),
+            Workspace:GetAttribute("CurrentBiome"),
+            Workspace:GetAttribute("Weather"),
+            ReplicatedStorage:GetAttribute("Biome"),
+            ReplicatedStorage:GetAttribute("CurrentBiome"),
+            Lighting:GetAttribute("Biome"),
+            LocalPlayer:GetAttribute("Biome")
+        }
+        for _, val in ipairs(candidates) do
+            if type(val) == "string" and val ~= "" then
+                local m = MatchExactBiomeString(val)
+                if m then foundBiome = m return end
+            end
+        end
+    end)
+    if foundBiome then return foundBiome end
 
-        local enabled = NyXConfig.LiquidGlassMenu
-        local trans = NyXConfig.MenuTransparency
-        local bgCol = NyXConfig.UIBackgroundColor
-        local accentCol = NyXConfig.UIAccentColor
-
-        -- Hide Rayfield's default mini "Show Rayfield" bar so ND button controls everything
-        for _, child in ipairs(rfGui:GetChildren()) do
-            if child:IsA("Frame") and child ~= mainFrame and child.Name ~= "Notifications" then
-                if child:FindFirstChildWhichIsA("TextButton", true) then
-                    child.Visible = false
+    pcall(function()
+        for _, root in ipairs({ReplicatedStorage, Workspace, Lighting}) do
+            for _, obj in ipairs(root:GetDescendants()) do
+                if obj:IsA("StringValue") and (obj.Name:lower():find("biome") or obj.Name:lower():find("weather")) then
+                    local m = MatchExactBiomeString(obj.Value)
+                    if m then foundBiome = m return end
                 end
             end
         end
+    end)
+    if foundBiome then return foundBiome end
 
-        local targetMainTrans = enabled and trans or 0
-        local targetElemTrans = enabled and math.clamp(trans + 0.15, 0, 0.92) or 0
-        local elemColor = Color3.new(
-            math.clamp(bgCol.R + 0.04, 0, 1),
-            math.clamp(bgCol.G + 0.04, 0, 1),
-            math.clamp(bgCol.B + 0.05, 0, 1)
-        )
+    pcall(function()
+        local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not pGui then return end
 
-        local function StyleObject(v)
-            if v:IsA("Frame") then
-                local n = v.Name
-                if n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList" then
-                    v.BackgroundTransparency = targetMainTrans
-                    v.BackgroundColor3 = bgCol
-                elseif v.Parent and (v.Parent.Name == "Elements" or v.Parent:IsA("ScrollingFrame")) then
-                    v.BackgroundTransparency = targetElemTrans
-                    v.BackgroundColor3 = elemColor
-                elseif n == "Shadow" or n == "DropShadow" then
-                    v.Visible = not enabled
-                end
-            elseif v:IsA("ScrollingFrame") then
-                v.BackgroundTransparency = 1
-            elseif v:IsA("UIStroke") then
-                v.Color = accentCol
-                v.Transparency = enabled and 0.35 or 0
-                v.Thickness = 1.2
-            end
-        end
+        local detectedNormal = false
+        for _, v in ipairs(pGui:GetDescendants()) do
+            if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
+                local fullName = v:GetFullName():upper()
+                if not fullName:find("INVENTORY")
+                   and not fullName:find("BACKPACK")
+                   and not fullName:find("CHAT")
+                   and not fullName:find("SHOP")
+                   and not fullName:find("COLLECTION")
+                   and not fullName:find("QUEST")
+                   and not fullName:find("CRAFT")
+                   and not fullName:find("SETTING")
+                   and not fullName:find("NYXMACROUI")
+                   and not fullName:find("PLAYERLIST") then
 
-        for _, v in ipairs(mainFrame:GetDescendants()) do
-            StyleObject(v)
-            if not GlassConnections[v] and v:IsA("Frame") then
-                local n = v.Name
-                if n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList" or (v.Parent and v.Parent:IsA("ScrollingFrame")) then
-                    GlassConnections[v] = v:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
-                        if not NyXConfig.LiquidGlassMenu then return end
-                        local desired = (n == "Main" or n == "Topbar" or n == "Elements" or n == "TabList")
-                            and NyXConfig.MenuTransparency
-                            or math.clamp(NyXConfig.MenuTransparency + 0.15, 0, 0.92)
-                        if math.abs(v.BackgroundTransparency - desired) > 0.03 and v.BackgroundTransparency < 0.98 then
-                            v.BackgroundTransparency = desired
+                    local cleanTxt = CleanRichText(v.Text):upper()
+                    if #cleanTxt <= 45 then
+                        local m = MatchExactBiomeString(cleanTxt)
+                        if m then
+                            if m ~= "NORMAL" then
+                                foundBiome = m
+                                return
+                            elseif v.Name:upper():find("BIOME") or cleanTxt:find("%[") then
+                                detectedNormal = true
+                            end
                         end
-                    end)
-                end
-            end
-        end
-        StyleObject(mainFrame)
-    end)
-end
-
-local function ToggleRayfieldMenu()
-    pcall(function()
-        local rfGui, mainFrame = FindRayfieldScreenGui()
-        if rfGui and mainFrame then
-            -- Trigger Rayfield's native toggle keybind (RightShift) AND fallback to direct visibility
-            local wasVisible = mainFrame.Visible
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.RightShift, false, game)
-            task.wait(0.05)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.RightShift, false, game)
-            task.wait(0.08)
-
-            -- Direct fallback if Rayfield didn't process the keybind (e.g., on mobile executors)
-            if mainFrame.Visible == wasVisible then
-                mainFrame.Visible = not wasVisible
-            end
-            rfGui.Enabled = true
-
-            -- Hide any "Show Rayfield" prompt bar that Rayfield tries to spawn when minimized
-            for _, child in ipairs(rfGui:GetChildren()) do
-                if child:IsA("Frame") and child ~= mainFrame and child.Name ~= "Notifications" then
-                    child.Visible = false
-                end
-            end
-
-            if mainFrame.Visible then
-                task.defer(ApplyMenuThemeAndGlass)
-            end
-        end
-    end)
-end
-
-local function CreateNDLogoButton()
-    pcall(function()
-        local parentTarget = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
-        if parentTarget:FindFirstChild("NyXDetectorLogoGui") then
-            parentTarget.NyXDetectorLogoGui:Destroy()
-        end
-
-        NDGui = Instance.new("ScreenGui")
-        NDGui.Name = "NyXDetectorLogoGui"
-        NDGui.ResetOnSpawn = false
-        NDGui.IgnoreGuiInset = true
-        NDGui.DisplayOrder = 999999
-        NDGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        NDGui.Parent = parentTarget
-
-        local NDButton = Instance.new("TextButton")
-        NDButton.Name = "NDLogoBtn"
-        NDButton.Size = UDim2.new(0, 54, 0, 54)
-        NDButton.Position = UDim2.new(0.04, 0, 0.22, 0)
-        NDButton.BackgroundColor3 = NyXConfig.UIBackgroundColor
-        NDButton.BackgroundTransparency = 0.1
-        NDButton.Text = "ND"
-        NDButton.TextColor3 = Color3.fromRGB(240, 230, 255)
-        NDButton.Font = Enum.Font.GothamBlack
-        NDButton.TextSize = 22
-        NDButton.AutoButtonColor = true
-        NDButton.Active = true
-        NDButton.ZIndex = 10
-        NDButton.Parent = NDGui
-
-        local Corner = Instance.new("UICorner")
-        Corner.CornerRadius = UDim.new(0, 12)
-        Corner.Parent = NDButton
-
-        local Stroke = Instance.new("UIStroke")
-        Stroke.Thickness = 2.2
-        Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        Stroke.Color = NyXConfig.UIAccentColor
-        Stroke.Parent = NDButton
-
-        local SubText = Instance.new("TextLabel")
-        SubText.Size = UDim2.new(1, 0, 0, 12)
-        SubText.Position = UDim2.new(0, 0, 0.72, 0)
-        SubText.BackgroundTransparency = 1
-        SubText.Text = "NYX"
-        SubText.TextColor3 = NyXConfig.UIAccentColor
-        SubText.Font = Enum.Font.GothamBold
-        SubText.TextSize = 8
-        SubText.ZIndex = 11
-        SubText.Parent = NDButton
-
-        local dragging = false
-        local hasMoved = false
-        local dragStart = nil
-        local startPos = nil
-
-        NDButton.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                hasMoved = false
-                dragStart = input.Position
-                startPos = NDButton.Position
-            end
-        end)
-
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local delta = input.Position - dragStart
-                if delta.Magnitude > 6 then
-                    hasMoved = true
-                    NDButton.Position = UDim2.new(
-                        startPos.X.Scale,
-                        startPos.X.Offset + delta.X,
-                        startPos.Y.Scale,
-                        startPos.Y.Offset + delta.Y
-                    )
-                end
-            end
-        end)
-
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                if dragging then
-                    dragging = false
-                    if not hasMoved then
-                        ToggleRayfieldMenu()
                     end
                 end
             end
+        end
+        if detectedNormal and not foundBiome then
+            foundBiome = "NORMAL"
+        end
+    end)
+
+    return foundBiome or "NORMAL"
+end
+
+local function ParseMerchantFromText(rawText)
+    local clean = CleanRichText(rawText):upper()
+    if clean == "" then return nil end
+
+    local isSpawnContext = clean:find("ARRIVED") or clean:find("SPAWN") or clean:find("SHOP") or clean:find("MERCHANT") or clean:find("%[") or clean:find("TRAVELING") or clean:find("APPEARED")
+    if isSpawnContext then
+        if clean:find("%f[%a]JESTER%f[%A]") or clean:find("JESTER'S") then
+            return "Jester"
+        elseif clean:find("%f[%a]RIN%f[%A]") or clean:find("RIN'S") then
+            return "Rin"
+        elseif clean:find("%f[%a]MARI%f[%A]") or clean:find("MARI'S") then
+            return "Mari"
+        end
+    end
+    return nil
+end
+
+pcall(function()
+    if TextChatService and TextChatService.MessageReceived then
+        TextChatService.MessageReceived:Connect(function(message)
+            if not ScriptRunning then return end
+            local txt = (message.Text or "") .. " " .. (message.PrefixText or "")
+            local m = ParseMerchantFromText(txt)
+            if m then
+                NyXConfig.CurrentMerchant = m:upper()
+                task.spawn(function() TriggerMerchantArrival(m) end)
+            end
+        end)
+    end
+end)
+
+pcall(function()
+    local chatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+    if chatEvents then
+        local onMsg = chatEvents:FindFirstChild("OnMessageDoneFiltering")
+        if onMsg and onMsg:IsA("RemoteEvent") then
+            onMsg.OnClientEvent:Connect(function(data)
+                if not ScriptRunning or type(data) ~= "table" then return end
+                local m = ParseMerchantFromText(tostring(data.Message or ""))
+                if m then
+                    NyXConfig.CurrentMerchant = m:upper()
+                    task.spawn(function() TriggerMerchantArrival(m) end)
+                end
+            end)
+        end
+    end
+end)
+
+local WorkspaceDescConn = Workspace.DescendantAdded:Connect(function(obj)
+    if not ScriptRunning then return end
+    task.defer(function()
+        pcall(function()
+            local n = obj.Name:upper()
+            if obj:IsA("Model") or obj:IsA("Folder") then
+                if n == "JESTER" or n:find("MERCHANT_JESTER") or n == "JESTERNPC" then
+                    NyXConfig.CurrentMerchant = "JESTER"
+                    TriggerMerchantArrival("Jester")
+                elseif n == "RIN" or n:find("MERCHANT_RIN") or n == "RINNPC" then
+                    NyXConfig.CurrentMerchant = "RIN"
+                    TriggerMerchantArrival("Rin")
+                elseif n == "MARI" or n:find("MERCHANT_MARI") or n == "MARINPC" then
+                    NyXConfig.CurrentMerchant = "MARI"
+                    TriggerMerchantArrival("Mari")
+                end
+            elseif obj:IsA("ProximityPrompt") then
+                local combined = (obj.ObjectText .. " " .. obj.ActionText .. " " .. (obj.Parent and obj.Parent.Name or "")):upper()
+                if combined:find("%f[%a]JESTER%f[%A]") then
+                    NyXConfig.CurrentMerchant = "JESTER"
+                    TriggerMerchantArrival("Jester")
+                elseif combined:find("%f[%a]RIN%f[%A]") then
+                    NyXConfig.CurrentMerchant = "RIN"
+                    TriggerMerchantArrival("Rin")
+                elseif combined:find("%f[%a]MARI%f[%A]") then
+                    NyXConfig.CurrentMerchant = "MARI"
+                    TriggerMerchantArrival("Mari")
+                end
+            end
         end)
     end)
+end)
+
+local function ScanActiveMerchantInWorld()
+    local detected = nil
+    pcall(function()
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            local n = obj.Name:upper()
+            if obj:IsA("Model") or obj:IsA("Folder") or obj:IsA("BasePart") then
+                if n == "JESTER" or n:find("JESTER_NPC") or n:find("MERCHANT_JESTER") then
+                    detected = "Jester" return
+                elseif n == "RIN" or n:find("RIN_NPC") or n:find("MERCHANT_RIN") then
+                    detected = "Rin" return
+                elseif n == "MARI" or n:find("MARI_NPC") or n:find("MERCHANT_MARI") then
+                    detected = "Mari" return
+                end
+            elseif obj:IsA("ProximityPrompt") or obj:IsA("Dialog") then
+                local combined = ((obj:IsA("ProximityPrompt") and (obj.ObjectText .. " " .. obj.ActionText) or "") .. " " .. (obj.Parent and obj.Parent.Name or "") .. " " .. (obj.Parent and obj.Parent.Parent and obj.Parent.Parent.Name or "")):upper()
+                if combined:find("%f[%a]JESTER%f[%A]") then
+                    detected = "Jester" return
+                elseif combined:find("%f[%a]RIN%f[%A]") then
+                    detected = "Rin" return
+                elseif combined:find("%f[%a]MARI%f[%A]") then
+                    detected = "Mari" return
+                end
+            elseif obj:IsA("TextLabel") and obj.Visible and obj.Text ~= "" then
+                local t = CleanRichText(obj.Text):upper()
+                if t == "JESTER" or t:find("%[JESTER%]") or t:find("JESTER'S") then
+                    detected = "Jester" return
+                elseif t == "RIN" or t:find("%[RIN%]") or t:find("RIN'S") then
+                    detected = "Rin" return
+                elseif t == "MARI" or t:find("%[MARI%]") or t:find("MARI'S") then
+                    detected = "Mari" return
+                end
+            end
+        end
+
+        local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if pGui then
+            for _, v in ipairs(pGui:GetDescendants()) do
+                if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
+                    local fullName = v:GetFullName():upper()
+                    if not fullName:find("NYXMACROUI") and not fullName:find("INVENTORY") then
+                        local m = ParseMerchantFromText(v.Text)
+                        if m then detected = m return end
+                    end
+                end
+            end
+        end
+    end)
+    return detected
 end
 
 -- ==========================================
@@ -547,7 +597,7 @@ local function UseItemWithInventoryFailsafe(itemName)
     if isUsingInventoryFailsafe then return end
     isUsingInventoryFailsafe = true
 
-    pcall(function()
+    xpcall(function()
         local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
         for _, r in pairs(Remotes:GetDescendants()) do
             if r:IsA("RemoteEvent") and (r.Name:lower():find("use") or r.Name:lower():find("item") or r.Name:lower():find("inventory")) then
@@ -622,479 +672,893 @@ local function UseItemWithInventoryFailsafe(itemName)
         if wasClosed and invFrame then
             invFrame.Visible = false
         end
-    end)
+    end, function() end)
 
     isUsingInventoryFailsafe = false
 end
 
 -- ==========================================
--- // MULTI-LAYER BIOME & MERCHANT DETECTION
+-- // NYX DETECTOR MACRO UI LIBRARY
 -- ==========================================
-local function MatchExactBiomeString(rawText)
-    local clean = CleanRichText(rawText):upper()
-    if clean == "" or #clean > 45 then return nil end
-
-    for _, bName in ipairs(BiomeScanPriority) do
-        if clean == bName 
-           or clean:find("%[%s*" .. bName .. "%s*%]") 
-           or clean:find("%f[%a]" .. bName .. "%f[%A]") then
-            return bName
-        end
-    end
-    return nil
+local ParentGui = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
+if ParentGui:FindFirstChild("NyXMacroUI") then
+    ParentGui.NyXMacroUI:Destroy()
 end
 
-local function GetAccurateServerBiome()
-    local foundBiome = nil
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NyXMacroUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 99999
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = ParentGui
 
-    -- Layer 1: Check Server Attributes
-    pcall(function()
-        local candidates = {
-            Workspace:GetAttribute("Biome"),
-            Workspace:GetAttribute("CurrentBiome"),
-            ReplicatedStorage:GetAttribute("Biome"),
-            ReplicatedStorage:GetAttribute("CurrentBiome"),
-            Lighting:GetAttribute("Biome"),
-            LocalPlayer:GetAttribute("Biome")
-        }
-        for _, val in ipairs(candidates) do
-            if type(val) == "string" and val ~= "" then
-                local m = MatchExactBiomeString(val)
-                if m then foundBiome = m return end
+local AccentObjects = {}
+
+local function RegisterAccent(obj, prop)
+    table.insert(AccentObjects, {Obj = obj, Prop = prop})
+    obj[prop] = NyXConfig.UIAccentColor
+end
+
+local function UpdateAccentColor(newColor)
+    NyXConfig.UIAccentColor = newColor
+    for _, item in ipairs(AccentObjects) do
+        pcall(function() item.Obj[item.Prop] = newColor end)
+    end
+end
+
+local ToastHolder = Instance.new("Frame")
+ToastHolder.Size = UDim2.new(0, 260, 1, -20)
+ToastHolder.Position = UDim2.new(1, -275, 0, 10)
+ToastHolder.BackgroundTransparency = 1
+ToastHolder.Parent = ScreenGui
+
+local ToastLayout = Instance.new("UIListLayout")
+ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+ToastLayout.Padding = UDim.new(0, 8)
+ToastLayout.Parent = ToastHolder
+
+local function Notify(title, text, duration)
+    task.spawn(function()
+        local Card = Instance.new("Frame")
+        Card.Size = UDim2.new(1, 0, 0, 56)
+        Card.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
+        Card.BackgroundTransparency = 0.08
+        Card.Parent = ToastHolder
+
+        local Crn = Instance.new("UICorner", Card)
+        Crn.CornerRadius = UDim.new(0, 10)
+
+        local Strk = Instance.new("UIStroke", Card)
+        Strk.Color = NyXConfig.UIAccentColor
+        Strk.Thickness = 1.2
+        Strk.Transparency = 0.25
+
+        local Tbl = Instance.new("TextLabel", Card)
+        Tbl.Size = UDim2.new(1, -20, 0, 20)
+        Tbl.Position = UDim2.new(0, 12, 0, 6)
+        Tbl.BackgroundTransparency = 1
+        Tbl.Text = title
+        Tbl.TextColor3 = Color3.fromRGB(245, 245, 255)
+        Tbl.Font = Enum.Font.GothamBold
+        Tbl.TextSize = 13
+        Tbl.TextXAlignment = Enum.TextXAlignment.Left
+
+        local Sub = Instance.new("TextLabel", Card)
+        Sub.Size = UDim2.new(1, -20, 0, 22)
+        Sub.Position = UDim2.new(0, 12, 0, 26)
+        Sub.BackgroundTransparency = 1
+        Sub.Text = text
+        Sub.TextColor3 = Color3.fromRGB(175, 175, 195)
+        Sub.Font = Enum.Font.Gotham
+        Sub.TextSize = 11
+        Sub.TextWrapped = true
+        Sub.TextXAlignment = Enum.TextXAlignment.Left
+
+        task.wait(duration or 3)
+        if Card and Card.Parent then Card:Destroy() end
+    end)
+end
+
+local MainWindow = Instance.new("Frame")
+MainWindow.Name = "MainWindow"
+MainWindow.Size = UDim2.new(0, 690, 0, 430)
+MainWindow.Position = UDim2.new(0.5, -345, 0.5, -215)
+MainWindow.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+MainWindow.BackgroundTransparency = NyXConfig.GlassTransparency
+MainWindow.Active = true
+MainWindow.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner", MainWindow)
+MainCorner.CornerRadius = UDim.new(0, 14)
+
+local MainStroke = Instance.new("UIStroke", MainWindow)
+MainStroke.Thickness = 1.4
+MainStroke.Transparency = 0.35
+RegisterAccent(MainStroke, "Color")
+
+local NDButton = Instance.new("TextButton")
+NDButton.Name = "NDLogoBtn"
+NDButton.Size = UDim2.new(0, 52, 0, 52)
+NDButton.Position = UDim2.new(0.04, 0, 0.22, 0)
+NDButton.BackgroundColor3 = Color3.fromRGB(15, 15, 24)
+NDButton.BackgroundTransparency = 0.08
+NDButton.Text = "ND"
+NDButton.TextColor3 = Color3.fromRGB(245, 240, 255)
+NDButton.Font = Enum.Font.GothamBlack
+NDButton.TextSize = 20
+NDButton.Active = true
+NDButton.Parent = ScreenGui
+
+local NDCrn = Instance.new("UICorner", NDButton)
+NDCrn.CornerRadius = UDim.new(0, 12)
+
+local NDStroke = Instance.new("UIStroke", NDButton)
+NDStroke.Thickness = 2
+RegisterAccent(NDStroke, "Color")
+
+local NDSub = Instance.new("TextLabel", NDButton)
+NDSub.Size = UDim2.new(1, 0, 0, 12)
+NDSub.Position = UDim2.new(0, 0, 0.72, 0)
+NDSub.BackgroundTransparency = 1
+NDSub.Text = "NYX"
+NDSub.Font = Enum.Font.GothamBold
+NDSub.TextSize = 8
+RegisterAccent(NDSub, "TextColor3")
+
+local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
+    local dragging, hasMoved, dragStart, startPos = false, false, nil, nil
+    dragHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            hasMoved = false
+            dragStart = input.Position
+            startPos = targetFrame.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            if delta.Magnitude > 5 then
+                hasMoved = true
+                targetFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
         end
     end)
-    if foundBiome then return foundBiome end
-
-    -- Layer 2: Check StringValues
-    pcall(function()
-        for _, root in ipairs({ReplicatedStorage, Workspace, Lighting}) do
-            for _, obj in ipairs(root:GetChildren()) do
-                if obj:IsA("StringValue") and (obj.Name:lower():find("biome") or obj.Name:lower():find("weather")) then
-                    local m = MatchExactBiomeString(obj.Value)
-                    if m then foundBiome = m return end
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging then
+                dragging = false
+                if not hasMoved and onClickCallback then
+                    onClickCallback()
                 end
             end
         end
     end)
-    if foundBiome then return foundBiome end
-
-    -- Layer 3: Scan HUD TextLabels (Strictly filtering out Inventory, Chat, Leaderboards, and Rayfield UI)
-    pcall(function()
-        local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if not pGui then return end
-
-        for _, v in ipairs(pGui:GetDescendants()) do
-            if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
-                local fullName = v:GetFullName():upper()
-                if not fullName:find("INVENTORY")
-                   and not fullName:find("BACKPACK")
-                   and not fullName:find("CHAT")
-                   and not fullName:find("SHOP")
-                   and not fullName:find("COLLECTION")
-                   and not fullName:find("QUEST")
-                   and not fullName:find("CRAFT")
-                   and not fullName:find("SETTING")
-                   and not fullName:find("RAYFIELD")
-                   and not fullName:find("PLAYERLIST") then
-
-                    local cleanTxt = CleanRichText(v.Text):upper()
-                    if #cleanTxt <= 35 and (v.Name:upper():find("BIOME") or v.Parent.Name:upper():find("BIOME") or cleanTxt:find("%[") or BiomeData[cleanTxt]) then
-                        local m = MatchExactBiomeString(cleanTxt)
-                        if m then
-                            foundBiome = m
-                            return
-                        end
-                    end
-                end
-            end
-        end
-    end)
-
-    return foundBiome or "NORMAL"
 end
 
--- Check any string for Merchant Spawn / Presence (Mari, Jester, Rin)
-local function ParseMerchantFromText(rawText)
-    local clean = CleanRichText(rawText):upper()
-    if clean == "" then return nil end
-
-    if clean:find("MARI HAS ARRIVED") or clean:find("%[MARI%]") or clean:find("MARI'S SHOP") or clean == "MARI" then
-        return "Mari"
-    elseif clean:find("JESTER HAS ARRIVED") or clean:find("%[JESTER%]") or clean:find("JESTER'S SHOP") or clean == "JESTER" then
-        return "Jester"
-    elseif clean:find("RIN HAS ARRIVED") or clean:find("%[RIN%]") or clean:find("RIN'S SHOP") or clean == "RIN" then
-        return "Rin"
-    end
-    return nil
-end
-
--- Real-time Chat / System Message Listeners for Instant Merchant Detection
-pcall(function()
-    if TextChatService then
-        TextChatService.OnIncomingMessage = function(message)
-            if not ScriptRunning then return end
-            local txt = (message.Text or "") .. " " .. (message.PrefixText or "")
-            local m = ParseMerchantFromText(txt)
-            if m then
-                task.spawn(function() TriggerMerchantArrival(m) end)
-            end
-        end
-    end
+MakeDraggable(NDButton, NDButton, function()
+    MainWindow.Visible = not MainWindow.Visible
 end)
 
-pcall(function()
-    local chatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-    if chatEvents then
-        local onMsg = chatEvents:FindFirstChild("OnMessageDoneFiltering")
-        if onMsg and onMsg:IsA("RemoteEvent") then
-            onMsg.OnClientEvent:Connect(function(data)
-                if not ScriptRunning or type(data) ~= "table" then return end
-                local m = ParseMerchantFromText(tostring(data.Message or ""))
-                if m then
-                    task.spawn(function() TriggerMerchantArrival(m) end)
-                end
-            end)
-        end
-    end
+local Sidebar = Instance.new("Frame", MainWindow)
+Sidebar.Size = UDim2.new(0, 190, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
+Sidebar.BackgroundTransparency = 0.2
+
+local SidebarCrn = Instance.new("UICorner", Sidebar)
+SidebarCrn.CornerRadius = UDim.new(0, 14)
+
+local SidebarDivider = Instance.new("Frame", MainWindow)
+SidebarDivider.Size = UDim2.new(0, 1, 1, 0)
+SidebarDivider.Position = UDim2.new(0, 190, 0, 0)
+SidebarDivider.BackgroundColor3 = Color3.fromRGB(45, 45, 68)
+SidebarDivider.BorderSizePixel = 0
+
+local BrandIcon = Instance.new("Frame", Sidebar)
+BrandIcon.Size = UDim2.new(0, 38, 0, 38)
+BrandIcon.Position = UDim2.new(0, 14, 0, 18)
+BrandIcon.BackgroundColor3 = Color3.fromRGB(26, 24, 42)
+Instance.new("UICorner", BrandIcon).CornerRadius = UDim.new(1, 0)
+local BrandStroke = Instance.new("UIStroke", BrandIcon)
+BrandStroke.Thickness = 1.5
+RegisterAccent(BrandStroke, "Color")
+
+local BrandLogoTxt = Instance.new("TextLabel", BrandIcon)
+BrandLogoTxt.Size = UDim2.new(1, 0, 1, 0)
+BrandLogoTxt.BackgroundTransparency = 1
+BrandLogoTxt.Text = "N"
+BrandLogoTxt.Font = Enum.Font.GothamBlack
+BrandLogoTxt.TextSize = 18
+BrandLogoTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local BrandTitle = Instance.new("TextLabel", Sidebar)
+BrandTitle.Size = UDim2.new(0, 125, 0, 20)
+BrandTitle.Position = UDim2.new(0, 60, 0, 18)
+BrandTitle.BackgroundTransparency = 1
+BrandTitle.Text = "NyX Detector"
+BrandTitle.Font = Enum.Font.GothamBlack
+BrandTitle.TextSize = 16
+BrandTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+BrandTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local BrandSub = Instance.new("TextLabel", Sidebar)
+BrandSub.Size = UDim2.new(0, 125, 0, 16)
+BrandSub.Position = UDim2.new(0, 60, 0, 38)
+BrandSub.BackgroundTransparency = 1
+BrandSub.Text = "MACRO"
+BrandSub.Font = Enum.Font.GothamBold
+BrandSub.TextSize = 11
+BrandSub.TextXAlignment = Enum.TextXAlignment.Left
+RegisterAccent(BrandSub, "TextColor3")
+
+MakeDraggable(Sidebar, MainWindow)
+
+local CloseBtn = Instance.new("TextButton", MainWindow)
+CloseBtn.Size = UDim2.new(0, 26, 0, 26)
+CloseBtn.Position = UDim2.new(1, -38, 0, 14)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 38)
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(190, 190, 215)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 16
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UIStroke", CloseBtn).Color = Color3.fromRGB(55, 55, 80)
+CloseBtn.MouseButton1Click:Connect(function()
+    MainWindow.Visible = false
 end)
 
--- Deep Workspace & UI Scanner for Mari, Jester, and Rin
-local function ScanActiveMerchantInWorld()
-    local detected = nil
-    pcall(function()
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("Model") or obj:IsA("Folder") then
-                local n = obj.Name:upper()
-                if n == "MARI" or n == "MERCHANT_MARI" or n == "MARINPC" then
-                    detected = "Mari" return
-                elseif n == "JESTER" or n == "MERCHANT_JESTER" or n == "JESTERNPC" then
-                    detected = "Jester" return
-                elseif n == "RIN" or n == "MERCHANT_RIN" or n == "RINNPC" then
-                    detected = "Rin" return
-                end
-            elseif obj:IsA("ProximityPrompt") then
-                local combined = (obj.ObjectText .. " " .. obj.ActionText .. " " .. (obj.Parent and obj.Parent.Name or "")):upper()
-                if combined:find("%f[%a]MARI%f[%A]") then
-                    detected = "Mari" return
-                elseif combined:find("%f[%a]JESTER%f[%A]") then
-                    detected = "Jester" return
-                elseif combined:find("%f[%a]RIN%f[%A]") then
-                    detected = "Rin" return
-                end
-            elseif obj:IsA("TextLabel") and obj.Visible and obj.Text ~= "" then
-                local m = ParseMerchantFromText(obj.Text)
-                if m then detected = m return end
-            end
-        end
+local NavHolder = Instance.new("Frame", Sidebar)
+NavHolder.Size = UDim2.new(1, -24, 1, -85)
+NavHolder.Position = UDim2.new(0, 12, 0, 74)
+NavHolder.BackgroundTransparency = 1
 
-        local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if pGui then
-            for _, v in ipairs(pGui:GetDescendants()) do
-                if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
-                    local fullName = v:GetFullName():upper()
-                    if not fullName:find("RAYFIELD") and not fullName:find("INVENTORY") then
-                        local clean = CleanRichText(v.Text):upper()
-                        if clean:find("MARI HAS ARRIVED") or clean:find("MARI'S SHOP") then
-                            detected = "Mari" return
-                        elseif clean:find("JESTER HAS ARRIVED") or clean:find("JESTER'S SHOP") then
-                            detected = "Jester" return
-                        elseif clean:find("RIN HAS ARRIVED") or clean:find("RIN'S SHOP") then
-                            detected = "Rin" return
-                        end
-                    end
-                end
-            end
+local NavLayout = Instance.new("UIListLayout", NavHolder)
+NavLayout.Padding = UDim.new(0, 6)
+
+local ContentArea = Instance.new("Frame", MainWindow)
+ContentArea.Size = UDim2.new(1, -191, 1, 0)
+ContentArea.Position = UDim2.new(0, 191, 0, 0)
+ContentArea.BackgroundTransparency = 1
+
+local Pages = {}
+local NavButtons = {}
+
+local function CreateTabPage(tabName, subtitleText)
+    local Page = Instance.new("Frame", ContentArea)
+    Page.Size = UDim2.new(1, 0, 1, 0)
+    Page.BackgroundTransparency = 1
+    Page.Visible = false
+
+    local HeaderTitle = Instance.new("TextLabel", Page)
+    HeaderTitle.Size = UDim2.new(1, -60, 0, 26)
+    HeaderTitle.Position = UDim2.new(0, 24, 0, 16)
+    HeaderTitle.BackgroundTransparency = 1
+    HeaderTitle.Text = tabName
+    HeaderTitle.Font = Enum.Font.GothamBlack
+    HeaderTitle.TextSize = 20
+    HeaderTitle.TextColor3 = Color3.fromRGB(250, 250, 255)
+    HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local HeaderSub = Instance.new("TextLabel", Page)
+    HeaderSub.Size = UDim2.new(1, -60, 0, 16)
+    HeaderSub.Position = UDim2.new(0, 24, 0, 42)
+    HeaderSub.BackgroundTransparency = 1
+    HeaderSub.Text = subtitleText
+    HeaderSub.Font = Enum.Font.Gotham
+    HeaderSub.TextSize = 12
+    HeaderSub.TextColor3 = Color3.fromRGB(150, 150, 175)
+    HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+
+    local HeaderLine = Instance.new("Frame", Page)
+    HeaderLine.Size = UDim2.new(1, 0, 0, 1)
+    HeaderLine.Position = UDim2.new(0, 0, 0, 68)
+    HeaderLine.BackgroundColor3 = Color3.fromRGB(40, 40, 62)
+    HeaderLine.BorderSizePixel = 0
+
+    local Scroll = Instance.new("ScrollingFrame", Page)
+    Scroll.Size = UDim2.new(1, -36, 1, -82)
+    Scroll.Position = UDim2.new(0, 20, 0, 76)
+    Scroll.BackgroundTransparency = 1
+    Scroll.ScrollBarThickness = 3
+    Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    RegisterAccent(Scroll, "ScrollBarImageColor3")
+
+    local ScrollLayout = Instance.new("UIListLayout", Scroll)
+    ScrollLayout.Padding = UDim.new(0, 10)
+
+    local NavBtn = Instance.new("TextButton", NavHolder)
+    NavBtn.Size = UDim2.new(1, 0, 0, 38)
+    NavBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 42)
+    NavBtn.BackgroundTransparency = 1
+    NavBtn.Text = "      " .. tabName
+    NavBtn.Font = Enum.Font.GothamBold
+    NavBtn.TextSize = 13
+    NavBtn.TextColor3 = Color3.fromRGB(160, 160, 185)
+    NavBtn.TextXAlignment = Enum.TextXAlignment.Left
+    Instance.new("UICorner", NavBtn).CornerRadius = UDim.new(0, 9)
+
+    local ActiveBar = Instance.new("Frame", NavBtn)
+    ActiveBar.Size = UDim2.new(0, 3, 0, 20)
+    ActiveBar.Position = UDim2.new(0, 0, 0.5, -10)
+    ActiveBar.BorderSizePixel = 0
+    ActiveBar.Visible = false
+    Instance.new("UICorner", ActiveBar).CornerRadius = UDim.new(1, 0)
+    RegisterAccent(ActiveBar, "BackgroundColor3")
+
+    NavBtn.MouseButton1Click:Connect(function()
+        for _, p in pairs(Pages) do p.Visible = false end
+        for _, b in pairs(NavButtons) do
+            b.Btn.BackgroundTransparency = 1
+            b.Btn.TextColor3 = Color3.fromRGB(160, 160, 185)
+            b.Bar.Visible = false
+        end
+        Page.Visible = true
+        NavBtn.BackgroundTransparency = 0.15
+        NavBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ActiveBar.Visible = true
+    end)
+
+    table.insert(Pages, Page)
+    table.insert(NavButtons, {Btn = NavBtn, Bar = ActiveBar})
+    return Scroll, NavBtn, ActiveBar
+end
+
+local function AddSectionLabel(parent, text)
+    local Holder = Instance.new("Frame", parent)
+    Holder.Size = UDim2.new(1, -6, 0, 22)
+    Holder.BackgroundTransparency = 1
+
+    local Bar = Instance.new("Frame", Holder)
+    Bar.Size = UDim2.new(0, 3, 0, 14)
+    Bar.Position = UDim2.new(0, 0, 0.5, -7)
+    Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
+    RegisterAccent(Bar, "BackgroundColor3")
+
+    local Lbl = Instance.new("TextLabel", Holder)
+    Lbl.Size = UDim2.new(1, -14, 1, 0)
+    Lbl.Position = UDim2.new(0, 10, 0, 0)
+    Lbl.BackgroundTransparency = 1
+    Lbl.Text = text:upper()
+    Lbl.Font = Enum.Font.GothamBold
+    Lbl.TextSize = 11
+    Lbl.TextColor3 = Color3.fromRGB(175, 175, 200)
+    Lbl.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+local function AddToggle(parent, title, subtext, defaultVal, callback)
+    local Card = Instance.new("Frame", parent)
+    Card.Size = UDim2.new(1, -6, 0, 48)
+    Card.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+    Card.BackgroundTransparency = 0.15
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+    local Strk = Instance.new("UIStroke", Card)
+    Strk.Color = Color3.fromRGB(42, 42, 64)
+    Strk.Thickness = 1
+
+    local TitleLbl = Instance.new("TextLabel", Card)
+    TitleLbl.Size = UDim2.new(1, -80, 0, 20)
+    TitleLbl.Position = UDim2.new(0, 14, 0, 6)
+    TitleLbl.BackgroundTransparency = 1
+    TitleLbl.Text = title
+    TitleLbl.Font = Enum.Font.GothamBold
+    TitleLbl.TextSize = 13
+    TitleLbl.TextColor3 = Color3.fromRGB(240, 240, 250)
+    TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local SubLbl = Instance.new("TextLabel", Card)
+    SubLbl.Size = UDim2.new(1, -80, 0, 16)
+    SubLbl.Position = UDim2.new(0, 14, 0, 26)
+    SubLbl.BackgroundTransparency = 1
+    SubLbl.Text = subtext
+    SubLbl.Font = Enum.Font.Gotham
+    SubLbl.TextSize = 11
+    SubLbl.TextColor3 = Color3.fromRGB(145, 145, 170)
+    SubLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local SwitchBg = Instance.new("TextButton", Card)
+    SwitchBg.Size = UDim2.new(0, 44, 0, 22)
+    SwitchBg.Position = UDim2.new(1, -58, 0.5, -11)
+    SwitchBg.Text = ""
+    SwitchBg.BackgroundColor3 = defaultVal and NyXConfig.UIAccentColor or Color3.fromRGB(45, 45, 65)
+    Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
+
+    local Knob = Instance.new("Frame", SwitchBg)
+    Knob.Size = UDim2.new(0, 16, 0, 16)
+    Knob.Position = defaultVal and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+    Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+
+    local state = defaultVal
+    SwitchBg.MouseButton1Click:Connect(function()
+        state = not state
+        SwitchBg.BackgroundColor3 = state and NyXConfig.UIAccentColor or Color3.fromRGB(45, 45, 65)
+        Knob.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+        if callback then callback(state) end
+    end)
+end
+
+local function AddInput(parent, title, defaultText, placeholder, callback)
+    local Card = Instance.new("Frame", parent)
+    Card.Size = UDim2.new(1, -6, 0, 62)
+    Card.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+    Card.BackgroundTransparency = 0.15
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+    Instance.new("UIStroke", Card).Color = Color3.fromRGB(42, 42, 64)
+
+    local TitleLbl = Instance.new("TextLabel", Card)
+    TitleLbl.Size = UDim2.new(1, -28, 0, 18)
+    TitleLbl.Position = UDim2.new(0, 14, 0, 6)
+    TitleLbl.BackgroundTransparency = 1
+    TitleLbl.Text = title
+    TitleLbl.Font = Enum.Font.GothamBold
+    TitleLbl.TextSize = 12
+    TitleLbl.TextColor3 = Color3.fromRGB(230, 230, 245)
+    TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local Box = Instance.new("TextBox", Card)
+    Box.Size = UDim2.new(1, -28, 0, 26)
+    Box.Position = UDim2.new(0, 14, 0, 28)
+    Box.BackgroundColor3 = Color3.fromRGB(13, 13, 22)
+    Box.Text = defaultText or ""
+    Box.PlaceholderText = placeholder or ""
+    Box.TextColor3 = Color3.fromRGB(240, 240, 255)
+    Box.PlaceholderColor3 = Color3.fromRGB(110, 110, 135)
+    Box.Font = Enum.Font.Gotham
+    Box.TextSize = 12
+    Box.ClearTextOnFocus = false
+    Box.TextXAlignment = Enum.TextXAlignment.Left
+    Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", Box).Color = Color3.fromRGB(50, 50, 75)
+
+    Box.FocusLost:Connect(function()
+        if callback then callback(Box.Text) end
+    end)
+    Box:GetPropertyChangedSignal("Text"):Connect(function()
+        if callback then callback(Box.Text) end
+    end)
+end
+
+local function AddButton(parent, title, callback)
+    local Btn = Instance.new("TextButton", parent)
+    Btn.Size = UDim2.new(1, -6, 0, 38)
+    Btn.BackgroundColor3 = Color3.fromRGB(25, 24, 42)
+    Btn.Text = title
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 13
+    Btn.TextColor3 = Color3.fromRGB(245, 245, 255)
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 9)
+    local Strk = Instance.new("UIStroke", Btn)
+    Strk.Thickness = 1.2
+    Strk.Transparency = 0.35
+    RegisterAccent(Strk, "Color")
+
+    Btn.MouseButton1Click:Connect(function()
+        if callback then callback() end
+    end)
+end
+
+local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, callback)
+    local Card = Instance.new("Frame", parent)
+    Card.Size = UDim2.new(1, -6, 0, 54)
+    Card.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+    Card.BackgroundTransparency = 0.15
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+    Instance.new("UIStroke", Card).Color = Color3.fromRGB(42, 42, 64)
+
+    local TitleLbl = Instance.new("TextLabel", Card)
+    TitleLbl.Size = UDim2.new(1, -28, 0, 20)
+    TitleLbl.Position = UDim2.new(0, 14, 0, 6)
+    TitleLbl.BackgroundTransparency = 1
+    TitleLbl.Text = title .. ": " .. tostring(defaultVal) .. (suffix or "")
+    TitleLbl.Font = Enum.Font.GothamBold
+    TitleLbl.TextSize = 12
+    TitleLbl.TextColor3 = Color3.fromRGB(235, 235, 250)
+    TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local BarBg = Instance.new("TextButton", Card)
+    BarBg.Size = UDim2.new(1, -28, 0, 10)
+    BarBg.Position = UDim2.new(0, 14, 0, 34)
+    BarBg.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+    BarBg.Text = ""
+    Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
+
+    local Fill = Instance.new("Frame", BarBg)
+    local pct = math.clamp((defaultVal - minVal) / (maxVal - minVal), 0, 1)
+    Fill.Size = UDim2.new(pct, 0, 1, 0)
+    Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+    RegisterAccent(Fill, "BackgroundColor3")
+
+    local sliding = false
+    local function UpdateFromInput(input)
+        local rel = math.clamp((input.Position.X - BarBg.AbsolutePosition.X) / BarBg.AbsoluteSize.X, 0, 1)
+        local val = math.floor(minVal + (maxVal - minVal) * rel)
+        Fill.Size = UDim2.new(rel, 0, 1, 0)
+        TitleLbl.Text = title .. ": " .. tostring(val) .. (suffix or "")
+        if callback then callback(val) end
+    end
+
+    BarBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliding = true
+            UpdateFromInput(input)
         end
     end)
-    return detected
+    UserInputService.InputChanged:Connect(function(input)
+        if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            UpdateFromInput(input)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliding = false
+        end
+    end)
 end
 
 -- ==========================================
--- // INITIALIZE SIRIUS RAYFIELD WINDOW
+-- // BUILD THE 5 TABS (HOME, MAIN, CONNECTIONS, PINGS, SETTING)
 -- ==========================================
-local Window = Rayfield:CreateWindow({
-    Name = "NyX Detector | Sols RNG Macro",
-    LoadingTitle = "NyX Detector",
-    LoadingSubtitle = "Biome & Merchant Macro (Argon Edition)",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "NyXDetector",
-        FileName = "NyXConfig"
-    },
-    KeySystem = false,
-    DisableBuildWarnings = true
-})
+local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage("Home", "Dashboard, live status & macro overview.")
+local MainScroll = CreateTabPage("Main", "Detector switches, inventory automation & biome filter.")
+local ConnScroll = CreateTabPage("Connections", "Discord Webhook URL, User ID & Private Server config.")
+local PingsScroll = CreateTabPage("Pings", "Real-time Merchant & Biome ping configuration.")
+local SettingScroll = CreateTabPage("Setting", "UI colors, Anti-AFK, CPU saver & server utilities.")
 
-task.spawn(function()
-    task.wait(1)
-    CreateNDLogoButton()
-    ApplyMenuThemeAndGlass()
-end)
+Pages[1].Visible = true
+HomeNavBtn.BackgroundTransparency = 0.15
+HomeNavBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+HomeNavBar.Visible = true
 
--- ==========================================
--- // TAB 1: DETECTOR & WEBHOOK
--- ==========================================
-local WebhookTab = Window:CreateTab("Detector & Webhook", 4483362458)
-WebhookTab:CreateSection("Discord & Private Server Configuration")
+-- // TAB 1: HOME DASHBOARD
+local WelcomeCard = Instance.new("Frame", HomeScroll)
+WelcomeCard.Size = UDim2.new(1, -6, 0, 74)
+WelcomeCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+WelcomeCard.BackgroundTransparency = 0.12
+Instance.new("UICorner", WelcomeCard).CornerRadius = UDim.new(0, 12)
+Instance.new("UIStroke", WelcomeCard).Color = Color3.fromRGB(45, 45, 68)
 
-WebhookTab:CreateInput({
-    Name = "Webhook URL",
-    PlaceholderText = NyXConfig.WebhookURL ~= "" and NyXConfig.WebhookURL or "Paste your Discord Webhook URL here...",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(Text) NyXConfig.WebhookURL = Text end,
-})
+local WBackLbl = Instance.new("TextLabel", WelcomeCard)
+WBackLbl.Size = UDim2.new(0, 220, 0, 18)
+WBackLbl.Position = UDim2.new(0, 18, 0, 14)
+WBackLbl.BackgroundTransparency = 1
+WBackLbl.Text = "Welcome back,"
+WBackLbl.Font = Enum.Font.Gotham
+WBackLbl.TextSize = 13
+WBackLbl.TextColor3 = Color3.fromRGB(165, 165, 190)
+WBackLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-WebhookTab:CreateInput({
-    Name = "Discord User ID (For Pings)",
-    PlaceholderText = NyXConfig.DiscordID ~= "" and NyXConfig.DiscordID or "Ex: 123456789012345678",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(Text) NyXConfig.DiscordID = Text end,
-})
+local WUserLbl = Instance.new("TextLabel", WelcomeCard)
+WUserLbl.Size = UDim2.new(0, 260, 0, 28)
+WUserLbl.Position = UDim2.new(0, 18, 0, 34)
+WUserLbl.BackgroundTransparency = 1
+WUserLbl.Text = LocalPlayer.DisplayName:upper()
+WUserLbl.Font = Enum.Font.GothamBlack
+WUserLbl.TextSize = 22
+WUserLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+WUserLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-WebhookTab:CreateInput({
-    Name = "Private Server Link",
-    PlaceholderText = NyXConfig.PrivateServerLink ~= "" and NyXConfig.PrivateServerLink or "https://www.roblox.com/games/...",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(Text) NyXConfig.PrivateServerLink = Text end,
-})
+local MacroBadge = Instance.new("Frame", WelcomeCard)
+MacroBadge.Size = UDim2.new(0, 96, 0, 28)
+MacroBadge.Position = UDim2.new(1, -114, 0.5, -14)
+MacroBadge.BackgroundColor3 = Color3.fromRGB(24, 22, 42)
+Instance.new("UICorner", MacroBadge).CornerRadius = UDim.new(1, 0)
+local BadgeStroke = Instance.new("UIStroke", MacroBadge)
+BadgeStroke.Thickness = 1.2
+RegisterAccent(BadgeStroke, "Color")
 
-WebhookTab:CreateButton({
-    Name = "Save Webhook Config (Webhook, User ID & Private Server)",
-    Callback = function()
-        SaveWebhookConfig()
-        Rayfield:Notify({
-            Title = "Config Saved",
-            Content = "Webhook URL, User ID, and Private Server Link have been saved!",
-            Duration = 3
-        })
-    end,
-})
+local BadgeTxt = Instance.new("TextLabel", MacroBadge)
+BadgeTxt.Size = UDim2.new(1, 0, 1, 0)
+BadgeTxt.BackgroundTransparency = 1
+BadgeTxt.Text = "MACRO"
+BadgeTxt.Font = Enum.Font.GothamBold
+BadgeTxt.TextSize = 11
+RegisterAccent(BadgeTxt, "TextColor3")
 
-WebhookTab:CreateSection("NyX Detector Controls")
+AddSectionLabel(HomeScroll, "LIVE STATUS")
 
-local BiomeStatusLabel = WebhookTab:CreateLabel("Biome: NORMAL | Uptime: 00:00:00")
+local StatusRow = Instance.new("Frame", HomeScroll)
+StatusRow.Size = UDim2.new(1, -6, 0, 74)
+StatusRow.BackgroundTransparency = 1
 
-WebhookTab:CreateToggle({
-    Name = "Start Detector (Auto Macro Started / Stopped & Biome Logs)",
-    CurrentValue = false,
-    Flag = "ToggleBiomeWebhook",
-    Callback = function(Value)
-        if Value then
-            NyXConfig.EnableBiomeWebhook = true
-            MacroStartTime = os.time()
-            SendMacroStateEmbed(true)
-        else
-            local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
-            NyXConfig.EnableBiomeWebhook = false
-            SendMacroStateEmbed(false, finalElapsed)
-            MacroStartTime = 0
-            BiomeStatusLabel:Set("Biome: " .. NyXConfig.CurrentDetectedBiome .. " | Uptime: 00:00:00")
-        end
-    end,
-})
+local UptimeCard = Instance.new("Frame", StatusRow)
+UptimeCard.Size = UDim2.new(0.485, 0, 1, 0)
+UptimeCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+UptimeCard.BackgroundTransparency = 0.12
+Instance.new("UICorner", UptimeCard).CornerRadius = UDim.new(0, 12)
+local UpStroke = Instance.new("UIStroke", UptimeCard)
+UpStroke.Thickness = 1.2
+UpStroke.Transparency = 0.35
+RegisterAccent(UpStroke, "Color")
 
-WebhookTab:CreateToggle({
-    Name = "Enable Merchant Detector (Mari / Jester / Rin)",
-    CurrentValue = false,
-    Flag = "ToggleMerchantWebhook",
-    Callback = function(Value) NyXConfig.EnableMerchantWebhook = Value end,
-})
+local UpTitle = Instance.new("TextLabel", UptimeCard)
+UpTitle.Size = UDim2.new(1, -28, 0, 18)
+UpTitle.Position = UDim2.new(0, 16, 0, 14)
+UpTitle.BackgroundTransparency = 1
+UpTitle.Text = "Uptime"
+UpTitle.Font = Enum.Font.Gotham
+UpTitle.TextSize = 12
+UpTitle.TextColor3 = Color3.fromRGB(160, 160, 185)
+UpTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-WebhookTab:CreateSection("Connection Test")
+local UptimeValueLabel = Instance.new("TextLabel", UptimeCard)
+UptimeValueLabel.Size = UDim2.new(1, -28, 0, 28)
+UptimeValueLabel.Position = UDim2.new(0, 16, 0, 34)
+UptimeValueLabel.BackgroundTransparency = 1
+UptimeValueLabel.Text = "00:00:00"
+UptimeValueLabel.Font = Enum.Font.GothamBlack
+UptimeValueLabel.TextSize = 21
+UptimeValueLabel.TextXAlignment = Enum.TextXAlignment.Left
+RegisterAccent(UptimeValueLabel, "TextColor3")
 
-WebhookTab:CreateButton({
-    Name = "Test Webhook",
-    Callback = function()
-        SendTestWebhookEmbed()
-        Rayfield:Notify({
-            Title = "NyX Detector",
-            Content = "Sent 'Webhook Test - Successfully' to Discord!",
-            Duration = 2.5
-        })
-    end,
-})
+local BiomeCard = Instance.new("Frame", StatusRow)
+BiomeCard.Size = UDim2.new(0.485, 0, 1, 0)
+BiomeCard.Position = UDim2.new(0.515, 0, 0, 0)
+BiomeCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+BiomeCard.BackgroundTransparency = 0.12
+Instance.new("UICorner", BiomeCard).CornerRadius = UDim.new(0, 12)
+Instance.new("UIStroke", BiomeCard).Color = Color3.fromRGB(45, 45, 68)
 
--- ==========================================
--- // TAB 2: INVENTORY AUTOMATION
--- ==========================================
-local InventoryTab = Window:CreateTab("Inventory", 4483362458)
-InventoryTab:CreateSection("Instant Item Use (Auto-Open Inventory + Failsafe Click)")
+local BmTitle = Instance.new("TextLabel", BiomeCard)
+BmTitle.Size = UDim2.new(1, -28, 0, 18)
+BmTitle.Position = UDim2.new(0, 16, 0, 14)
+BmTitle.BackgroundTransparency = 1
+BmTitle.Text = "Current Biome"
+BmTitle.Font = Enum.Font.Gotham
+BmTitle.TextSize = 12
+BmTitle.TextColor3 = Color3.fromRGB(160, 160, 185)
+BmTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-InventoryTab:CreateButton({
-    Name = "Use Now: Biome Randomizer",
-    Callback = function()
-        task.spawn(function() UseItemWithInventoryFailsafe("Biome Randomizer") end)
-    end,
-})
+local BiomeValueLabel = Instance.new("TextLabel", BiomeCard)
+BiomeValueLabel.Size = UDim2.new(1, -28, 0, 28)
+BiomeValueLabel.Position = UDim2.new(0, 16, 0, 34)
+BiomeValueLabel.BackgroundTransparency = 1
+BiomeValueLabel.Text = "NORMAL"
+BiomeValueLabel.Font = Enum.Font.GothamBlack
+BiomeValueLabel.TextSize = 19
+BiomeValueLabel.TextColor3 = Color3.fromRGB(80, 250, 123)
+BiomeValueLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-InventoryTab:CreateButton({
-    Name = "Use Now: Strange Controller",
-    Callback = function()
-        task.spawn(function() UseItemWithInventoryFailsafe("Strange Controller") end)
-    end,
-})
+local MerchantStatusCard = Instance.new("Frame", HomeScroll)
+MerchantStatusCard.Size = UDim2.new(1, -6, 0, 56)
+MerchantStatusCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+MerchantStatusCard.BackgroundTransparency = 0.12
+Instance.new("UICorner", MerchantStatusCard).CornerRadius = UDim.new(0, 12)
+Instance.new("UIStroke", MerchantStatusCard).Color = Color3.fromRGB(45, 45, 68)
 
-InventoryTab:CreateSection("Timed Item Automation")
+local MerTitle = Instance.new("TextLabel", MerchantStatusCard)
+MerTitle.Size = UDim2.new(0.5, 0, 1, 0)
+MerTitle.Position = UDim2.new(0, 16, 0, 0)
+MerTitle.BackgroundTransparency = 1
+MerTitle.Text = "Active Merchant in Server:"
+MerTitle.Font = Enum.Font.GothamBold
+MerTitle.TextSize = 13
+MerTitle.TextColor3 = Color3.fromRGB(185, 185, 210)
+MerTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-InventoryTab:CreateSlider({
-    Name = "Use Interval (Cooldown between Inventory actions)",
-    Range = {5, 300},
-    Increment = 5,
-    Suffix = " Seconds",
-    CurrentValue = 20,
-    Flag = "UseIntervalSlider",
-    Callback = function(Value)
-        NyXConfig.UseInterval = Value
-    end,
-})
+local MerchantValueLabel = Instance.new("TextLabel", MerchantStatusCard)
+MerchantValueLabel.Size = UDim2.new(0.45, -16, 1, 0)
+MerchantValueLabel.Position = UDim2.new(0.55, 0, 0, 0)
+MerchantValueLabel.BackgroundTransparency = 1
+MerchantValueLabel.Text = "NONE"
+MerchantValueLabel.Font = Enum.Font.GothamBlack
+MerchantValueLabel.TextSize = 16
+MerchantValueLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
+MerchantValueLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-InventoryTab:CreateToggle({
-    Name = "Auto Biome Randomizer (Failsafe Auto-Inventory)",
-    CurrentValue = false,
-    Flag = "AutoBR",
-    Callback = function(Value) NyXConfig.AutoBiomeRandomizer = Value end,
-})
+-- // TAB 2: MAIN
+AddSectionLabel(MainScroll, "Detector Core")
 
-InventoryTab:CreateToggle({
-    Name = "Auto Strange Controller (Failsafe Auto-Inventory)",
-    CurrentValue = false,
-    Flag = "AutoSC",
-    Callback = function(Value) NyXConfig.AutoStrangeController = Value end,
-})
-
-InventoryTab:CreateSection("Stop Auto In (Pause Item Use on Target Biomes)")
-
-InventoryTab:CreateDropdown({
-    Name = "Stop Auto In (Select Biomes to Pause Randomizer)",
-    Options = All16Biomes,
-    CurrentOption = {"GLITCHED", "DREAMSPACE", "CYBERSPACE"},
-    MultipleOptions = true,
-    Flag = "StopAutoInDropdown",
-    Callback = function(SelectedOptions)
-        for _, bName in ipairs(All16Biomes) do
-            NyXConfig.StopAutoBiomes[bName] = false
-        end
-        for _, chosenBiome in ipairs(SelectedOptions) do
-            NyXConfig.StopAutoBiomes[chosenBiome] = true
-        end
-    end,
-})
-
--- ==========================================
--- // TAB 3: SETTINGS & UI COLOR CUSTOMIZATION
--- ==========================================
-local SettingsTab = Window:CreateTab("Settings & UI", 4483362458)
-SettingsTab:CreateSection("Player & Macro Utilities")
-
-SettingsTab:CreateToggle({
-    Name = "Enable Anti-AFK (Prevent 20m Idle Disconnect)",
-    CurrentValue = true,
-    Flag = "AntiAFKToggle",
-    Callback = function(Value)
-        NyXConfig.AntiAFK = Value
-        Rayfield:Notify({
-            Title = "Anti-AFK",
-            Content = Value and "Anti-AFK is now Enabled." or "Anti-AFK is now Disabled.",
-            Duration = 2.5
-        })
-    end,
-})
-
-SettingsTab:CreateSection("UI Colors & Liquid Glass Theme")
-
-SettingsTab:CreateColorPicker({
-    Name = "UI Accent / Border Color",
-    Color = NyXConfig.UIAccentColor,
-    Flag = "UIAccentColorPicker",
-    Callback = function(Value)
-        NyXConfig.UIAccentColor = Value
-        ApplyMenuThemeAndGlass()
-        if NDGui and NDGui:FindFirstChild("NDLogoBtn") then
-            local btn = NDGui.NDLogoBtn
-            local st = btn:FindFirstChildWhichIsA("UIStroke")
-            local sub = btn:FindFirstChildWhichIsA("TextLabel")
-            if st then st.Color = Value end
-            if sub then sub.TextColor3 = Value end
-        end
-    end
-})
-
-SettingsTab:CreateColorPicker({
-    Name = "UI Background Color",
-    Color = NyXConfig.UIBackgroundColor,
-    Flag = "UIBgColorPicker",
-    Callback = function(Value)
-        NyXConfig.UIBackgroundColor = Value
-        ApplyMenuThemeAndGlass()
-        if NDGui and NDGui:FindFirstChild("NDLogoBtn") then
-            NDGui.NDLogoBtn.BackgroundColor3 = Value
-        end
-    end
-})
-
-SettingsTab:CreateToggle({
-    Name = "Enable Liquid Glass Effect for Menu",
-    CurrentValue = true,
-    Flag = "LiquidGlassMenuToggle",
-    Callback = function(Value)
-        NyXConfig.LiquidGlassMenu = Value
-        ApplyMenuThemeAndGlass()
-    end,
-})
-
-SettingsTab:CreateSlider({
-    Name = "Menu Glass Transparency",
-    Range = {0, 80},
-    Increment = 5,
-    Suffix = "%",
-    CurrentValue = 25,
-    Flag = "MenuTransSlider",
-    Callback = function(Value)
-        NyXConfig.MenuTransparency = Value / 100
-        if NyXConfig.LiquidGlassMenu then
-            ApplyMenuThemeAndGlass()
-        end
-    end,
-})
-
-SettingsTab:CreateSection("Script Management")
-
-SettingsTab:CreateButton({
-    Name = "Destroy UI / Uninstall NyX Detector",
-    Callback = function()
-        ScriptRunning = false
-        if NyXConfig.EnableBiomeWebhook then
-            local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
-            SendMacroStateEmbed(false, finalElapsed)
-        end
+AddToggle(MainScroll, "Start Biome & State Detector", "Sends Macro Started/Stopped and all 16 Biome embeds (including Sandstorm).", false, function(val)
+    if val then
+        NyXConfig.EnableBiomeWebhook = true
+        MacroStartTime = os.time()
+        SendMacroStateEmbed(true)
+        Notify("NyX Detector Macro", "Macro Started!", 2.5)
+    else
+        local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
         NyXConfig.EnableBiomeWebhook = false
-        NyXConfig.AutoBiomeRandomizer = false
-        NyXConfig.AutoStrangeController = false
-        
-        for _, conn in pairs(GlassConnections) do
-            pcall(function() conn:Disconnect() end)
+        SendMacroStateEmbed(false, finalElapsed)
+        MacroStartTime = 0
+        UptimeValueLabel.Text = "00:00:00"
+        Notify("NyX Detector Macro", "Macro Stopped!", 2.5)
+    end
+end)
+
+AddToggle(MainScroll, "Enable Real Merchant Detector (Mari / Jester / Rin)", "Automatically detects real merchant spawns in-game and sends embeds (No Ping).", false, function(val)
+    NyXConfig.EnableMerchantWebhook = val
+end)
+
+AddSectionLabel(MainScroll, "Inventory Automation")
+
+AddButton(MainScroll, "Use Now: Biome Randomizer", function()
+    task.spawn(function() UseItemWithInventoryFailsafe("Biome Randomizer") end)
+end)
+
+AddButton(MainScroll, "Use Now: Strange Controller", function()
+    task.spawn(function() UseItemWithInventoryFailsafe("Strange Controller") end)
+end)
+
+AddSlider(MainScroll, "Item Use Interval", 5, 300, 20, "s", function(val)
+    NyXConfig.UseInterval = val
+end)
+
+AddToggle(MainScroll, "Auto Biome Randomizer", "Automatically opens inventory and uses Biome Randomizer.", false, function(val)
+    NyXConfig.AutoBiomeRandomizer = val
+end)
+
+AddToggle(MainScroll, "Auto Strange Controller", "Automatically opens inventory and uses Strange Controller.", false, function(val)
+    NyXConfig.AutoStrangeController = val
+end)
+
+AddSectionLabel(MainScroll, "Stop Auto In (Click Biomes to Pause Randomizer)")
+
+local BiomeGrid = Instance.new("Frame", MainScroll)
+BiomeGrid.Size = UDim2.new(1, -6, 0, 145)
+BiomeGrid.BackgroundTransparency = 1
+local GridLayout = Instance.new("UIGridLayout", BiomeGrid)
+GridLayout.CellSize = UDim2.new(0.24, -4, 0, 30)
+GridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+
+for _, bName in ipairs(All16Biomes) do
+    local Chip = Instance.new("TextButton", BiomeGrid)
+    local isOn = NyXConfig.StopAutoBiomes[bName] == true
+    Chip.BackgroundColor3 = isOn and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+    Chip.Text = bName
+    Chip.Font = Enum.Font.GothamBold
+    Chip.TextSize = 9
+    Chip.TextColor3 = Color3.fromRGB(245, 245, 255)
+    Instance.new("UICorner", Chip).CornerRadius = UDim.new(0, 6)
+
+    Chip.MouseButton1Click:Connect(function()
+        NyXConfig.StopAutoBiomes[bName] = not NyXConfig.StopAutoBiomes[bName]
+        Chip.BackgroundColor3 = NyXConfig.StopAutoBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+    end)
+end
+
+-- // TAB 3: CONNECTIONS
+AddSectionLabel(ConnScroll, "Discord Webhook & Server Link")
+
+AddInput(ConnScroll, "Webhook URL", NyXConfig.WebhookURL, "https://discord.com/api/webhooks/...", function(txt)
+    NyXConfig.WebhookURL = txt:gsub("%s+", "")
+end)
+
+AddInput(ConnScroll, "Discord User ID (Numeric ID for Biome Pings)", NyXConfig.DiscordID, "Ex: 123456789012345678", function(txt)
+    NyXConfig.DiscordID = txt:gsub("%D+", "")
+end)
+
+AddInput(ConnScroll, "Private Server Link", NyXConfig.PrivateServerLink, "https://www.roblox.com/games/...", function(txt)
+    NyXConfig.PrivateServerLink = txt
+end)
+
+AddButton(ConnScroll, "Save Webhook Config", function()
+    SaveWebhookConfig()
+    Notify("Config Saved", "Webhook, User ID, and Private Server saved!", 3)
+end)
+
+AddButton(ConnScroll, "Test Webhook Connection", function()
+    SendTestWebhookEmbed()
+    Notify("Webhook Test", "Sent 'Webhook Test - Successfully' to Discord!", 3)
+end)
+
+-- // TAB 4: PINGS (STRICT RULE: ONLY GLITCHED/DREAMSPACE/CYBERSPACE PING)
+AddSectionLabel(PingsScroll, "Strict Biome Ping Rules")
+
+AddToggle(PingsScroll, "Only Ping on Glitched / Dreamspace / Cyberspace", "Enforces strict rule: Only these 3 biomes trigger automatic pings. All other biomes and merchants never ping.", true, function(val)
+    -- Luôn tuân thủ nguyên tắc chỉ ping 3 biome này
+end)
+
+AddToggle(PingsScroll, "Auto Teleport to Merchant on Spawn", "Automatically teleports your character to Mari, Jester, or Rin when detected.", false, function(val)
+    NyXConfig.AutoTeleportMerchant = val
+end)
+
+AddButton(PingsScroll, "Teleport to Active Merchant Now", function()
+    TeleportToActiveMerchant()
+end)
+
+-- // TAB 5: SETTING
+AddSectionLabel(SettingScroll, "UI Theme Color Presets")
+
+local ColorRow = Instance.new("Frame", SettingScroll)
+ColorRow.Size = UDim2.new(1, -6, 0, 36)
+ColorRow.BackgroundTransparency = 1
+local ColorGrid = Instance.new("UIGridLayout", ColorRow)
+ColorGrid.CellSize = UDim2.new(0.2, -5, 0, 32)
+ColorGrid.CellPadding = UDim2.new(0, 6, 0, 0)
+
+local ThemePresets = {
+    {Name = "Neon Purple", Col = Color3.fromRGB(135, 95, 255)},
+    {Name = "Cyber Cyan", Col = Color3.fromRGB(0, 210, 255)},
+    {Name = "Crimson Red", Col = Color3.fromRGB(255, 65, 90)},
+    {Name = "Emerald", Col = Color3.fromRGB(46, 213, 115)},
+    {Name = "Solar Gold", Col = Color3.fromRGB(255, 175, 45)}
+}
+
+for _, preset in ipairs(ThemePresets) do
+    local CBtn = Instance.new("TextButton", ColorRow)
+    CBtn.BackgroundColor3 = preset.Col
+    CBtn.Text = preset.Name
+    CBtn.Font = Enum.Font.GothamBold
+    CBtn.TextSize = 10
+    CBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", CBtn).CornerRadius = UDim.new(0, 8)
+    CBtn.MouseButton1Click:Connect(function()
+        UpdateAccentColor(preset.Col)
+    end)
+end
+
+AddSlider(SettingScroll, "Window Transparency", 0, 65, 8, "%", function(val)
+    NyXConfig.GlassTransparency = val / 100
+    MainWindow.BackgroundTransparency = NyXConfig.GlassTransparency
+end)
+
+AddSectionLabel(SettingScroll, "Performance & AFK Utilities")
+
+AddToggle(SettingScroll, "Enable Anti-AFK", "Prevents 20-minute idle disconnect.", true, function(val)
+    NyXConfig.AntiAFK = val
+end)
+
+AddToggle(SettingScroll, "Disable 3D Rendering (CPU / GPU Saver)", "Turns off 3D world rendering for low-resource AFK macroing.", false, function(val)
+    NyXConfig.Disable3DRendering = val
+    pcall(function() RunService:Set3dRenderingEnabled(not val) end)
+end)
+
+AddButton(SettingScroll, "Boost FPS (Remove Particles & Shadows)", function()
+    pcall(function()
+        Lighting.GlobalShadows = false
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
+                v.Enabled = false
+            elseif v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+            end
         end
-        if IdledConn then IdledConn:Disconnect() end
-        if NDGui then NDGui:Destroy() end
-        Rayfield:Destroy()
-    end,
-})
+    end)
+    Notify("FPS Boost", "Particles disabled and textures optimized!", 3)
+end)
+
+AddSlider(SettingScroll, "FPS Cap", 15, 240, 60, " FPS", function(val)
+    if setfpscap then pcall(setfpscap, val) end
+end)
+
+AddSectionLabel(SettingScroll, "Server & Script Management")
+
+AddButton(SettingScroll, "Rejoin Current Server", function()
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end)
+
+AddButton(SettingScroll, "Uninstall / Destroy NyX Detector Macro", function()
+    ScriptRunning = false
+    pcall(function() RunService:Set3dRenderingEnabled(true) end)
+    if NyXConfig.EnableBiomeWebhook then
+        local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
+        SendMacroStateEmbed(false, finalElapsed)
+    end
+    if WorkspaceDescConn then WorkspaceDescConn:Disconnect() end
+    if IdledConn then IdledConn:Disconnect() end
+    if ScreenGui then ScreenGui:Destroy() end
+end)
 
 -- ==========================================
--- // BACKGROUND LOOPS (BIOME, MERCHANT, AUTO-ITEM)
+-- // BACKGROUND LOOPS
 -- ==========================================
 
--- 1. Biome Detection & Uptime Loop
 task.spawn(function()
     local lastBiome = GetAccurateServerBiome()
     NyXConfig.CurrentDetectedBiome = lastBiome
+    BiomeValueLabel.Text = lastBiome
 
     while ScriptRunning and task.wait(1) do
         local detectedBiome = GetAccurateServerBiome()
         NyXConfig.CurrentDetectedBiome = detectedBiome
         local uptimeStr = GetMacroUptime()
-        BiomeStatusLabel:Set("Biome: " .. detectedBiome .. " | Uptime: " .. uptimeStr)
+
+        UptimeValueLabel.Text = uptimeStr
+        BiomeValueLabel.Text = detectedBiome
+        if BiomeData[detectedBiome] and BiomeData[detectedBiome].Hex then
+            BiomeValueLabel.TextColor3 = BiomeData[detectedBiome].Hex
+        end
 
         if detectedBiome ~= lastBiome then
             local previousBiome = lastBiome
@@ -1108,38 +1572,36 @@ task.spawn(function()
 
                 if detectedBiome ~= "NORMAL" and BiomeData[detectedBiome] then
                     local newInfo = BiomeData[detectedBiome]
-                    SendBiomeStartedEmbed(detectedBiome, newInfo.Color, newInfo.Type, newInfo.Image)
+                    SendBiomeStartedEmbed(detectedBiome, newInfo.Color, newInfo.Image)
                 end
             end
 
             if NyXConfig.StopAutoBiomes[detectedBiome] then
-                Rayfield:Notify({
-                    Title = "Stop Auto In Triggered",
-                    Content = "Detected " .. detectedBiome .. "! Pausing item usage until biome ends.",
-                    Duration = 4
-                })
+                Notify("Stop Auto In", "Detected " .. detectedBiome .. "! Pausing item usage.", 4)
             end
         end
     end
 end)
 
--- 2. Active World & UI Merchant Scanner Loop (Mari, Jester, Rin)
 task.spawn(function()
     local lastMerchantInWorld = nil
     while ScriptRunning and task.wait(2) do
-        if NyXConfig.EnableMerchantWebhook then
-            local currentMerchant = ScanActiveMerchantInWorld()
-            if currentMerchant and currentMerchant ~= lastMerchantInWorld then
-                lastMerchantInWorld = currentMerchant
-                TriggerMerchantArrival(currentMerchant)
-            elseif not currentMerchant then
-                lastMerchantInWorld = nil
+        local currentMerchant = ScanActiveMerchantInWorld()
+        NyXConfig.CurrentMerchant = currentMerchant and currentMerchant:upper() or "NONE"
+        MerchantValueLabel.Text = NyXConfig.CurrentMerchant
+
+        if currentMerchant and currentMerchant ~= lastMerchantInWorld then
+            lastMerchantInWorld = currentMerchant
+            TriggerMerchantArrival(currentMerchant)
+            if NyXConfig.EnableMerchantWebhook then
+                Notify("Merchant Arrived!", currentMerchant .. " has arrived!", 5)
             end
+        elseif not currentMerchant then
+            lastMerchantInWorld = nil
         end
     end
 end)
 
--- 3. Auto Biome Randomizer & Strange Controller Loop
 task.spawn(function()
     while ScriptRunning do
         task.wait(1)
