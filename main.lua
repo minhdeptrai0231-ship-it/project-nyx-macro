@@ -1,10 +1,7 @@
--- // NyX DETECTOR - SOLS RNG MACRO (LINORIALIB EDITION)
--- // Clean Plain-Text Embeds + Multi-Layer Biome & Merchant Detection + Custom UI Colors
+-- // NyX DETECTOR - SOLS RNG MACRO (AIRFLOW UI EDITION)
+-- // Modern Airflow UI + No-Emoji Plain Text Embeds + 3 Merchants (Mari, Jester, Rin) + Custom UI Color Picker
 
-local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
-local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
-local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
-local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+local Airflow = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/AirFlow/refs/heads/main/src/source.luau"))()
 
 -- // System Services
 local Players = game:GetService("Players")
@@ -46,8 +43,8 @@ local BiomeData = {
 -- // Merchant Data (Mari, Jester, Rin)
 local MerchantData = {
     ["Mari"] = {Color = 0x2ECC71, Ping = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["Jester"] = {Color = 0x9B59B6, Ping = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
-    ["Rin"] = {Color = 0x3498DB, Ping = "Everyone", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
+    ["Jester"] = {Color = 0x9B59B6, Ping = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"},
+    ["Rin"] = {Color = 0x3498DB, Ping = "Normal", Image = "https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter"}
 }
 
 local BiomeScanPriority = {
@@ -78,7 +75,9 @@ local NyXConfig = {
         ["CYBERSPACE"] = true
     },
     CurrentDetectedBiome = "NORMAL",
-    AntiAFK = true
+    AntiAFK = true,
+    UIAccentColor = Color3.fromRGB(165, 105, 255),
+    UIBackgroundColor = Color3.fromRGB(16, 16, 24)
 }
 
 -- ==========================================
@@ -114,6 +113,25 @@ end
 
 LoadWebhookConfig()
 
+-- // Helper Notification Wrapper for Airflow
+local function NotifyUser(title, content, duration)
+    pcall(function()
+        if Airflow and Airflow.Notify then
+            Airflow:Notify({
+                Title = title,
+                Content = content,
+                Duration = duration or 3
+            })
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = title,
+                Text = content,
+                Duration = duration or 3
+            })
+        end
+    end)
+end
+
 -- // Anti-AFK Connection
 local IdledConn = LocalPlayer.Idled:Connect(function()
     if not ScriptRunning or not NyXConfig.AntiAFK then return end
@@ -141,7 +159,7 @@ local function GetMacroUptime(forcedElapsed)
     return string.format("%02d:%02d:%02d", hours, mins, secs)
 end
 
--- // Helper: Strip HTML / RichText tags & clean string
+-- // Strip RichText / HTML Tags
 local function CleanRichText(str)
     if type(str) ~= "string" then return "" end
     local s = str:gsub("<[^>]+>", "")
@@ -179,7 +197,7 @@ local function SendTestWebhookEmbed()
     })
 end
 
--- 2. Macro State Embed (Started / Stopped - No Emojis)
+-- 2. Macro State Embed (Started / Stopped - Clean Plain Text)
 local function SendMacroStateEmbed(isStarted, finalElapsed)
     local currentClock = os.date("%H:%M:%S")
     if isStarted then
@@ -206,7 +224,7 @@ local function SendMacroStateEmbed(isStarted, finalElapsed)
     end
 end
 
--- 3. Biome Started Embed (No Emojis)
+-- 3. Biome Started Embed (Clean Plain Text)
 local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
     local contentMsg = ""
     if pingType == "Everyone" then
@@ -231,7 +249,7 @@ local function SendBiomeStartedEmbed(biomeName, color, pingType, imageUrl)
     })
 end
 
--- 4. Biome Ended Embed (No Emojis)
+-- 4. Biome Ended Embed (Clean Plain Text)
 local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
     local currentClock = os.date("%H:%M:%S")
     local uptimeStr = GetMacroUptime()
@@ -248,13 +266,12 @@ local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
     })
 end
 
--- 5. Merchant Arrived Embed ("<Merchant Name> has arrived!" - No Emojis)
+-- 5. Merchant Arrived Embed ("<Merchant Name> has arrived!" - Clean Plain Text)
 local LastMerchantSentTime = {["Mari"] = 0, ["Jester"] = 0, ["Rin"] = 0}
 
 local function TriggerMerchantArrival(merchantName)
     if not NyXConfig.EnableMerchantWebhook then return end
     local now = os.time()
-    -- Prevent duplicate spam within 90 seconds for the same merchant spawn
     if LastMerchantSentTime[merchantName] and (now - LastMerchantSentTime[merchantName]) < 90 then
         return
     end
@@ -288,13 +305,79 @@ local function TriggerMerchantArrival(merchantName)
         }}
     })
 
-    Library:Notify(merchantName .. " has arrived!", 5)
+    NotifyUser("Merchant Detected", merchantName .. " has arrived!", 5)
 end
 
 -- ==========================================
--- // FLOATING "ND" BUTTON FOR LINORIALIB
+-- // AIRFLOW UI FINDER, COLOR CUSTOMIZER & "ND" BUTTON
 -- ==========================================
 local NDGui = nil
+
+local function FindAirflowGui()
+    local roots = {}
+    if gethui then pcall(function() table.insert(roots, gethui()) end) end
+    table.insert(roots, CoreGui)
+    if LocalPlayer:FindFirstChild("PlayerGui") then
+        table.insert(roots, LocalPlayer.PlayerGui)
+    end
+
+    for _, root in ipairs(roots) do
+        for _, gui in ipairs(root:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui.Name ~= "NyXDetectorLogoGui" then
+                if gui.Name:lower():find("airflow") or gui:FindFirstChild("NyX Detector", true) then
+                    return gui
+                end
+                for _, lbl in ipairs(gui:GetDescendants()) do
+                    if lbl:IsA("TextLabel") and lbl.Text:find("NyX Detector") then
+                        return gui
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function ApplyCustomUIColors(accentColor, bgColor)
+    pcall(function()
+        if Airflow and Airflow.Config then
+            Airflow.Config.Highlight = accentColor
+        end
+        local afGui = FindAirflowGui()
+        if not afGui then return end
+
+        for _, v in ipairs(afGui:GetDescendants()) do
+            if v:IsA("UIStroke") then
+                if v.Thickness >= 1.2 then
+                    v.Color = accentColor
+                end
+            elseif v:IsA("Frame") then
+                local c = v.BackgroundColor3
+                -- Recolor main dark backgrounds
+                if c.R < 0.15 and c.G < 0.15 and c.B < 0.18 and v.BackgroundTransparency < 0.5 then
+                    v.BackgroundColor3 = bgColor
+                -- Recolor active accent toggles / sliders
+                elseif (c.R > 0.3 or c.B > 0.3) and v.Size.Y.Offset <= 26 then
+                    v.BackgroundColor3 = accentColor
+                end
+            end
+        end
+    end)
+end
+
+local function ToggleAirflowWindow()
+    pcall(function()
+        local afGui = FindAirflowGui()
+        if afGui then
+            afGui.Enabled = not afGui.Enabled
+        else
+            -- Fallback: Send LeftControl keybind (Airflow's default toggle key)
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftControl, false, game)
+            task.wait(0.05)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+        end
+    end)
+end
 
 local function CreateNDLogoButton()
     pcall(function()
@@ -315,10 +398,10 @@ local function CreateNDLogoButton()
         NDButton.Name = "NDLogoBtn"
         NDButton.Size = UDim2.new(0, 52, 0, 52)
         NDButton.Position = UDim2.new(0.04, 0, 0.22, 0)
-        NDButton.BackgroundColor3 = Color3.fromRGB(20, 18, 32)
-        NDButton.BackgroundTransparency = 0.1
+        NDButton.BackgroundColor3 = Color3.fromRGB(18, 16, 28)
+        NDButton.BackgroundTransparency = 0.08
         NDButton.Text = "ND"
-        NDButton.TextColor3 = Color3.fromRGB(235, 220, 255)
+        NDButton.TextColor3 = Color3.fromRGB(240, 230, 255)
         NDButton.Font = Enum.Font.GothamBlack
         NDButton.TextSize = 21
         NDButton.AutoButtonColor = true
@@ -327,30 +410,21 @@ local function CreateNDLogoButton()
         NDButton.Parent = NDGui
 
         local Corner = Instance.new("UICorner")
-        Corner.CornerRadius = UDim.new(0, 10)
+        Corner.CornerRadius = UDim.new(0, 12)
         Corner.Parent = NDButton
 
         local Stroke = Instance.new("UIStroke")
         Stroke.Thickness = 2
         Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        Stroke.Color = Color3.fromRGB(185, 115, 255)
+        Stroke.Color = NyXConfig.UIAccentColor
         Stroke.Parent = NDButton
-
-        local Gradient = Instance.new("UIGradient")
-        Gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(130, 80, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(210, 110, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 190, 255))
-        })
-        Gradient.Rotation = 45
-        Gradient.Parent = Stroke
 
         local SubText = Instance.new("TextLabel")
         SubText.Size = UDim2.new(1, 0, 0, 12)
         SubText.Position = UDim2.new(0, 0, 0.72, 0)
         SubText.BackgroundTransparency = 1
         SubText.Text = "NYX"
-        SubText.TextColor3 = Color3.fromRGB(180, 140, 255)
+        SubText.TextColor3 = Color3.fromRGB(185, 145, 255)
         SubText.Font = Enum.Font.GothamBold
         SubText.TextSize = 8
         SubText.ZIndex = 11
@@ -390,7 +464,7 @@ local function CreateNDLogoButton()
                 if dragging then
                     dragging = false
                     if not hasMoved then
-                        pcall(function() Library:Toggle() end)
+                        ToggleAirflowWindow()
                     end
                 end
             end
@@ -511,14 +585,13 @@ local function UseItemWithInventoryFailsafe(itemName)
 end
 
 -- ==========================================
--- // MULTI-LAYER BIOME & MERCHANT DETECTION (FIXED)
+-- // MULTI-LAYER BIOME & MERCHANT DETECTION
 -- ==========================================
 local function MatchExactBiomeString(rawText)
     local clean = CleanRichText(rawText):upper()
     if clean == "" or #clean > 45 then return nil end
 
     for _, bName in ipairs(BiomeScanPriority) do
-        -- Exact match, bracketed match [BIOME], or word-boundary match
         if clean == bName 
            or clean:find("%[%s*" .. bName .. "%s*%]") 
            or clean:find("%f[%a]" .. bName .. "%f[%A]") then
@@ -531,7 +604,7 @@ end
 local function GetAccurateServerBiome()
     local foundBiome = nil
 
-    -- Layer 1: Check Server Attributes on Workspace / ReplicatedStorage / Lighting
+    -- Layer 1: Check Server Attributes
     pcall(function()
         local candidates = {
             Workspace:GetAttribute("Biome"),
@@ -550,7 +623,7 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
-    -- Layer 2: Check StringValues in ReplicatedStorage / Workspace
+    -- Layer 2: Check StringValues
     pcall(function()
         for _, root in ipairs({ReplicatedStorage, Workspace, Lighting}) do
             for _, obj in ipairs(root:GetChildren()) do
@@ -563,7 +636,7 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
-    -- Layer 3: Scan HUD TextLabels (Strictly filtering out Inventory, Chat, Leaderboards, and Linoria UI)
+    -- Layer 3: Scan HUD TextLabels (Excluding Menus, Inventory, Chat, Airflow UI)
     pcall(function()
         local pGui = LocalPlayer:FindFirstChild("PlayerGui")
         if not pGui then return end
@@ -577,12 +650,12 @@ local function GetAccurateServerBiome()
                    and not fullName:find("SHOP")
                    and not fullName:find("COLLECTION")
                    and not fullName:find("QUEST")
-                   and not fullName:find(" CRAFT")
+                   and not fullName:find("CRAFT")
                    and not fullName:find("SETTING")
+                   and not fullName:find("AIRFLOW")
                    and not fullName:find("PLAYERLIST") then
 
                     local cleanTxt = CleanRichText(v.Text):upper()
-                    -- Biome HUD labels in Sol's RNG are either bracketed "[ WINDY ]", named "Biome...", or exact biome strings
                     if #cleanTxt <= 35 and (v.Name:upper():find("BIOME") or v.Parent.Name:upper():find("BIOME") or cleanTxt:find("%[") or BiomeData[cleanTxt]) then
                         local m = MatchExactBiomeString(cleanTxt)
                         if m then
@@ -613,7 +686,7 @@ local function ParseMerchantFromText(rawText)
     return nil
 end
 
--- Real-time Chat / System Message Listener for Instant Merchant Detection
+-- Real-time Chat / System Message Listeners for Instant Merchant Detection
 pcall(function()
     if TextChatService then
         TextChatService.OnIncomingMessage = function(message)
@@ -647,7 +720,6 @@ end)
 local function ScanActiveMerchantInWorld()
     local detected = nil
     pcall(function()
-        -- 1. Scan Workspace NPCs, ProximityPrompts, and BillboardGuis
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("Model") or obj:IsA("Folder") then
                 local n = obj.Name:upper()
@@ -673,7 +745,6 @@ local function ScanActiveMerchantInWorld()
             end
         end
 
-        -- 2. Scan PlayerGui Notifications / Subtitles / Chat Logs
         local pGui = LocalPlayer:FindFirstChild("PlayerGui")
         if pGui then
             for _, v in ipairs(pGui:GetDescendants()) do
@@ -694,116 +765,108 @@ local function ScanActiveMerchantInWorld()
 end
 
 -- ==========================================
--- // LINORIALIB WINDOW & TABS SETUP
+-- // AIRFLOW UI WINDOW & TABS INITIALIZATION
 -- ==========================================
-local Window = Library:CreateWindow({
-    Title = 'NyX Detector | Sols RNG Macro (Argon Edition)',
-    Center = true,
-    AutoShow = true,
-    TabPadding = 8,
-    MenuFadeTime = 0.15
+local Window = Airflow:Init({
+    Name = "NyX Detector | Sols RNG Macro",
+    Keybind = "LeftControl",
+    Logo = "http://www.roblox.com/asset/?id=118752982916680",
+    Highlight = NyXConfig.UIAccentColor
 })
-
-local Tabs = {
-    Detector = Window:AddTab('Detector & Webhook'),
-    Inventory = Window:AddTab('Inventory Automation'),
-    Settings = Window:AddTab('Settings & UI')
-}
 
 CreateNDLogoButton()
 
--- ==========================================
--- // TAB 1: DETECTOR & WEBHOOK
--- ==========================================
-local WebhookGroup = Tabs.Detector:AddLeftGroupbox('Discord & Server Configuration')
-local ControlGroup = Tabs.Detector:AddRightGroupbox('Detector Controls & Status')
+local DetectorTab = Window:DrawTab({
+    Name = "Detector & Webhook",
+    Icon = "globe"
+})
 
-WebhookGroup:AddInput('WebhookURLInput', {
+local InventoryTab = Window:DrawTab({
+    Name = "Inventory",
+    Icon = "archive"
+})
+
+local SettingsTab = Window:DrawTab({
+    Name = "Settings & UI",
+    Icon = "settings"
+})
+
+-- ==========================================
+-- // TAB 1: DETECTOR & WEBHOOK (AIRFLOW SECTIONS)
+-- ==========================================
+local WebhookSection = DetectorTab:AddLeftSection("Discord & Server Configuration")
+local ControlSection = DetectorTab:AddRightSection("Detector Controls & Status")
+
+WebhookSection:AddTextbox({
+    Name = "Webhook URL",
     Default = NyXConfig.WebhookURL,
-    Numeric = false,
-    Finished = false,
-    Text = 'Webhook URL',
-    Tooltip = 'Paste your Discord Webhook URL here',
-    Placeholder = 'https://discord.com/api/webhooks/...',
+    Placeholder = "Paste Discord Webhook URL...",
     Callback = function(Value)
         NyXConfig.WebhookURL = Value
     end
 })
 
-WebhookGroup:AddInput('DiscordIDInput', {
+WebhookSection:AddTextbox({
+    Name = "Discord User ID (For Pings)",
     Default = NyXConfig.DiscordID,
-    Numeric = true,
-    Finished = false,
-    Text = 'Discord User ID (For Pings)',
-    Tooltip = 'Your Discord User ID for Rare Biome / Merchant pings',
-    Placeholder = '123456789012345678',
+    Placeholder = "Ex: 123456789012345678",
     Callback = function(Value)
         NyXConfig.DiscordID = Value
     end
 })
 
-WebhookGroup:AddInput('PSLinkInput', {
+WebhookSection:AddTextbox({
+    Name = "Private Server Link",
     Default = NyXConfig.PrivateServerLink,
-    Numeric = false,
-    Finished = false,
-    Text = 'Private Server Link',
-    Tooltip = 'Paste your Roblox Private Server link',
-    Placeholder = 'https://www.roblox.com/games/...',
+    Placeholder = "https://www.roblox.com/games/...",
     Callback = function(Value)
         NyXConfig.PrivateServerLink = Value
     end
 })
 
-WebhookGroup:AddButton({
-    Text = 'Save Webhook Config',
-    Func = function()
+WebhookSection:AddButton({
+    Name = "Save Webhook Config",
+    Callback = function()
         SaveWebhookConfig()
-        Library:Notify('Webhook URL, User ID, and Private Server Link saved!', 3)
-    end,
-    DoubleClick = false,
-    Tooltip = 'Saves your Webhook, User ID, and Private Server Link to file'
+        NotifyUser("Config Saved", "Webhook URL, User ID, and Private Server Link saved!", 3)
+    end
 })
 
-WebhookGroup:AddButton({
-    Text = 'Test Webhook',
-    Func = function()
+WebhookSection:AddButton({
+    Name = "Test Webhook",
+    Callback = function()
         SendTestWebhookEmbed()
-        Library:Notify('Sent "Webhook Test - Successfully" to Discord!', 3)
-    end,
-    DoubleClick = false,
-    Tooltip = 'Send a test embed to verify your Discord Webhook'
+        NotifyUser("NyX Detector", "Sent 'Webhook Test - Successfully' to Discord!", 3)
+    end
 })
 
-local StatusBiomeLabel = ControlGroup:AddLabel('Current Biome: NORMAL')
-local StatusUptimeLabel = ControlGroup:AddLabel('Macro Uptime: 00:00:00')
+local StatusBiomeLabel = ControlSection:AddLabel("Current Biome: NORMAL")
+local StatusUptimeLabel = ControlSection:AddLabel("Macro Uptime: 00:00:00")
 
-ControlGroup:AddDivider()
-
-ControlGroup:AddToggle('ToggleBiomeDetector', {
-    Text = 'Start Detector (Biome & State Logs)',
+ControlSection:AddToggle({
+    Name = "Start Detector (Biome & State Logs)",
     Default = false,
-    Tooltip = 'Automatically sends Macro Started/Stopped and Biome Started/Ended embeds',
     Callback = function(Value)
         if Value then
             NyXConfig.EnableBiomeWebhook = true
             MacroStartTime = os.time()
             SendMacroStateEmbed(true)
-            Library:Notify('NyX Detector Started!', 2.5)
+            NotifyUser("NyX Detector", "Macro Started!", 2.5)
         else
             local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
             NyXConfig.EnableBiomeWebhook = false
             SendMacroStateEmbed(false, finalElapsed)
             MacroStartTime = 0
-            StatusUptimeLabel:SetText('Macro Uptime: 00:00:00')
-            Library:Notify('NyX Detector Stopped!', 2.5)
+            pcall(function() StatusUptimeLabel:SetText("Macro Uptime: 00:00:00") end)
+            pcall(function() StatusUptimeLabel:Set("Macro Uptime: 00:00:00") end)
+            NotifyUser("NyX Detector", "Macro Stopped!", 2.5)
         end
     end
 })
 
-ControlGroup:AddToggle('ToggleMerchantDetector', {
-    Text = 'Enable Merchant Detector (Mari / Jester / Rin)',
+ControlSection:AddToggle({
+    Name = "Enable Merchant Detector (Mari / Jester / Rin)",
     Default = false,
-    Tooltip = 'Sends "<Merchant> has arrived!" embed when Mari, Jester, or Rin spawns',
     Callback = function(Value)
         NyXConfig.EnableMerchantWebhook = Value
     end
@@ -812,89 +875,91 @@ ControlGroup:AddToggle('ToggleMerchantDetector', {
 -- ==========================================
 -- // TAB 2: INVENTORY AUTOMATION
 -- ==========================================
-local ManualItemGroup = Tabs.Inventory:AddLeftGroupbox('Manual Item Actions')
-local AutoItemGroup = Tabs.Inventory:AddRightGroupbox('Timed Item Automation')
+local ManualItemSection = InventoryTab:AddLeftSection("Instant Item Actions")
+local AutoItemSection = InventoryTab:AddRightSection("Timed Item Automation")
 
-ManualItemGroup:AddButton({
-    Text = 'Use Now: Biome Randomizer',
-    Func = function()
+ManualItemSection:AddButton({
+    Name = "Use Now: Biome Randomizer",
+    Callback = function()
         task.spawn(function() UseItemWithInventoryFailsafe("Biome Randomizer") end)
-    end,
-    DoubleClick = false,
-    Tooltip = 'Immediately opens inventory and uses Biome Randomizer'
+    end
 })
 
-ManualItemGroup:AddButton({
-    Text = 'Use Now: Strange Controller',
-    Func = function()
+ManualItemSection:AddButton({
+    Name = "Use Now: Strange Controller",
+    Callback = function()
         task.spawn(function() UseItemWithInventoryFailsafe("Strange Controller") end)
-    end,
-    DoubleClick = false,
-    Tooltip = 'Immediately opens inventory and uses Strange Controller'
+    end
 })
 
-AutoItemGroup:AddSlider('UseIntervalSlider', {
-    Text = 'Use Interval (Seconds)',
-    Default = 20,
+AutoItemSection:AddSlider({
+    Name = "Use Interval (Seconds)",
     Min = 5,
     Max = 300,
-    Rounding = 0,
-    Compact = false,
+    Default = 20,
+    Round = 0,
     Callback = function(Value)
         NyXConfig.UseInterval = Value
     end
 })
 
-AutoItemGroup:AddToggle('AutoBRToggle', {
-    Text = 'Auto Biome Randomizer',
+AutoItemSection:AddToggle({
+    Name = "Auto Biome Randomizer",
     Default = false,
-    Tooltip = 'Automatically uses Biome Randomizer at the selected interval',
     Callback = function(Value)
         NyXConfig.AutoBiomeRandomizer = Value
     end
 })
 
-AutoItemGroup:AddToggle('AutoSCToggle', {
-    Text = 'Auto Strange Controller',
+AutoItemSection:AddToggle({
+    Name = "Auto Strange Controller",
     Default = false,
-    Tooltip = 'Automatically uses Strange Controller at the selected interval',
     Callback = function(Value)
         NyXConfig.AutoStrangeController = Value
     end
 })
 
-AutoItemGroup:AddDivider()
-
-AutoItemGroup:AddDropdown('StopAutoInDropdown', {
+AutoItemSection:AddDropdown({
+    Name = "Stop Auto In (Target Biomes)",
     Values = All16Biomes,
     Default = {"GLITCHED", "DREAMSPACE", "CYBERSPACE"},
     Multi = true,
-    Text = 'Stop Auto In (Target Biomes)',
-    Tooltip = 'Pauses Auto Randomizer / Controller while inside selected biomes',
-    Callback = function(ValueTable)
+    Callback = function(Selected)
         for _, bName in ipairs(All16Biomes) do
-            NyXConfig.StopAutoBiomes[bName] = (ValueTable[bName] == true)
+            NyXConfig.StopAutoBiomes[bName] = false
+        end
+        if type(Selected) == "table" then
+            for k, v in pairs(Selected) do
+                if type(k) == "number" and type(v) == "string" then
+                    NyXConfig.StopAutoBiomes[v] = true
+                elseif type(k) == "string" and v == true then
+                    NyXConfig.StopAutoBiomes[k] = true
+                end
+            end
+        elseif type(Selected) == "string" then
+            NyXConfig.StopAutoBiomes[Selected] = true
         end
     end
 })
 
 -- ==========================================
--- // TAB 3: SETTINGS & UI COLORS
+-- // TAB 3: SETTINGS & UI COLOR PICKER
 -- ==========================================
-local UtilityGroup = Tabs.Settings:AddLeftGroupbox('System Utilities')
+local UtilitySection = SettingsTab:AddLeftSection("System & Anti-AFK")
+local ThemeSection = SettingsTab:AddRightSection("UI Color Customization")
 
-UtilityGroup:AddToggle('AntiAFKToggle', {
-    Text = 'Enable Anti-AFK',
+UtilitySection:AddToggle({
+    Name = "Enable Anti-AFK",
     Default = true,
-    Tooltip = 'Prevents Roblox from disconnecting you after 20 minutes of inactivity',
     Callback = function(Value)
         NyXConfig.AntiAFK = Value
+        NotifyUser("Anti-AFK", Value and "Anti-AFK Enabled" or "Anti-AFK Disabled", 2.5)
     end
 })
 
-UtilityGroup:AddButton({
-    Text = 'Unload / Destroy NyX Detector',
-    Func = function()
+UtilitySection:AddButton({
+    Name = "Destroy UI / Uninstall NyX Detector",
+    Callback = function()
         ScriptRunning = false
         if NyXConfig.EnableBiomeWebhook then
             local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
@@ -905,21 +970,32 @@ UtilityGroup:AddButton({
         NyXConfig.AutoStrangeController = false
         if IdledConn then IdledConn:Disconnect() end
         if NDGui then NDGui:Destroy() end
-        Library:Unload()
-    end,
-    DoubleClick = true,
-    Tooltip = 'Double-click to completely unload NyX Detector'
+        local afGui = FindAirflowGui()
+        if afGui then afGui:Destroy() end
+    end
 })
 
--- LinoriaLib Built-in UI Color Pickers (Background, Main, Accent, Outline, Font) + Presets
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-ThemeManager:SetFolder('NyXDetector')
-SaveManager:SetFolder('NyXDetector/configs')
+ThemeSection:AddColorPicker({
+    Name = "UI Accent / Highlight Color",
+    Default = NyXConfig.UIAccentColor,
+    Callback = function(Color)
+        NyXConfig.UIAccentColor = Color
+        ApplyCustomUIColors(NyXConfig.UIAccentColor, NyXConfig.UIBackgroundColor)
+        if NDGui and NDGui:FindFirstChild("NDLogoBtn") then
+            local st = NDGui.NDLogoBtn:FindFirstChildWhichIsA("UIStroke")
+            if st then st.Color = Color end
+        end
+    end
+})
 
-ThemeManager:ApplyToTab(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
+ThemeSection:AddColorPicker({
+    Name = "UI Background Color",
+    Default = NyXConfig.UIBackgroundColor,
+    Callback = function(Color)
+        NyXConfig.UIBackgroundColor = Color
+        ApplyCustomUIColors(NyXConfig.UIAccentColor, NyXConfig.UIBackgroundColor)
+    end
+})
 
 -- ==========================================
 -- // BACKGROUND LOOPS (BIOME, MERCHANT, AUTO-ITEM)
@@ -929,15 +1005,21 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 task.spawn(function()
     local lastBiome = GetAccurateServerBiome()
     NyXConfig.CurrentDetectedBiome = lastBiome
-    StatusBiomeLabel:SetText('Current Biome: ' .. lastBiome)
 
     while ScriptRunning and task.wait(1) do
         local detectedBiome = GetAccurateServerBiome()
         NyXConfig.CurrentDetectedBiome = detectedBiome
         local uptimeStr = GetMacroUptime()
 
-        StatusBiomeLabel:SetText('Current Biome: ' .. detectedBiome)
-        StatusUptimeLabel:SetText('Macro Uptime: ' .. uptimeStr)
+        pcall(function()
+            if StatusBiomeLabel.SetText then
+                StatusBiomeLabel:SetText("Current Biome: " .. detectedBiome)
+                StatusUptimeLabel:SetText("Macro Uptime: " .. uptimeStr)
+            elseif StatusBiomeLabel.Set then
+                StatusBiomeLabel:Set("Current Biome: " .. detectedBiome)
+                StatusUptimeLabel:Set("Macro Uptime: " .. uptimeStr)
+            end
+        end)
 
         if detectedBiome ~= lastBiome then
             local previousBiome = lastBiome
@@ -956,7 +1038,7 @@ task.spawn(function()
             end
 
             if NyXConfig.StopAutoBiomes[detectedBiome] then
-                Library:Notify("Stop Auto In: Detected " .. detectedBiome .. "! Pausing item use.", 4)
+                NotifyUser("Stop Auto In", "Detected " .. detectedBiome .. "! Pausing item usage.", 4)
             end
         end
     end
