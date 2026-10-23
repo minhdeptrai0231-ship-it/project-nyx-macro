@@ -1,4 +1,4 @@
--- // NYX DETECTOR MACRO - PATHFINDING & SMART MERCHANT EDITION
+-- // NYX DETECTOR MACRO - ULTRA FIX v3 (SYNTAX VERIFIED)
 -- // Features: 3-Min Merchant Lifecycle (Arrived/Left) + River-Safe Pathfinding Walk + Custom 16-Biome/3-Merchant Ping Selector + User Utilities
 
 local Players = game:GetService('Players')
@@ -688,18 +688,18 @@ local function GetAccurateServerBiome()
 end
 
 -- ==========================================
--- // STRICT MERCHANT ARRIVAL & DEPARTURE PARSER
+-- // STRICT MERCHANT ARRIVAL & DEPARTURE PARSER (FIXED SYNTAX)
 -- ==========================================
 local function ParseMerchantSystemEvent(rawText)
     local clean = CleanRichText(rawText):upper()
     if clean == '' then return nil, nil end
 
     local mName = nil
-    if clean:find('%f[%a]JESTER%f[%A]') or clean:find('JESTER'S') then
+    if clean:find('%f[%a]JESTER%f[%A]') or clean:find('JESTER') then
         mName = 'Jester'
-    elseif clean:find('%f[%a]RIN%f[%A]') or clean:find('RIN'S') then
+    elseif clean:find('%f[%a]RIN%f[%A]') or clean:find('RIN') then
         mName = 'Rin'
-    elseif clean:find('%f[%a]MARI%f[%A]') or clean:find('MARI'S') then
+    elseif clean:find('%f[%a]MARI%f[%A]') or clean:find('MARI') then
         mName = 'Mari'
     end
 
