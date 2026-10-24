@@ -1,6 +1,5 @@
--- // NYX DETECTOR MACRO - ULTRA FIX v3 (SYNTAX VERIFIED)
--- // Features: 3-Min Merchant Lifecycle (Arrived/Left) + River-Safe Pathfinding Walk + Custom 16-Biome/3-Merchant Ping Selector + User Utilities
-
+-- // NYX DETECTOR MACRO - ULTRA FIX v4 (ALL BUGS FIXED & OPTIMIZED)
+-- // Features: 3-Min Merchant Lifecycle (No Left Webhook) + River-Safe Pathfinding + Zero Memory Leaks + Cached Scanners
 local Players = game:GetService('Players')
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local HttpService = game:GetService('HttpService')
@@ -15,12 +14,32 @@ local Lighting = game:GetService('Lighting')
 local RunService = game:GetService('RunService')
 local TeleportService = game:GetService('TeleportService')
 local PathfindingService = game:GetService('PathfindingService')
-local LocalPlayer = Players.LocalPlayer
 
+local LocalPlayer = Players.LocalPlayer
 local ScriptRunning = true
 local MacroStartTime = 0
 local ScreenGui = nil
 local Notify = function() end
+
+-- // Quản lý toàn bộ kết nối để chống Memory Leak khi Uninstall
+local ActiveConnections = {}
+local function TrackConnection(conn)
+    if conn then
+        table.insert(ActiveConnections, conn)
+    end
+    return conn
+end
+
+local function CleanupAllConnections()
+    for _, conn in ipairs(ActiveConnections) do
+        pcall(function()
+            if conn and conn.Connected then
+                conn:Disconnect()
+            end
+        end)
+    end
+    table.clear(ActiveConnections)
+end
 
 -- // 16 Standard Biomes Data
 local BiomeData = {
@@ -72,7 +91,6 @@ local All16Biomes = {
 }
 
 local All3Merchants = {'Mari', 'Jester', 'Rin'}
-
 local MerchantData = {
     ['Mari'] = {Color = 0x2ECC71, Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
     ['Jester'] = {Color = 0x9B59B6, Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
@@ -132,7 +150,6 @@ end
 -- // CONFIG SAVE / LOAD
 -- ==========================================
 local WebhookConfigFile = 'NyX_WebhookConfig.json'
-
 local function SaveWebhookConfig()
     if writefile then
         pcall(function()
@@ -166,28 +183,30 @@ local function LoadWebhookConfig()
         end)
     end
 end
-
 LoadWebhookConfig()
 
 -- // Anti-AFK & Auto-Reconnect
-local IdledConn = LocalPlayer.Idled:Connect(function()
+TrackConnection(LocalPlayer.Idled:Connect(function()
     if not ScriptRunning or not NyXConfig.AntiAFK then return end
     pcall(function()
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new(0, 0))
-        VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+        local cam = Workspace.CurrentCamera
+        if cam then
+            VirtualUser:Button2Down(Vector2.new(0, 0), cam.CFrame)
+            task.wait(1)
+            VirtualUser:Button2Up(Vector2.new(0, 0), cam.CFrame)
+        end
     end)
-end)
+end))
 
 pcall(function()
-    GuiService.ErrorMessageChanged:Connect(function()
+    TrackConnection(GuiService.ErrorMessageChanged:Connect(function()
         if ScriptRunning and NyXConfig.AutoReconnect then
             task.wait(3)
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end
-    end)
+    end))
 end)
 
 local function GetMacroUptime(forcedElapsed)
@@ -226,13 +245,11 @@ end
 local function SendRawWebhook(payload)
     local cleanUrl = tostring(NyXConfig.WebhookURL or ''):gsub('%s+', '')
     if cleanUrl == '' then return end
-
     local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
     payload['allowed_mentions'] = {
         ['parse'] = {'users', 'everyone'},
         ['users'] = cleanID ~= '' and {cleanID} or {}
     }
-
     local req = (syn and syn.request) or http_request or request
     if req then
         pcall(function()
@@ -288,11 +305,9 @@ end
 local function SendBiomeStartedEmbed(biomeName, color, imageUrl)
     local shouldPing = NyXConfig.PingBiomes[biomeName] == true
     local contentMsg = BuildUserPingContent(shouldPing)
-
     local psDisplay = NyXConfig.PrivateServerLink ~= '' and ('[Click to Join Server](' .. NyXConfig.PrivateServerLink .. ')') or '`None`'
     local currentClock = os.date('%H:%M:%S')
     local uptimeStr = GetMacroUptime()
-
     SendRawWebhook({
         ['content'] = contentMsg,
         ['embeds'] = {{
@@ -308,7 +323,6 @@ end
 local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
     local currentClock = os.date('%H:%M:%S')
     local uptimeStr = GetMacroUptime()
-
     SendRawWebhook({
         ['content'] = '',
         ['embeds'] = {{
@@ -327,11 +341,9 @@ local function SendMerchantArrivedEmbed(merchantName)
         Color = 0xF1C40F,
         Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'
     }
-
     local shouldPing = NyXConfig.PingMerchants[merchantName] == true
     local contentMsg = BuildUserPingContent(shouldPing)
     local psDisplay = NyXConfig.PrivateServerLink ~= '' and ('[Click to Join Server](' .. NyXConfig.PrivateServerLink .. ')') or '`None`'
-
     SendRawWebhook({
         ['content'] = contentMsg,
         ['embeds'] = {{
@@ -344,29 +356,13 @@ local function SendMerchantArrivedEmbed(merchantName)
     })
 end
 
-local function SendMerchantLeftEmbed(merchantName)
-    if not NyXConfig.EnableMerchantWebhook then return end
-    local mInfo = MerchantData[merchantName] or {
-        Color = 0x555555,
-        Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'
-    }
-
-    SendRawWebhook({
-        ['content'] = '',
-        ['embeds'] = {{
-            ['title'] = merchantName .. ' has left!',
-            ['description'] = '**Merchant :** `' .. merchantName .. '` has despawned.\n**Macro Uptime :** `' .. GetMacroUptime() .. '`',
-            ['color'] = 0x555555,
-            ['thumbnail'] = {['url'] = mInfo.Image},
-            ['footer'] = {['text'] = 'NyX Detector Macro | ' .. os.date('%H:%M:%S')}
-        }}
-    })
-end
-
 -- ==========================================
--- // RIVER-SAFE PATHFINDING TO MERCHANT & ITEMS (ANTI-BAN)
+-- // OPTIMIZED MERCHANT & PATHFINDING SYSTEM (NO LAG / NO RACE CONDITION)
 -- ==========================================
 local isWalkingPath = false
+local cancelCurrentWalk = false
+local CachedMerchantObj = nil
+local LastFullMerchantScan = 0
 
 local function RespawnCharacterSafely()
     pcall(function()
@@ -378,41 +374,75 @@ local function RespawnCharacterSafely()
     end)
 end
 
-local function FindMerchantWorldPosition()
+local function MatchMerchantFromObject(obj)
+    if not obj or not obj.Parent then return nil, nil, nil end
+    if obj:IsA('ProximityPrompt') then
+        local combined = (obj.ObjectText .. ' ' .. obj.ActionText .. ' ' .. (obj.Parent and obj.Parent.Name or '') .. ' ' .. (obj.Parent and obj.Parent.Parent and obj.Parent.Parent.Name or '')):upper()
+        local mName = nil
+        if combined:find('%f[%a]JESTER%f[%A]') then mName = 'Jester'
+        elseif combined:find('%f[%a]RIN%f[%A]') then mName = 'Rin'
+        elseif combined:find('%f[%a]MARI%f[%A]') then mName = 'Mari' end
+        if mName then
+            local part = obj:FindFirstAncestorWhichIsA('BasePart') or (obj.Parent and obj.Parent:IsA('Model') and obj.Parent.PrimaryPart)
+            if part then
+                return mName, part.Position, obj
+            end
+        end
+    elseif obj:IsA('Model') then
+        local n = obj.Name:upper()
+        local mName = nil
+        if n == 'JESTER' or n == 'MERCHANT_JESTER' or n == 'JESTERNPC' then mName = 'Jester'
+        elseif n == 'RIN' or n == 'MERCHANT_RIN' or n == 'RINNPC' then mName = 'Rin'
+        elseif n == 'MARI' or n == 'MERCHANT_MARI' or n == 'MARINPC' then mName = 'Mari' end
+        if mName then
+            local ok, pivot = pcall(function() return obj:GetPivot() end)
+            if ok and pivot then
+                return mName, pivot.Position, obj:FindFirstChildWhichIsA('ProximityPrompt', true)
+            end
+        end
+    end
+    return nil, nil, nil
+end
+
+-- Theo dõi đối tượng mới sinh ra trong Workspace để không cần quét GetDescendants mỗi giây
+TrackConnection(Workspace.DescendantAdded:Connect(function(obj)
+    if not ScriptRunning then return end
+    if obj:IsA('ProximityPrompt') or obj:IsA('Model') then
+        task.defer(function()
+            local mName = MatchMerchantFromObject(obj)
+            if mName then
+                CachedMerchantObj = obj
+            end
+        end)
+    end
+end))
+
+local function FindMerchantWorldPosition(forceScan)
+    -- 1. Kiểm tra từ Cache trước (Tốc độ tức thời, không gây lag)
+    if CachedMerchantObj and CachedMerchantObj.Parent and CachedMerchantObj:IsDescendantOf(Workspace) then
+        local mName, mPos, mPrompt = MatchMerchantFromObject(CachedMerchantObj)
+        if mName and mPos then
+            return mName, mPos, mPrompt
+        end
+    end
+    CachedMerchantObj = nil
+
+    -- 2. Chỉ quét toàn bộ Workspace tối đa 10 giây 1 lần hoặc khi được ép quét
+    local now = os.clock()
+    if not forceScan and (now - LastFullMerchantScan) < 10 then
+        return nil, nil, nil
+    end
+    LastFullMerchantScan = now
+
     local foundName, foundPos, foundPrompt = nil, nil, nil
     pcall(function()
         for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA('ProximityPrompt') then
-                local combined = (obj.ObjectText .. ' ' .. obj.ActionText .. ' ' .. (obj.Parent and obj.Parent.Name or '') .. ' ' .. (obj.Parent and obj.Parent.Parent and obj.Parent.Parent.Name or '')):upper()
-                local mName = nil
-                if combined:find('%f[%a]JESTER%f[%A]') then mName = 'Jester'
-                elseif combined:find('%f[%a]RIN%f[%A]') then mName = 'Rin'
-                elseif combined:find('%f[%a]MARI%f[%A]') then mName = 'Mari' end
-
-                if mName then
-                    local part = obj:FindFirstAncestorWhichIsA('BasePart') or (obj.Parent and obj.Parent:IsA('Model') and obj.Parent.PrimaryPart)
-                    if part then
-                        foundName = mName
-                        foundPos = part.Position
-                        foundPrompt = obj
-                        return
-                    end
-                end
-            elseif obj:IsA('Model') then
-                local n = obj.Name:upper()
-                local mName = nil
-                if n == 'JESTER' or n == 'MERCHANT_JESTER' or n == 'JESTERNPC' then mName = 'Jester'
-                elseif n == 'RIN' or n == 'MERCHANT_RIN' or n == 'RINNPC' then mName = 'Rin'
-                elseif n == 'MARI' or n == 'MERCHANT_MARI' or n == 'MARINPC' then mName = 'Mari' end
-
-                if mName then
-                    local pivot = obj:GetPivot()
-                    if pivot then
-                        foundName = mName
-                        foundPos = pivot.Position
-                        foundPrompt = obj:FindFirstChildWhichIsA('ProximityPrompt', true)
-                        return
-                    end
+            if obj:IsA('ProximityPrompt') or obj:IsA('Model') then
+                local mName, mPos, mPrompt = MatchMerchantFromObject(obj)
+                if mName and mPos then
+                    CachedMerchantObj = obj
+                    foundName, foundPos, foundPrompt = mName, mPos, mPrompt
+                    return
                 end
             end
         end
@@ -441,20 +471,31 @@ local function IsWaypointOverWaterOrVoid(pos)
     return isHazard
 end
 
-local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc)
-    if isWalkingPath or not targetPos then return false end
+local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc, isHighPriority)
+    if not targetPos then return false end
+    -- Nếu là lệnh ưu tiên cao (đi tới Merchant), hủy lệnh đi nhặt đồ hiện tại và đợi mở khóa
+    if isWalkingPath then
+        if isHighPriority then
+            cancelCurrentWalk = true
+            local waitStart = os.clock()
+            while isWalkingPath and (os.clock() - waitStart) < 2.5 do
+                task.wait(0.05)
+            end
+        end
+        if isWalkingPath then return false end
+    end
+
     isWalkingPath = true
+    cancelCurrentWalk = false
     local reached = false
 
-    xpcall(function()
+    local ok, _ = pcall(function()
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass('Humanoid')
         local root = char and char:FindFirstChild('HumanoidRootPart')
         if not hum or not root or hum.Health <= 0 then
-            isWalkingPath = false
             return
         end
-
         local path = PathfindingService:CreatePath({
             AgentRadius = 2.2,
             AgentHeight = 5.0,
@@ -465,35 +506,26 @@ local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc)
                 Danger = math.huge
             }
         })
-
-        local ok = pcall(function()
+        local computeOk = pcall(function()
             path:ComputeAsync(root.Position, targetPos)
         end)
-
-        if ok and path.Status == Enum.PathStatus.Success then
+        if computeOk and path.Status == Enum.PathStatus.Success then
             local waypoints = path:GetWaypoints()
             for _, wp in ipairs(waypoints) do
-                if not ScriptRunning or (stopConditionFunc and stopConditionFunc()) then break end
+                if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
                 if not char.Parent or hum.Health <= 0 then break end
-
-                if IsWaypointOverWaterOrVoid(wp.Position) then
+                if IsWaypointOverWaterOrVoid(wp.Position) or wp.Action == Enum.PathWaypointAction.Jump then
                     hum.Jump = true
                 end
-
-                if wp.Action == Enum.PathWaypointAction.Jump then
-                    hum.Jump = true
-                end
-
                 hum:MoveTo(wp.Position)
                 local stepStart = os.clock()
                 while (root.Position - wp.Position).Magnitude > 4.2 and (os.clock() - stepStart) < 2.2 do
-                    if not ScriptRunning or (stopConditionFunc and stopConditionFunc()) then break end
+                    if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
                     if (root.Position - wp.Position).Magnitude > 3 and hum.MoveDirection.Magnitude > 0 and root.Velocity.Magnitude < 1.2 then
                         hum.Jump = true
                     end
                     task.wait(0.08)
                 end
-
                 if (root.Position - targetPos).Magnitude <= 8 then
                     reached = true
                     break
@@ -504,7 +536,7 @@ local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc)
                 hum:MoveTo(targetPos)
                 local t0 = os.clock()
                 while (root.Position - targetPos).Magnitude > 7 and (os.clock() - t0) < 8 do
-                    if not ScriptRunning or IsWaypointOverWaterOrVoid(root.Position + root.CFrame.LookVector * 5) then
+                    if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) or IsWaypointOverWaterOrVoid(root.Position + root.CFrame.LookVector * 5) then
                         hum:MoveTo(root.Position)
                         break
                     end
@@ -512,15 +544,16 @@ local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc)
                 end
             end
         end
-    end, function() end)
+    end)
 
     isWalkingPath = false
-    return reached
+    cancelCurrentWalk = false
+    return ok and reached or false
 end
 
 local function WalkToActiveMerchantNow()
     task.spawn(function()
-        local mName, mPos, mPrompt = FindMerchantWorldPosition()
+        local mName, mPos, mPrompt = FindMerchantWorldPosition(true)
         if not mPos and NyXConfig.MerchantPosition then
             mPos = NyXConfig.MerchantPosition
             mName = NyXConfig.CurrentMerchant
@@ -529,34 +562,34 @@ local function WalkToActiveMerchantNow()
             Notify('Merchant Pathfinding', 'No active merchant coordinates found in world!', 3)
             return
         end
-
         Notify('Merchant Pathfinding', 'Walking safely to ' .. tostring(mName or 'Merchant') .. ' (Avoiding rivers)...', 3.5)
         WalkSafelyToTargetPosition(mPos, function()
             return NyXConfig.CurrentMerchant == 'NONE'
-        end)
-
-        if NyXConfig.AutoInteractMerchant and mPrompt and fireproximityprompt then
-            pcall(function() fireproximityprompt(mPrompt) end)
+        end, true) -- isHighPriority = true
+        if NyXConfig.AutoInteractMerchant then
+            if not mPrompt then
+                _, _, mPrompt = FindMerchantWorldPosition(false)
+            end
+            if mPrompt and fireproximityprompt then
+                pcall(function() fireproximityprompt(mPrompt) end)
+            end
         end
     end)
 end
 
 -- ==========================================
--- // MERCHANT LIFECYCLE MANAGER (3-MINUTE TIMER + LEFT STATE)
+-- // MERCHANT LIFECYCLE MANAGER (3-MINUTE TIMER + NO LEFT WEBHOOK)
 -- ==========================================
 local function SetMerchantArrivedState(merchantName, worldPos)
     if NyXConfig.CurrentMerchant == merchantName:upper() then
         if worldPos then NyXConfig.MerchantPosition = worldPos end
         return
     end
-
     NyXConfig.CurrentMerchant = merchantName:upper()
     NyXConfig.MerchantSpawnTimestamp = os.time()
     NyXConfig.MerchantPosition = worldPos
-
     SendMerchantArrivedEmbed(merchantName)
     Notify('Merchant Arrived!', merchantName .. ' has arrived! (3m timer started)', 4)
-
     if NyXConfig.AutoWalkToMerchant then
         WalkToActiveMerchantNow()
     end
@@ -565,14 +598,12 @@ end
 local function SetMerchantLeftState(reason)
     if NyXConfig.CurrentMerchant == 'NONE' then return end
     local prevMerchant = NyXConfig.CurrentMerchant:sub(1,1):upper() .. NyXConfig.CurrentMerchant:sub(2):lower()
-
     NyXConfig.CurrentMerchant = 'NONE'
     NyXConfig.MerchantSpawnTimestamp = 0
     NyXConfig.MerchantPosition = nil
-
-    SendMerchantLeftEmbed(prevMerchant)
+    CachedMerchantObj = nil
+    -- Đã xóa phần gửi Webhook Merchant Left theo yêu cầu, chỉ giữ thông báo UI nội bộ & Respawn
     Notify('Merchant Left', prevMerchant .. ' has left! (' .. tostring(reason or '3m Elapsed') .. ')', 4)
-
     if NyXConfig.RespawnIfMerchantLeft then
         Notify('Auto Respawn', 'Respawning character because merchant left...', 3)
         task.wait(0.8)
@@ -581,29 +612,43 @@ local function SetMerchantLeftState(reason)
 end
 
 -- ==========================================
--- // ULTRA-ACCURATE BIOME SCANNER
+-- // ULTRA-ACCURATE BIOME SCANNER (CACHED & OPTIMIZED)
 -- ==========================================
+local CachedBiomeLabels = {}
+local LastGuiBiomeScan = 0
+
 local function ParseStrictBiomeToken(rawText, requireBrackets)
     local clean = CleanRichText(rawText):upper()
     if clean == '' or #clean > 38 then return nil end
-
     local bracketInner = clean:match('^%[%s*(.-)%s*%]$')
     if bracketInner then
         local condensed = bracketInner:gsub('[^A-Z]', '')
         return NormalizedBiomeLookup[condensed]
     end
-
     if not requireBrackets then
         local condensed = clean:gsub('[^A-Z]', '')
         return NormalizedBiomeLookup[condensed]
     end
-
     return nil
+end
+
+local function IsValidHudBiomeLabel(v)
+    if not v:IsA('TextLabel') or not v.Visible or v.Text == '' then return false end
+    if ScreenGui and v:IsDescendantOf(ScreenGui) then return false end
+    local fullName = v:GetFullName():upper()
+    if fullName:find('NYX') or fullName:find('INVENTORY') or fullName:find('BACKPACK')
+       or fullName:find('CHAT') or fullName:find('SHOP') or fullName:find('COLLECTION')
+       or fullName:find('BESTIARY') or fullName:find('INDEX') or fullName:find('QUEST')
+       or fullName:find('CRAFT') or fullName:find('SETTING') or fullName:find('LEADERBOARD')
+       or fullName:find('PLAYERLIST') or fullName:find('AURA') or fullName:find('ROLL') then
+        return false
+    end
+    return true
 end
 
 local function GetAccurateServerBiome()
     local foundBiome = nil
-
+    -- 1. Kiểm tra Attributes (Cực nhanh)
     pcall(function()
         local candidates = {
             Workspace:GetAttribute('Biome'),
@@ -623,6 +668,7 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
+    -- 2. Kiểm tra StringValues (Cực nhanh)
     pcall(function()
         for _, root in ipairs({ReplicatedStorage, Workspace, Lighting}) do
             for _, obj in ipairs(root:GetChildren()) do
@@ -638,101 +684,99 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
+    -- 3. Kiểm tra từ Cached HUD Labels trước
     pcall(function()
-        local pGui = LocalPlayer:FindFirstChild('PlayerGui')
-        if not pGui then return end
-
-        local bracketedMatch = nil
-        local exactHudLabelMatch = nil
-
-        for _, v in ipairs(pGui:GetDescendants()) do
-            if v:IsA('TextLabel') and v.Visible and v.Text ~= '' and (not ScreenGui or not v:IsDescendantOf(ScreenGui)) then
-                local fullName = v:GetFullName():upper()
-                if not fullName:find('NYX')
-                   and not fullName:find('INVENTORY')
-                   and not fullName:find('BACKPACK')
-                   and not fullName:find('CHAT')
-                   and not fullName:find('SHOP')
-                   and not fullName:find('COLLECTION')
-                   and not fullName:find('BESTIARY')
-                   and not fullName:find('INDEX')
-                   and not fullName:find('QUEST')
-                   and not fullName:find('CRAFT')
-                   and not fullName:find('SETTING')
-                   and not fullName:find('LEADERBOARD')
-                   and not fullName:find('PLAYERLIST')
-                   and not fullName:find('AURA')
-                   and not fullName:find('ROLL') then
-
-                    local bMatch = ParseStrictBiomeToken(v.Text, true)
-                    if bMatch then
-                        bracketedMatch = bMatch
-                        if bMatch ~= 'NORMAL' then break end
-                    end
-
-                    local lblName = v.Name:upper()
-                    if lblName == 'BIOME' or lblName == 'BIOMELABEL' or lblName == 'BIOMETEXT' or lblName == 'CURRENTBIOME' then
-                        local eMatch = ParseStrictBiomeToken(v.Text, false)
-                        if eMatch then
-                            exactHudLabelMatch = eMatch
-                        end
-                    end
+        for i = #CachedBiomeLabels, 1, -1 do
+            local lbl = CachedBiomeLabels[i]
+            if not lbl or not lbl.Parent then
+                table.remove(CachedBiomeLabels, i)
+            elseif lbl.Visible and lbl.Text ~= '' then
+                local bMatch = ParseStrictBiomeToken(lbl.Text, true) or ParseStrictBiomeToken(lbl.Text, false)
+                if bMatch then
+                    foundBiome = bMatch
+                    if bMatch ~= 'NORMAL' then return end
                 end
             end
         end
+    end)
+    if foundBiome then return foundBiome end
 
+    -- 4. Quét PlayerGui tối đa 8 giây 1 lần để nạp Cache mới
+    local now = os.clock()
+    if (now - LastGuiBiomeScan) < 8 then
+        return 'NORMAL'
+    end
+    LastGuiBiomeScan = now
+
+    pcall(function()
+        local pGui = LocalPlayer:FindFirstChild('PlayerGui')
+        if not pGui then return end
+        local bracketedMatch = nil
+        local exactHudLabelMatch = nil
+        table.clear(CachedBiomeLabels)
+        for _, v in ipairs(pGui:GetDescendants()) do
+            if IsValidHudBiomeLabel(v) then
+                local bMatch = ParseStrictBiomeToken(v.Text, true)
+                local lblName = v.Name:upper()
+                local isNamedBiome = (lblName == 'BIOME' or lblName == 'BIOMELABEL' or lblName == 'BIOMETEXT' or lblName == 'CURRENTBIOME')
+                if bMatch then
+                    table.insert(CachedBiomeLabels, v)
+                    bracketedMatch = bMatch
+                elseif isNamedBiome then
+                    table.insert(CachedBiomeLabels, v)
+                    local eMatch = ParseStrictBiomeToken(v.Text, false)
+                    if eMatch then exactHudLabelMatch = eMatch end
+                end
+            end
+        end
         foundBiome = bracketedMatch or exactHudLabelMatch
     end)
-
     return foundBiome or 'NORMAL'
 end
 
 -- ==========================================
--- // STRICT MERCHANT ARRIVAL & DEPARTURE PARSER (FIXED SYNTAX)
+-- // STRICT MERCHANT ARRIVAL & DEPARTURE PARSER (FIXED WORD BOUNDARY)
 -- ==========================================
 local function ParseMerchantSystemEvent(rawText)
     local clean = CleanRichText(rawText):upper()
     if clean == '' then return nil, nil end
-
     local mName = nil
-    if clean:find('%f[%a]JESTER%f[%A]') or clean:find('JESTER') then
+    -- Đã sửa lỗi dùng %f[%a]...%f[%A] chuẩn xác, không bị nhận nhầm từ SPRING/BRING/STRING thành RIN
+    if clean:find('%f[%a]JESTER%f[%A]') then
         mName = 'Jester'
-    elseif clean:find('%f[%a]RIN%f[%A]') or clean:find('RIN') then
+    elseif clean:find('%f[%a]RIN%f[%A]') then
         mName = 'Rin'
-    elseif clean:find('%f[%a]MARI%f[%A]') or clean:find('MARI') then
+    elseif clean:find('%f[%a]MARI%f[%A]') then
         mName = 'Mari'
     end
-
     if not mName then return nil, nil end
-
     if clean:find('HAS LEFT') or clean:find('DESPAWN') or clean:find('DEPARTED') or clean:find('GONE') then
         return mName, 'LEFT'
     elseif clean:find('HAS ARRIVED') or clean:find('HAS SPAWNED') or clean:find('APPEARED') then
         return mName, 'ARRIVED'
     end
-
     return nil, nil
 end
 
 pcall(function()
     if TextChatService and TextChatService.MessageReceived then
-        TextChatService.MessageReceived:Connect(function(message)
+        TrackConnection(TextChatService.MessageReceived:Connect(function(message)
             if not ScriptRunning then return end
             if message.TextSource ~= nil then return end
             local txt = (message.Text or '') .. ' ' .. (message.PrefixText or '')
             local mName, action = ParseMerchantSystemEvent(txt)
             if mName and action == 'ARRIVED' then
-                local _, pos = FindMerchantWorldPosition()
+                local _, pos = FindMerchantWorldPosition(true)
                 SetMerchantArrivedState(mName, pos)
             elseif mName and action == 'LEFT' then
                 SetMerchantLeftState('System Chat Left')
             end
-        end)
+        end))
     end
 end)
 
 -- ==========================================
--- // FAILSAFE AUTO INVENTORY
+-- // SAFE AUTO INVENTORY (NO REMOTE SPAM)
 -- ==========================================
 local function ClickGuiElement(guiObj)
     pcall(function()
@@ -744,13 +788,11 @@ local function ClickGuiElement(guiObj)
             pcall(firesignal, guiObj.MouseButton1Click)
             pcall(firesignal, guiObj.Activated)
         end
-
         local pos = guiObj.AbsolutePosition
         local size = guiObj.AbsoluteSize
         local inset = GuiService:GetGuiInset()
         local centerX = pos.X + (size.X / 2)
         local centerY = pos.Y + (size.Y / 2) + inset.Y
-
         VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
         task.wait(0.06)
         VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
@@ -758,24 +800,22 @@ local function ClickGuiElement(guiObj)
 end
 
 local isUsingInventoryFailsafe = false
-
 local function UseItemWithInventoryFailsafe(itemName)
     if isUsingInventoryFailsafe then return end
     isUsingInventoryFailsafe = true
 
-    xpcall(function()
-        local Remotes = ReplicatedStorage:FindFirstChild('Remotes') or ReplicatedStorage:FindFirstChild('Events') or ReplicatedStorage
-        for _, r in pairs(Remotes:GetDescendants()) do
-            if r:IsA('RemoteEvent') and (r.Name:lower():find('use') or r.Name:lower():find('item') or r.Name:lower():find('inventory')) then
-                pcall(function() r:FireServer(itemName) end)
-                pcall(function() r:FireServer('Use', itemName) end)
-                pcall(function() r:FireServer(itemName, 1) end)
+    pcall(function()
+        -- Chỉ gọi đúng RemoteEvent tên chuẩn (nếu có), tuyệt đối không spam mọi RemoteEvent
+        local Remotes = ReplicatedStorage:FindFirstChild('Remotes') or ReplicatedStorage:FindFirstChild('Events')
+        if Remotes then
+            local exactRemote = Remotes:FindFirstChild('UseItem') or Remotes:FindFirstChild('ItemUse')
+            if exactRemote and exactRemote:IsA('RemoteEvent') then
+                pcall(function() exactRemote:FireServer(itemName, 1) end)
             end
         end
 
         local pGui = LocalPlayer:FindFirstChild('PlayerGui')
         if not pGui then return end
-
         local invFrame = nil
         for _, v in pairs(pGui:GetDescendants()) do
             if not ScreenGui or not v:IsDescendantOf(ScreenGui) then
@@ -785,7 +825,6 @@ local function UseItemWithInventoryFailsafe(itemName)
                 end
             end
         end
-
         local wasClosed = false
         if invFrame and not invFrame.Visible then
             wasClosed = true
@@ -803,7 +842,6 @@ local function UseItemWithInventoryFailsafe(itemName)
                 end
             end
         end
-
         for _, box in pairs(pGui:GetDescendants()) do
             if not ScreenGui or not box:IsDescendantOf(ScreenGui) then
                 if box:IsA('TextBox') and box.Visible and (box.PlaceholderText:lower():find('search') or box.Name:lower():find('search')) then
@@ -813,7 +851,6 @@ local function UseItemWithInventoryFailsafe(itemName)
                 end
             end
         end
-
         local foundItemSlot = nil
         for _, lbl in pairs(pGui:GetDescendants()) do
             if not ScreenGui or not lbl:IsDescendantOf(ScreenGui) then
@@ -828,7 +865,6 @@ local function UseItemWithInventoryFailsafe(itemName)
                 end
             end
         end
-
         if foundItemSlot then
             for _, btn in pairs(pGui:GetDescendants()) do
                 if not ScreenGui or not btn:IsDescendantOf(ScreenGui) then
@@ -844,11 +880,10 @@ local function UseItemWithInventoryFailsafe(itemName)
                 end
             end
         end
-
         if wasClosed and invFrame then
             invFrame.Visible = false
         end
-    end, function() end)
+    end)
 
     isUsingInventoryFailsafe = false
 end
@@ -889,16 +924,24 @@ BlackSaverLabel.TextColor3 = Color3.fromRGB(120, 120, 150)
 BlackSaverLabel.ZIndex = 2
 
 local AccentObjects = {}
+local DynamicAccentCallbacks = {}
 
 local function RegisterAccent(obj, prop)
     table.insert(AccentObjects, {Obj = obj, Prop = prop})
     obj[prop] = NyXConfig.UIAccentColor
 end
 
+local function RegisterDynamicAccent(fn)
+    table.insert(DynamicAccentCallbacks, fn)
+end
+
 local function UpdateAccentColor(newColor)
     NyXConfig.UIAccentColor = newColor
     for _, item in ipairs(AccentObjects) do
         pcall(function() item.Obj[item.Prop] = newColor end)
+    end
+    for _, fn in ipairs(DynamicAccentCallbacks) do
+        pcall(fn, newColor)
     end
 end
 
@@ -916,21 +959,19 @@ ToastLayout.Parent = ToastHolder
 
 Notify = function(title, text, duration)
     task.spawn(function()
+        if not ScreenGui or not ScreenGui.Parent then return end
         local Card = Instance.new('Frame')
         Card.Size = UDim2.new(1, 0, 0, 48)
         Card.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
         Card.BackgroundTransparency = 0.08
         Card.ZIndex = 21
         Card.Parent = ToastHolder
-
         local Crn = Instance.new('UICorner', Card)
         Crn.CornerRadius = UDim.new(0, 8)
-
         local Strk = Instance.new('UIStroke', Card)
         Strk.Color = NyXConfig.UIAccentColor
         Strk.Thickness = 1.2
         Strk.Transparency = 0.25
-
         local Tbl = Instance.new('TextLabel', Card)
         Tbl.Size = UDim2.new(1, -16, 0, 18)
         Tbl.Position = UDim2.new(0, 10, 0, 4)
@@ -941,7 +982,6 @@ Notify = function(title, text, duration)
         Tbl.TextSize = 11
         Tbl.ZIndex = 22
         Tbl.TextXAlignment = Enum.TextXAlignment.Left
-
         local Sub = Instance.new('TextLabel', Card)
         Sub.Size = UDim2.new(1, -16, 0, 20)
         Sub.Position = UDim2.new(0, 10, 0, 22)
@@ -953,7 +993,6 @@ Notify = function(title, text, duration)
         Sub.TextWrapped = true
         Sub.ZIndex = 22
         Sub.TextXAlignment = Enum.TextXAlignment.Left
-
         task.wait(duration or 3)
         if Card and Card.Parent then Card:Destroy() end
     end)
@@ -972,7 +1011,6 @@ MainWindow.ZIndex = 5
 MainWindow.Parent = ScreenGui
 
 local WindowScale = Instance.new('UIScale', MainWindow)
-
 local function RecalculateResponsiveScale()
     pcall(function()
         local cam = Workspace.CurrentCamera
@@ -983,12 +1021,11 @@ local function RecalculateResponsiveScale()
 end
 RecalculateResponsiveScale()
 if Workspace.CurrentCamera then
-    Workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(RecalculateResponsiveScale)
+    TrackConnection(Workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(RecalculateResponsiveScale))
 end
 
 local MainCorner = Instance.new('UICorner', MainWindow)
 MainCorner.CornerRadius = UDim.new(0, 12)
-
 local MainStroke = Instance.new('UIStroke', MainWindow)
 MainStroke.Thickness = 1.3
 MainStroke.Transparency = 0.35
@@ -1011,7 +1048,6 @@ NDButton.Parent = ScreenGui
 
 local NDCrn = Instance.new('UICorner', NDButton)
 NDCrn.CornerRadius = UDim.new(0, 10)
-
 local NDStroke = Instance.new('UIStroke', NDButton)
 NDStroke.Thickness = 1.8
 RegisterAccent(NDStroke, 'Color')
@@ -1028,15 +1064,15 @@ RegisterAccent(NDSub, 'TextColor3')
 
 local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
     local dragging, hasMoved, dragStart, startPos = false, false, nil, nil
-    dragHandle.InputBegan:Connect(function(input)
+    TrackConnection(dragHandle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             hasMoved = false
             dragStart = input.Position
             startPos = targetFrame.Position
         end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
+    end))
+    TrackConnection(UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             if delta.Magnitude > 5 then
@@ -1044,8 +1080,8 @@ local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
                 targetFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
         end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
+    end))
+    TrackConnection(UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if dragging then
                 dragging = false
@@ -1054,7 +1090,7 @@ local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
                 end
             end
         end
-    end)
+    end))
 end
 
 MakeDraggable(NDButton, NDButton, function()
@@ -1066,7 +1102,6 @@ local Sidebar = Instance.new('Frame', MainWindow)
 Sidebar.Size = UDim2.new(0, 138, 1, 0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
 Sidebar.BackgroundTransparency = 0.2
-
 local SidebarCrn = Instance.new('UICorner', Sidebar)
 SidebarCrn.CornerRadius = UDim.new(0, 12)
 
@@ -1133,7 +1168,6 @@ local NavHolder = Instance.new('Frame', Sidebar)
 NavHolder.Size = UDim2.new(1, -16, 1, -52)
 NavHolder.Position = UDim2.new(0, 8, 0, 44)
 NavHolder.BackgroundTransparency = 1
-
 local NavLayout = Instance.new('UIListLayout', NavHolder)
 NavLayout.Padding = UDim.new(0, 3)
 
@@ -1150,7 +1184,6 @@ local function CreateTabPage(tabName, subtitleText)
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.BackgroundTransparency = 1
     Page.Visible = false
-
     local HeaderTitle = Instance.new('TextLabel', Page)
     HeaderTitle.Size = UDim2.new(1, -48, 0, 20)
     HeaderTitle.Position = UDim2.new(0, 16, 0, 10)
@@ -1160,7 +1193,6 @@ local function CreateTabPage(tabName, subtitleText)
     HeaderTitle.TextSize = 15
     HeaderTitle.TextColor3 = Color3.fromRGB(250, 250, 255)
     HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-
     local HeaderSub = Instance.new('TextLabel', Page)
     HeaderSub.Size = UDim2.new(1, -48, 0, 14)
     HeaderSub.Position = UDim2.new(0, 16, 0, 29)
@@ -1170,13 +1202,11 @@ local function CreateTabPage(tabName, subtitleText)
     HeaderSub.TextSize = 10
     HeaderSub.TextColor3 = Color3.fromRGB(150, 150, 175)
     HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
-
     local HeaderLine = Instance.new('Frame', Page)
     HeaderLine.Size = UDim2.new(1, 0, 0, 1)
     HeaderLine.Position = UDim2.new(0, 0, 0, 48)
     HeaderLine.BackgroundColor3 = Color3.fromRGB(40, 40, 62)
     HeaderLine.BorderSizePixel = 0
-
     local Scroll = Instance.new('ScrollingFrame', Page)
     Scroll.Size = UDim2.new(1, -24, 1, -56)
     Scroll.Position = UDim2.new(0, 14, 0, 52)
@@ -1185,10 +1215,8 @@ local function CreateTabPage(tabName, subtitleText)
     Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     RegisterAccent(Scroll, 'ScrollBarImageColor3')
-
     local ScrollLayout = Instance.new('UIListLayout', Scroll)
     ScrollLayout.Padding = UDim.new(0, 7)
-
     local NavBtn = Instance.new('TextButton', NavHolder)
     NavBtn.Size = UDim2.new(1, 0, 0, 28)
     NavBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 42)
@@ -1199,7 +1227,6 @@ local function CreateTabPage(tabName, subtitleText)
     NavBtn.TextColor3 = Color3.fromRGB(160, 160, 185)
     NavBtn.TextXAlignment = Enum.TextXAlignment.Left
     Instance.new('UICorner', NavBtn).CornerRadius = UDim.new(0, 7)
-
     local ActiveBar = Instance.new('Frame', NavBtn)
     ActiveBar.Size = UDim2.new(0, 3, 0, 15)
     ActiveBar.Position = UDim2.new(0, 0, 0.5, -7)
@@ -1207,7 +1234,6 @@ local function CreateTabPage(tabName, subtitleText)
     ActiveBar.Visible = false
     Instance.new('UICorner', ActiveBar).CornerRadius = UDim.new(1, 0)
     RegisterAccent(ActiveBar, 'BackgroundColor3')
-
     NavBtn.MouseButton1Click:Connect(function()
         for _, p in pairs(Pages) do p.Visible = false end
         for _, b in pairs(NavButtons) do
@@ -1220,7 +1246,6 @@ local function CreateTabPage(tabName, subtitleText)
         NavBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ActiveBar.Visible = true
     end)
-
     table.insert(Pages, Page)
     table.insert(NavButtons, {Btn = NavBtn, Bar = ActiveBar})
     return Scroll, NavBtn, ActiveBar
@@ -1230,13 +1255,11 @@ local function AddSectionLabel(parent, text)
     local Holder = Instance.new('Frame', parent)
     Holder.Size = UDim2.new(1, -6, 0, 18)
     Holder.BackgroundTransparency = 1
-
     local Bar = Instance.new('Frame', Holder)
     Bar.Size = UDim2.new(0, 3, 0, 12)
     Bar.Position = UDim2.new(0, 0, 0.5, -6)
     Instance.new('UICorner', Bar).CornerRadius = UDim.new(1, 0)
     RegisterAccent(Bar, 'BackgroundColor3')
-
     local Lbl = Instance.new('TextLabel', Holder)
     Lbl.Size = UDim2.new(1, -12, 1, 0)
     Lbl.Position = UDim2.new(0, 8, 0, 0)
@@ -1257,7 +1280,6 @@ local function AddToggle(parent, title, subtext, defaultVal, callback)
     local Strk = Instance.new('UIStroke', Card)
     Strk.Color = Color3.fromRGB(42, 42, 64)
     Strk.Thickness = 1
-
     local TitleLbl = Instance.new('TextLabel', Card)
     TitleLbl.Size = UDim2.new(1, -65, 0, 16)
     TitleLbl.Position = UDim2.new(0, 10, 0, 4)
@@ -1267,7 +1289,6 @@ local function AddToggle(parent, title, subtext, defaultVal, callback)
     TitleLbl.TextSize = 11
     TitleLbl.TextColor3 = Color3.fromRGB(240, 240, 250)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-
     local SubLbl = Instance.new('TextLabel', Card)
     SubLbl.Size = UDim2.new(1, -65, 0, 14)
     SubLbl.Position = UDim2.new(0, 10, 0, 20)
@@ -1277,21 +1298,26 @@ local function AddToggle(parent, title, subtext, defaultVal, callback)
     SubLbl.TextSize = 9
     SubLbl.TextColor3 = Color3.fromRGB(145, 145, 170)
     SubLbl.TextXAlignment = Enum.TextXAlignment.Left
-
     local SwitchBg = Instance.new('TextButton', Card)
     SwitchBg.Size = UDim2.new(0, 36, 0, 18)
     SwitchBg.Position = UDim2.new(1, -46, 0.5, -9)
     SwitchBg.Text = ''
     SwitchBg.BackgroundColor3 = defaultVal and NyXConfig.UIAccentColor or Color3.fromRGB(45, 45, 65)
     Instance.new('UICorner', SwitchBg).CornerRadius = UDim.new(1, 0)
-
     local Knob = Instance.new('Frame', SwitchBg)
     Knob.Size = UDim2.new(0, 12, 0, 12)
     Knob.Position = defaultVal and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
     Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new('UICorner', Knob).CornerRadius = UDim.new(1, 0)
-
     local state = defaultVal
+
+    -- Tự động đổi màu khi người dùng đổi Theme
+    RegisterDynamicAccent(function(newCol)
+        if state then
+            SwitchBg.BackgroundColor3 = newCol
+        end
+    end)
+
     SwitchBg.MouseButton1Click:Connect(function()
         state = not state
         SwitchBg.BackgroundColor3 = state and NyXConfig.UIAccentColor or Color3.fromRGB(45, 45, 65)
@@ -1307,7 +1333,6 @@ local function AddInput(parent, title, defaultText, placeholder, callback)
     Card.BackgroundTransparency = 0.15
     Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 8)
     Instance.new('UIStroke', Card).Color = Color3.fromRGB(42, 42, 64)
-
     local TitleLbl = Instance.new('TextLabel', Card)
     TitleLbl.Size = UDim2.new(1, -20, 0, 14)
     TitleLbl.Position = UDim2.new(0, 10, 0, 4)
@@ -1317,7 +1342,6 @@ local function AddInput(parent, title, defaultText, placeholder, callback)
     TitleLbl.TextSize = 10
     TitleLbl.TextColor3 = Color3.fromRGB(230, 230, 245)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-
     local Box = Instance.new('TextBox', Card)
     Box.Size = UDim2.new(1, -20, 0, 22)
     Box.Position = UDim2.new(0, 10, 0, 21)
@@ -1332,10 +1356,7 @@ local function AddInput(parent, title, defaultText, placeholder, callback)
     Box.TextXAlignment = Enum.TextXAlignment.Left
     Instance.new('UICorner', Box).CornerRadius = UDim.new(0, 5)
     Instance.new('UIStroke', Box).Color = Color3.fromRGB(50, 50, 75)
-
-    Box.FocusLost:Connect(function()
-        if callback then callback(Box.Text) end
-    end)
+    -- Đã xóa sự kiện FocusLost bị trùng lặp, chỉ dùng GetPropertyChangedSignal('Text')
     Box:GetPropertyChangedSignal('Text'):Connect(function()
         if callback then callback(Box.Text) end
     end)
@@ -1355,7 +1376,6 @@ local function AddButton(parent, title, callback)
     Strk.Thickness = 1.1
     Strk.Transparency = 0.35
     RegisterAccent(Strk, 'Color')
-
     Btn.MouseButton1Click:Connect(function()
         if callback then callback() end
     end)
@@ -1368,7 +1388,6 @@ local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, call
     Card.BackgroundTransparency = 0.15
     Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 8)
     Instance.new('UIStroke', Card).Color = Color3.fromRGB(42, 42, 64)
-
     local TitleLbl = Instance.new('TextLabel', Card)
     TitleLbl.Size = UDim2.new(1, -20, 0, 16)
     TitleLbl.Position = UDim2.new(0, 10, 0, 4)
@@ -1378,45 +1397,41 @@ local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, call
     TitleLbl.TextSize = 10
     TitleLbl.TextColor3 = Color3.fromRGB(235, 235, 250)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-
     local BarBg = Instance.new('TextButton', Card)
     BarBg.Size = UDim2.new(1, -20, 0, 8)
     BarBg.Position = UDim2.new(0, 10, 0, 26)
     BarBg.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
     BarBg.Text = ''
     Instance.new('UICorner', BarBg).CornerRadius = UDim.new(1, 0)
-
     local Fill = Instance.new('Frame', BarBg)
     local pct = math.clamp((defaultVal - minVal) / (maxVal - minVal), 0, 1)
     Fill.Size = UDim2.new(pct, 0, 1, 0)
     Instance.new('UICorner', Fill).CornerRadius = UDim.new(1, 0)
     RegisterAccent(Fill, 'BackgroundColor3')
-
     local sliding = false
     local function UpdateFromInput(input)
-        local rel = math.clamp((input.Position.X - BarBg.AbsolutePosition.X) / BarBg.AbsoluteSize.X, 0, 1)
+        local rel = math.clamp((input.Position.X - BarBg.AbsolutePosition.X) / math.max(1, BarBg.AbsoluteSize.X), 0, 1)
         local val = math.floor(minVal + (maxVal - minVal) * rel)
         Fill.Size = UDim2.new(rel, 0, 1, 0)
         TitleLbl.Text = title .. ': ' .. tostring(val) .. (suffix or '')
         if callback then callback(val) end
     end
-
-    BarBg.InputBegan:Connect(function(input)
+    TrackConnection(BarBg.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             sliding = true
             UpdateFromInput(input)
         end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
+    end))
+    TrackConnection(UserInputService.InputChanged:Connect(function(input)
         if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             UpdateFromInput(input)
         end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
+    end))
+    TrackConnection(UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             sliding = false
         end
-    end)
+    end))
 end
 
 -- ==========================================
@@ -1470,7 +1485,6 @@ Instance.new('UICorner', MacroBadge).CornerRadius = UDim.new(1, 0)
 local BadgeStroke = Instance.new('UIStroke', MacroBadge)
 BadgeStroke.Thickness = 1.1
 RegisterAccent(BadgeStroke, 'Color')
-
 local BadgeTxt = Instance.new('TextLabel', MacroBadge)
 BadgeTxt.Size = UDim2.new(1, 0, 1, 0)
 BadgeTxt.BackgroundTransparency = 1
@@ -1572,7 +1586,6 @@ MerchantValueLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 -- // TAB 2: MAIN
 AddSectionLabel(MainScroll, 'Biome Detector & Ground Collector')
-
 AddToggle(MainScroll, 'Start Biome & State Detector', 'Sends Macro Started/Stopped and accurate Biome embeds.', false, function(val)
     if val then
         NyXConfig.EnableBiomeWebhook = true
@@ -1594,29 +1607,23 @@ AddToggle(MainScroll, 'Auto Collect Natural Ground Items', 'Safely walks to near
 end)
 
 AddSectionLabel(MainScroll, 'Inventory Automation')
-
 AddButton(MainScroll, 'Use Now: Biome Randomizer', function()
     task.spawn(function() UseItemWithInventoryFailsafe('Biome Randomizer') end)
 end)
-
 AddButton(MainScroll, 'Use Now: Strange Controller', function()
     task.spawn(function() UseItemWithInventoryFailsafe('Strange Controller') end)
 end)
-
 AddSlider(MainScroll, 'Item Use Interval', 5, 300, 20, 's', function(val)
     NyXConfig.UseInterval = val
 end)
-
 AddToggle(MainScroll, 'Auto Biome Randomizer', 'Automatically opens inventory and uses Biome Randomizer.', false, function(val)
     NyXConfig.AutoBiomeRandomizer = val
 end)
-
 AddToggle(MainScroll, 'Auto Strange Controller', 'Automatically opens inventory and uses Strange Controller.', false, function(val)
     NyXConfig.AutoStrangeController = val
 end)
 
 AddSectionLabel(MainScroll, 'Stop Auto In (Pause Randomizer on Target Biomes)')
-
 local StopGridFrame = Instance.new('Frame', MainScroll)
 StopGridFrame.Name = 'StopFilterContainer'
 StopGridFrame.Size = UDim2.new(1, -6, 0, 118)
@@ -1635,6 +1642,12 @@ for _, bName in ipairs(All16Biomes) do
     Chip.TextColor3 = Color3.fromRGB(245, 245, 255)
     Instance.new('UICorner', Chip).CornerRadius = UDim.new(0, 5)
 
+    RegisterDynamicAccent(function(newCol)
+        if NyXConfig.StopAutoBiomes[bName] then
+            Chip.BackgroundColor3 = newCol
+        end
+    end)
+
     Chip.MouseButton1Click:Connect(function()
         NyXConfig.StopAutoBiomes[bName] = not NyXConfig.StopAutoBiomes[bName]
         Chip.BackgroundColor3 = NyXConfig.StopAutoBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
@@ -1643,7 +1656,6 @@ end
 
 -- // TAB 3: MERCHANT (DEDICATED CATEGORY)
 AddSectionLabel(MerchantScroll, 'Merchant Lifecycle & 3-Min Timer')
-
 local MerchantLiveCard = Instance.new('Frame', MerchantScroll)
 MerchantLiveCard.Size = UDim2.new(1, -6, 0, 46)
 MerchantLiveCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
@@ -1671,48 +1683,44 @@ MTabCoordsLbl.TextSize = 10
 MTabCoordsLbl.TextColor3 = Color3.fromRGB(160, 160, 190)
 MTabCoordsLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-AddToggle(MerchantScroll, 'Enable Merchant Detector (Arrived + 3m Left)', 'Detects Mari, Jester & Rin arrival and automatically logs has left after 3 minutes.', false, function(val)
+AddToggle(MerchantScroll, 'Enable Merchant Detector (Arrived Webhook)', 'Sends Discord webhook when Mari, Jester or Rin arrives (3m timer tracked locally).', false, function(val)
     NyXConfig.EnableMerchantWebhook = val
 end)
 
 AddSectionLabel(MerchantScroll, 'Anti-Ban Pathfinding & Respawn')
-
 AddToggle(MerchantScroll, 'Auto Pathfind Walk to Merchant (Avoid Rivers)', 'Reads merchant XYZ and walks safely along bridges/ground instead of teleporting.', false, function(val)
     NyXConfig.AutoWalkToMerchant = val
 end)
-
 AddToggle(MerchantScroll, 'Auto Open Merchant Shop on Arrival', 'Automatically triggers the merchant ProximityPrompt once you reach them.', false, function(val)
     NyXConfig.AutoInteractMerchant = val
 end)
-
 AddToggle(MerchantScroll, 'Respawn if Merchant Left', 'Automatically resets/respawns your character when the 3-minute merchant leaves.', false, function(val)
     NyXConfig.RespawnIfMerchantLeft = val
 end)
-
 AddButton(MerchantScroll, 'Walk Safely to Active Merchant Now', function()
     WalkToActiveMerchantNow()
 end)
 
 -- // TAB 4: CONNECTIONS
+local ConnUserIDBox, PingUserIDBox
 AddSectionLabel(ConnScroll, 'Discord Webhook & Server Link')
-
 AddInput(ConnScroll, 'Webhook URL', NyXConfig.WebhookURL, 'https://discord.com/api/webhooks/...', function(txt)
     NyXConfig.WebhookURL = txt:gsub('%s+', '')
 end)
-
-local ConnUserIDBox = AddInput(ConnScroll, 'Discord User ID (Required for Pings)', NyXConfig.DiscordID, 'Ex: 123456789012345678', function(txt)
-    NyXConfig.DiscordID = txt:gsub('%D+', '')
+ConnUserIDBox = AddInput(ConnScroll, 'Discord User ID (Required for Pings)', NyXConfig.DiscordID, 'Ex: 123456789012345678', function(txt)
+    local clean = txt:gsub('%D+', '')
+    NyXConfig.DiscordID = clean
+    if PingUserIDBox and PingUserIDBox.Text ~= clean then
+        PingUserIDBox.Text = clean
+    end
 end)
-
 AddInput(ConnScroll, 'Private Server Link', NyXConfig.PrivateServerLink, 'https://www.roblox.com/games/...', function(txt)
     NyXConfig.PrivateServerLink = txt
 end)
-
 AddButton(ConnScroll, 'Save Webhook & Ping Config', function()
     SaveWebhookConfig()
     Notify('Config Saved', 'Webhook, User ID, Private Server & Ping rules saved!', 3)
 end)
-
 AddButton(ConnScroll, 'Test Webhook Connection', function()
     SendTestWebhookEmbed(false)
     Notify('Webhook Test', 'Sent Webhook Test - Successfully to Discord!', 3)
@@ -1720,15 +1728,13 @@ end)
 
 -- // TAB 5: PINGS (16 BIOMES + 3 MERCHANTS + MANDATORY USER ID CHECK)
 AddSectionLabel(PingsScroll, 'Mandatory Discord User ID for Pings')
-
-local PingUserIDBox = AddInput(PingsScroll, 'Your Discord User ID (Must Enter to Enable Pings)', NyXConfig.DiscordID, 'Enter your numeric Discord User ID here...', function(txt)
+PingUserIDBox = AddInput(PingsScroll, 'Your Discord User ID (Must Enter to Enable Pings)', NyXConfig.DiscordID, 'Enter your numeric Discord User ID here...', function(txt)
     local clean = txt:gsub('%D+', '')
     NyXConfig.DiscordID = clean
     if ConnUserIDBox and ConnUserIDBox.Text ~= clean then
         ConnUserIDBox.Text = clean
     end
 end)
-
 AddButton(PingsScroll, 'Test Ping With User ID Now', function()
     local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
     if cleanID == '' then
@@ -1740,7 +1746,6 @@ AddButton(PingsScroll, 'Test Ping With User ID Now', function()
 end)
 
 AddSectionLabel(PingsScroll, 'Which Biomes Should Ping You? (16 Biomes)')
-
 local PingBiomeGrid = Instance.new('Frame', PingsScroll)
 PingBiomeGrid.Name = 'PingBiomeContainer'
 PingBiomeGrid.Size = UDim2.new(1, -6, 0, 118)
@@ -1759,6 +1764,12 @@ for _, bName in ipairs(All16Biomes) do
     Chip.TextColor3 = Color3.fromRGB(245, 245, 255)
     Instance.new('UICorner', Chip).CornerRadius = UDim.new(0, 5)
 
+    RegisterDynamicAccent(function(newCol)
+        if NyXConfig.PingBiomes[bName] then
+            Chip.BackgroundColor3 = newCol
+        end
+    end)
+
     Chip.MouseButton1Click:Connect(function()
         local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
         if not NyXConfig.PingBiomes[bName] and cleanID == '' then
@@ -1772,7 +1783,6 @@ for _, bName in ipairs(All16Biomes) do
 end
 
 AddSectionLabel(PingsScroll, 'Which Merchants Should Ping You? (Mari / Jester / Rin)')
-
 local PingMerchantRow = Instance.new('Frame', PingsScroll)
 PingMerchantRow.Name = 'PingMerchantContainer'
 PingMerchantRow.Size = UDim2.new(1, -6, 0, 32)
@@ -1791,6 +1801,12 @@ for _, mName in ipairs(All3Merchants) do
     MChip.TextColor3 = Color3.fromRGB(245, 245, 255)
     Instance.new('UICorner', MChip).CornerRadius = UDim.new(0, 6)
 
+    RegisterDynamicAccent(function(newCol)
+        if NyXConfig.PingMerchants[mName] then
+            MChip.BackgroundColor3 = newCol
+        end
+    end)
+
     MChip.MouseButton1Click:Connect(function()
         local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
         if not NyXConfig.PingMerchants[mName] and cleanID == '' then
@@ -1805,7 +1821,6 @@ end
 
 -- // TAB 6: SETTING
 AddSectionLabel(SettingScroll, 'Android Screen & UI Customization')
-
 AddSlider(SettingScroll, 'UI Scale (Resize for Mobile Screen)', 55, 125, 95, '%', function(val)
     NyXConfig.UIScalePercent = val
     RecalculateResponsiveScale()
@@ -1825,7 +1840,6 @@ local ThemePresets = {
     {Name = 'Emerald', Col = Color3.fromRGB(46, 213, 115)},
     {Name = 'Gold', Col = Color3.fromRGB(255, 175, 45)}
 }
-
 for _, preset in ipairs(ThemePresets) do
     local CBtn = Instance.new('TextButton', ColorRow)
     CBtn.BackgroundColor3 = preset.Col
@@ -1845,20 +1859,16 @@ AddSlider(SettingScroll, 'Window Transparency', 0, 65, 8, '%', function(val)
 end)
 
 AddSectionLabel(SettingScroll, 'Battery Saver, Performance & AFK')
-
 AddToggle(SettingScroll, 'OLED Black Screen Battery Saver', 'Covers the screen in pure black while keeping NyX UI & ND button accessible.', false, function(val)
     NyXConfig.BlackScreenSaver = val
     BlackSaverFrame.Visible = val
 end)
-
 AddToggle(SettingScroll, 'Enable Anti-AFK', 'Prevents 20-minute idle disconnect.', true, function(val)
     NyXConfig.AntiAFK = val
 end)
-
 AddToggle(SettingScroll, 'Auto Reconnect on Disconnect / Kick', 'Automatically rejoins the server if your connection drops.', true, function(val)
     NyXConfig.AutoReconnect = val
 end)
-
 AddToggle(SettingScroll, 'Disable 3D Rendering (CPU / GPU Saver)', 'Turns off 3D world rendering for low-resource AFK macroing.', false, function(val)
     NyXConfig.Disable3DRendering = val
     pcall(function() RunService:Set3dRenderingEnabled(not val) end)
@@ -1883,68 +1893,63 @@ AddSlider(SettingScroll, 'FPS Cap', 15, 240, 60, ' FPS', function(val)
 end)
 
 AddSectionLabel(SettingScroll, 'Server & Script Management')
-
 AddButton(SettingScroll, 'Rejoin Current Server', function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
 
 AddButton(SettingScroll, 'Uninstall / Destroy NyX Detector Macro', function()
     ScriptRunning = false
+    cancelCurrentWalk = true
     pcall(function() RunService:Set3dRenderingEnabled(true) end)
     if NyXConfig.EnableBiomeWebhook then
         local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
         SendMacroStateEmbed(false, finalElapsed)
     end
-    if IdledConn then IdledConn:Disconnect() end
+    CleanupAllConnections()
     if ScreenGui then ScreenGui:Destroy() end
 end)
 
 -- ==========================================
 -- // BACKGROUND LOOPS (BIOME, 3-MIN MERCHANT LIFECYCLE, ITEMS)
 -- ==========================================
-
 -- 1. Biome Detection Loop (With 2-Tick Verification Debounce)
 task.spawn(function()
     local confirmedBiome = GetAccurateServerBiome()
     local pendingBiome = confirmedBiome
     local pendingCount = 0
-
     NyXConfig.CurrentDetectedBiome = confirmedBiome
     BiomeValueLabel.Text = confirmedBiome
+    if BiomeData[confirmedBiome] and BiomeData[confirmedBiome].Hex then
+        BiomeValueLabel.TextColor3 = BiomeData[confirmedBiome].Hex
+    end
 
     while ScriptRunning and task.wait(1) do
         local rawDetected = GetAccurateServerBiome()
         UptimeValueLabel.Text = GetMacroUptime()
-
         if rawDetected == pendingBiome then
             pendingCount = pendingCount + 1
         else
             pendingBiome = rawDetected
             pendingCount = 1
         end
-
         if pendingCount >= 2 and pendingBiome ~= confirmedBiome then
             local previousBiome = confirmedBiome
             confirmedBiome = pendingBiome
             NyXConfig.CurrentDetectedBiome = confirmedBiome
-
             BiomeValueLabel.Text = confirmedBiome
             if BiomeData[confirmedBiome] and BiomeData[confirmedBiome].Hex then
                 BiomeValueLabel.TextColor3 = BiomeData[confirmedBiome].Hex
             end
-
             if NyXConfig.EnableBiomeWebhook then
                 if previousBiome ~= 'NORMAL' and BiomeData[previousBiome] then
                     local prevInfo = BiomeData[previousBiome]
                     SendBiomeEndedEmbed(previousBiome, prevInfo.Color, prevInfo.Image)
                 end
-
                 if confirmedBiome ~= 'NORMAL' and BiomeData[confirmedBiome] then
                     local newInfo = BiomeData[confirmedBiome]
                     SendBiomeStartedEmbed(confirmedBiome, newInfo.Color, newInfo.Image)
                 end
             end
-
             if NyXConfig.StopAutoBiomes[confirmedBiome] then
                 Notify('Stop Auto In', 'Detected ' .. confirmedBiome .. '! Pausing item usage.', 4)
             end
@@ -1952,31 +1957,27 @@ task.spawn(function()
     end
 end)
 
--- 2. Merchant Lifecycle Loop (Strict Physical Model Verification + 3-Minute Countdown -> Merchant Left = NONE)
+-- 2. Merchant Lifecycle Loop (3-Minute Countdown -> Merchant Left = NONE, No Left Webhook)
 task.spawn(function()
     while ScriptRunning and task.wait(1) do
-        local worldMerchant, worldPos = FindMerchantWorldPosition()
-
+        local worldMerchant, worldPos = FindMerchantWorldPosition(false)
         if worldMerchant and NyXConfig.CurrentMerchant == 'NONE' then
             SetMerchantArrivedState(worldMerchant, worldPos)
         elseif worldMerchant and NyXConfig.CurrentMerchant == worldMerchant:upper() then
             NyXConfig.MerchantPosition = worldPos
         end
-
         if NyXConfig.CurrentMerchant ~= 'NONE' then
             local elapsed = os.time() - NyXConfig.MerchantSpawnTimestamp
             local remaining = math.max(0, NyXConfig.MerchantDuration - elapsed)
             local mMins = math.floor(remaining / 60)
             local mSecs = remaining % 60
             local timerText = string.format('%s (%02d:%02d)', NyXConfig.CurrentMerchant, mMins, mSecs)
-
             MerchantValueLabel.Text = timerText
             MTabStatusLbl.Text = 'Status: ' .. NyXConfig.CurrentMerchant .. ' Active (' .. string.format('%02d:%02d', mMins, mSecs) .. ' left)'
             if NyXConfig.MerchantPosition then
                 local p = NyXConfig.MerchantPosition
                 MTabCoordsLbl.Text = string.format('XYZ Coordinates: %.0f, %.0f, %.0f', p.X, p.Y, p.Z)
             end
-
             if remaining <= 0 or (not worldMerchant and elapsed > 15) then
                 SetMerchantLeftState(remaining <= 0 and '3m Timer Expired' or 'Model Despawned')
             end
@@ -1996,7 +1997,6 @@ task.spawn(function()
                 local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild('HumanoidRootPart')
                 if not root then return end
-
                 local DropFolder = Workspace:FindFirstChild('DroppedItems') or Workspace:FindFirstChild('Items') or Workspace
                 for _, item in ipairs(DropFolder:GetChildren()) do
                     local n = item.Name:upper()
@@ -2005,7 +2005,7 @@ task.spawn(function()
                         if part and (part.Position - root.Position).Magnitude < 160 and not IsWaypointOverWaterOrVoid(part.Position) then
                             WalkSafelyToTargetPosition(part.Position, function()
                                 return not item.Parent or not NyXConfig.AutoCollectItems or NyXConfig.CurrentMerchant ~= 'NONE'
-                            end)
+                            end, false)
                             local prompt = item:FindFirstChildWhichIsA('ProximityPrompt', true)
                             if prompt and fireproximityprompt then
                                 pcall(function() fireproximityprompt(prompt) end)
@@ -2019,20 +2019,31 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Biome Randomizer & Strange Controller Loop
+-- 4. Auto Biome Randomizer & Strange Controller Loop (Safe Biome Verification Delay)
 task.spawn(function()
     while ScriptRunning do
         task.wait(1)
         if NyXConfig.AutoBiomeRandomizer or NyXConfig.AutoStrangeController then
-            local currentB = NyXConfig.CurrentDetectedBiome
+            local currentB = GetAccurateServerBiome()
+            NyXConfig.CurrentDetectedBiome = currentB
             local shouldStop = NyXConfig.StopAutoBiomes[currentB] == true
 
             if not shouldStop then
                 if NyXConfig.AutoBiomeRandomizer then
                     UseItemWithInventoryFailsafe('Biome Randomizer')
-                    task.wait(1)
+                    -- Đợi 3.5 giây và kiểm tra liên tục để tránh dùng đè Strange Controller khi Biome hiếm vừa xuất hiện
+                    for _ = 1, 7 do
+                        if not ScriptRunning then break end
+                        task.wait(0.5)
+                        local checkB = GetAccurateServerBiome()
+                        NyXConfig.CurrentDetectedBiome = checkB
+                        if NyXConfig.StopAutoBiomes[checkB] then
+                            shouldStop = true
+                            break
+                        end
+                    end
                 end
-                if NyXConfig.AutoStrangeController and not NyXConfig.StopAutoBiomes[GetAccurateServerBiome()] then
+                if not shouldStop and NyXConfig.AutoStrangeController and not NyXConfig.StopAutoBiomes[GetAccurateServerBiome()] then
                     UseItemWithInventoryFailsafe('Strange Controller')
                 end
             end
