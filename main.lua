@@ -1,5 +1,5 @@
--- // NYX DETECTOR MACRO - ULTRA FIX v4 (ALL BUGS FIXED & OPTIMIZED)
--- // Features: 3-Min Merchant Lifecycle (No Left Webhook) + River-Safe Pathfinding + Zero Memory Leaks + Cached Scanners
+-- // NYX DETECTOR MACRO - ULTRA FIX v5 (SMART JUMP OBSTACLE + UI UTILITIES + NO LEFT WEBHOOK)
+-- // Features: 4-Layer Anti-Stuck Jump Pathfinding + Mini Floating HUD + Sound Alert + Zero Memory Leaks
 local Players = game:GetService('Players')
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local HttpService = game:GetService('HttpService')
@@ -14,6 +14,7 @@ local Lighting = game:GetService('Lighting')
 local RunService = game:GetService('RunService')
 local TeleportService = game:GetService('TeleportService')
 local PathfindingService = game:GetService('PathfindingService')
+local SoundService = game:GetService('SoundService')
 
 local LocalPlayer = Players.LocalPlayer
 local ScriptRunning = true
@@ -43,22 +44,22 @@ end
 
 -- // 16 Standard Biomes Data
 local BiomeData = {
-    ['NORMAL'] = {Color = 0xAAAAAA, Hex = Color3.fromRGB(80, 250, 123), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['WINDY'] = {Color = 0x55FFFF, Hex = Color3.fromRGB(85, 255, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['SNOWY'] = {Color = 0xAAFFFF, Hex = Color3.fromRGB(170, 255, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['RAINY'] = {Color = 0x4477FF, Hex = Color3.fromRGB(68, 119, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['SANDSTORM'] = {Color = 0xCC9955, Hex = Color3.fromRGB(235, 180, 90), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['HELL'] = {Color = 0xFF3300, Hex = Color3.fromRGB(255, 65, 35), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['STARFALL'] = {Color = 0x2266FF, Hex = Color3.fromRGB(80, 140, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['HEAVEN'] = {Color = 0xFFEEAA, Hex = Color3.fromRGB(255, 238, 170), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['LOST FOREST'] = {Color = 0x33FF33, Hex = Color3.fromRGB(51, 255, 51), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['CORRUPTION'] = {Color = 0x8833FF, Hex = Color3.fromRGB(165, 90, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['NULL'] = {Color = 0x777777, Hex = Color3.fromRGB(160, 160, 160), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['GLITCHED'] = {Color = 0x228855, Hex = Color3.fromRGB(60, 220, 140), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['DREAMSPACE'] = {Color = 0xFF66CC, Hex = Color3.fromRGB(255, 102, 204), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['CYBERSPACE'] = {Color = 0x2255AA, Hex = Color3.fromRGB(70, 150, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['SINGULARITY'] = {Color = 0xFF9955, Hex = Color3.fromRGB(255, 153, 85), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['THE RADIANT FOREST'] = {Color = 0xCC33FF, Hex = Color3.fromRGB(204, 51, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'}
+    ['NORMAL'] = {Color = 0xAAAAAA, Hex = Color3.fromRGB(80, 250, 123), Image = 'https://static.wikia.nocookie.net/sol-rng/images/c/c9/Daytime_img.png/revision/latest/scale-to-width-down/1000?cb=20241116044859'},
+    ['WINDY'] = {Color = 0x55FFFF, Hex = Color3.fromRGB(85, 255, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/b/b0/Windy03.10.26.gif/revision/latest?cb=20261003094316'},
+    ['SNOWY'] = {Color = 0xAAFFFF, Hex = Color3.fromRGB(170, 255, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/1/1f/SnowyBiomeInGame.gif/revision/latest?cb=20261003145146'},
+    ['RAINY'] = {Color = 0x4477FF, Hex = Color3.fromRGB(68, 119, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/6/65/Rainy03.10.2026.gif/revision/latest?cb=20261003094418'},
+    ['SANDSTORM'] = {Color = 0xCC9955, Hex = Color3.fromRGB(235, 180, 90), Image = 'https://static.wikia.nocookie.net/sol-rng/images/7/7c/Sand_Storm.png/revision/latest/scale-to-width-down/1000?cb=20241229095728'},
+    ['HELL'] = {Color = 0xFF3300, Hex = Color3.fromRGB(255, 65, 35), Image = 'https://static.wikia.nocookie.net/sol-rng/images/2/28/Hell_Updated_03.10.26.gif/revision/latest?cb=20261003093055'},
+    ['STARFALL'] = {Color = 0x2266FF, Hex = Color3.fromRGB(80, 140, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/c/cd/0-3-10-26.Starfall.gif/revision/latest?cb=20261003091407'},
+    ['HEAVEN'] = {Color = 0xFFEEAA, Hex = Color3.fromRGB(255, 238, 170), Image = 'https://static.wikia.nocookie.net/sol-rng/images/c/c3/Heaven03.10.26.gif/revision/latest?cb=20261003094940'},
+    ['LOST FOREST'] = {Color = 0x33FF33, Hex = Color3.fromRGB(51, 255, 51), Image = 'https://static.wikia.nocookie.net/sol-rng/images/9/9c/LostForest.gif/revision/latest?cb=20261022114232'},
+    ['CORRUPTION'] = {Color = 0x8833FF, Hex = Color3.fromRGB(165, 90, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/f/f9/CorruptionBiomeUpdated03.10.26.gif/revision/latest?cb=20261003094031'},
+    ['NULL'] = {Color = 0x777777, Hex = Color3.fromRGB(160, 160, 160), Image = 'https://static.wikia.nocookie.net/sol-rng/images/6/66/NullBiome.gif/revision/latest?cb=20261003110602'},
+    ['GLITCHED'] = {Color = 0x228855, Hex = Color3.fromRGB(60, 220, 140), Image = 'https://static.wikia.nocookie.net/sol-rng/images/5/58/GlitchedNew.png/revision/latest/scale-to-width-down/1000?cb=20260730105915'},
+    ['DREAMSPACE'] = {Color = 0xFF66CC, Hex = Color3.fromRGB(255, 102, 204), Image = 'https://static.wikia.nocookie.net/sol-rng/images/4/48/Dreamspace_Biome.png/revision/latest/scale-to-width-down/1000?cb=20260730105754'},
+    ['CYBERSPACE'] = {Color = 0x2255AA, Hex = Color3.fromRGB(70, 150, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/e/e9/CyberspaceNew.png/revision/latest/scale-to-width-down/1000?cb=20260730105943'},
+    ['SINGULARITY'] = {Color = 0xFF9955, Hex = Color3.fromRGB(255, 153, 85), Image = 'https://static.wikia.nocookie.net/sol-rng/images/f/f7/SingularityBiome.png/revision/latest/scale-to-width-down/1000?cb=20260426050520'},
+    ['THE RADIANT FOREST'] = {Color = 0xCC33FF, Hex = Color3.fromRGB(204, 51, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/7/7f/RadiantForest.gif/revision/latest?cb=20261019060110'}
 }
 
 local NormalizedBiomeLookup = {
@@ -92,9 +93,9 @@ local All16Biomes = {
 
 local All3Merchants = {'Mari', 'Jester', 'Rin'}
 local MerchantData = {
-    ['Mari'] = {Color = 0x2ECC71, Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['Jester'] = {Color = 0x9B59B6, Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['Rin'] = {Color = 0x3498DB, Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'}
+    ['Mari'] = {Color = 0x2ECC71, Image = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS6L6PcpIMSqDqM8SO6q7sZxIFoBOp71Gsmxvve1WiqAA&s'},
+    ['Jester'] = {Color = 0x9B59B6, Image = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6v3ZqckK1GNCg6SYg4TCfpRWtphoD0FizegtT1LB1RQ&s=10'},
+    ['Rin'] = {Color = 0x3498DB, Image = 'https://static.wikia.nocookie.net/sol-rng/images/a/a7/RinRender.png/revision/latest/scale-to-width-down/1200?cb=20260612154656'}
 }
 
 -- // Configuration Table
@@ -135,6 +136,12 @@ local NyXConfig = {
     MerchantPosition = nil,
     AntiAFK = true,
     Disable3DRendering = false,
+    -- UI Utilities Config
+    ShowMiniHUD = true,
+    LockUIPosition = false,
+    EnableSoundAlert = true,
+    WalkSpeedBoost = false,
+    CustomWalkSpeed = 24,
     UIAccentColor = Color3.fromRGB(135, 95, 255),
     GlassTransparency = 0.08,
     UIScalePercent = 95
@@ -144,6 +151,21 @@ for _, bName in ipairs(All16Biomes) do
     if NyXConfig.PingBiomes[bName] == nil then
         NyXConfig.PingBiomes[bName] = false
     end
+end
+
+-- // In-Game Sound Alert Helper
+local function PlayAlertSound()
+    if not NyXConfig.EnableSoundAlert then return end
+    pcall(function()
+        local snd = Instance.new('Sound')
+        snd.SoundId = 'rbxassetid://4590657391'
+        snd.Volume = 2
+        snd.Parent = SoundService
+        snd:Play()
+        task.delay(3, function()
+            if snd and snd.Parent then snd:Destroy() end
+        end)
+    end)
 end
 
 -- ==========================================
@@ -357,7 +379,7 @@ local function SendMerchantArrivedEmbed(merchantName)
 end
 
 -- ==========================================
--- // OPTIMIZED MERCHANT & PATHFINDING SYSTEM (NO LAG / NO RACE CONDITION)
+-- // SMART PATHFINDING + 4-LAYER ANTI-STUCK WALL/LEDGE JUMP
 -- ==========================================
 local isWalkingPath = false
 local cancelCurrentWalk = false
@@ -372,6 +394,46 @@ local function RespawnCharacterSafely()
             hum.Health = 0
         end
     end)
+end
+
+-- Hàm ép nhảy mạnh mẽ (kết hợp cả thuộc tính Jump và State Jumping để không bị kẹt cạnh gạch)
+local function ForceCharacterJump(hum)
+    if not hum then return end
+    pcall(function()
+        hum.Jump = true
+        local st = hum:GetState()
+        if st ~= Enum.HumanoidStateType.Jumping and st ~= Enum.HumanoidStateType.Freefall then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+end
+
+-- Tia cảm biến phát hiện bậc gạch / tường chắn phía trước mặt nhân vật
+local function HasObstacleInFront(char, root, targetPos)
+    local hitObstacle = false
+    pcall(function()
+        local flatDir = Vector3.new(targetPos.X - root.Position.X, 0, targetPos.Z - root.Position.Z)
+        if flatDir.Magnitude < 0.1 then
+            flatDir = root.CFrame.LookVector
+        else
+            flatDir = flatDir.Unit
+        end
+
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {char}
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+        -- Bắn 3 tia ở tầm ống đồng (-1.8), đầu gối (-0.8) và ngực (+0.5)
+        for _, yOffset in ipairs({-1.8, -0.8, 0.5}) do
+            local origin = root.Position + Vector3.new(0, yOffset, 0)
+            local result = Workspace:Raycast(origin, flatDir * 4.2, rayParams)
+            if result and result.Instance and result.Instance.CanCollide then
+                hitObstacle = true
+                return
+            end
+        end
+    end)
+    return hitObstacle
 end
 
 local function MatchMerchantFromObject(obj)
@@ -404,7 +466,6 @@ local function MatchMerchantFromObject(obj)
     return nil, nil, nil
 end
 
--- Theo dõi đối tượng mới sinh ra trong Workspace để không cần quét GetDescendants mỗi giây
 TrackConnection(Workspace.DescendantAdded:Connect(function(obj)
     if not ScriptRunning then return end
     if obj:IsA('ProximityPrompt') or obj:IsA('Model') then
@@ -418,7 +479,6 @@ TrackConnection(Workspace.DescendantAdded:Connect(function(obj)
 end))
 
 local function FindMerchantWorldPosition(forceScan)
-    -- 1. Kiểm tra từ Cache trước (Tốc độ tức thời, không gây lag)
     if CachedMerchantObj and CachedMerchantObj.Parent and CachedMerchantObj:IsDescendantOf(Workspace) then
         local mName, mPos, mPrompt = MatchMerchantFromObject(CachedMerchantObj)
         if mName and mPos then
@@ -427,7 +487,6 @@ local function FindMerchantWorldPosition(forceScan)
     end
     CachedMerchantObj = nil
 
-    -- 2. Chỉ quét toàn bộ Workspace tối đa 10 giây 1 lần hoặc khi được ép quét
     local now = os.clock()
     if not forceScan and (now - LastFullMerchantScan) < 10 then
         return nil, nil, nil
@@ -471,9 +530,60 @@ local function IsWaypointOverWaterOrVoid(pos)
     return isHazard
 end
 
+-- Hàm đi tới 1 điểm Waypoint có chống đập đầu vào gạch + tự động nhảy + tự lách sang ngang nếu kẹt
+local function MoveToSinglePointSmart(char, hum, root, pointPos, requireJump, stopConditionFunc)
+    if requireJump or (pointPos.Y - root.Position.Y) > 1.5 or IsWaypointOverWaterOrVoid(pointPos) or HasObstacleInFront(char, root, pointPos) then
+        ForceCharacterJump(hum)
+    end
+
+    hum:MoveTo(pointPos)
+    local stepStart = os.clock()
+    local lastCheckTime = os.clock()
+    local lastCheckPos = root.Position
+    local stuckStrikes = 0
+
+    while (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(pointPos.X, 0, pointPos.Z)).Magnitude > 3.6
+          and (os.clock() - stepStart) < 2.6 do
+        if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+        if not char.Parent or hum.Health <= 0 then break end
+
+        -- 1. Kiểm tra chướng ngại vật phía trước hoặc điểm đến cao hơn chân
+        if HasObstacleInFront(char, root, pointPos) or (pointPos.Y - root.Position.Y) > 1.6 then
+            ForceCharacterJump(hum)
+        end
+
+        -- 2. Kiểm tra tiến độ di chuyển thực tế mỗi 0.3s (Tránh dùng Velocity cũ bị lỗi)
+        if (os.clock() - lastCheckTime) >= 0.3 then
+            local movedDist = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(lastCheckPos.X, 0, lastCheckPos.Z)).Magnitude
+            lastCheckTime = os.clock()
+            lastCheckPos = root.Position
+
+            if movedDist < 0.85 then
+                stuckStrikes = stuckStrikes + 1
+                ForceCharacterJump(hum)
+
+                -- Nếu nhảy 2 lần vẫn vướng gờ gạch, tự động lách nhẹ sang ngang + nhảy để thoát góc kẹt
+                if stuckStrikes >= 2 then
+                    local sideDir = root.CFrame.RightVector * ((stuckStrikes % 2 == 0) and 5 or -5)
+                    localunstuckPos = root.Position - root.CFrame.LookVector * 2 + sideDir
+                    ForceCharacterJump(hum)
+                    hum:MoveTo(localunstuckPos)
+                    task.wait(0.22)
+                    ForceCharacterJump(hum)
+                    hum:MoveTo(pointPos)
+                end
+            else
+                stuckStrikes = 0
+            end
+        end
+
+        hum:MoveTo(pointPos)
+        task.wait(0.06)
+    end
+end
+
 local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc, isHighPriority)
     if not targetPos then return false end
-    -- Nếu là lệnh ưu tiên cao (đi tới Merchant), hủy lệnh đi nhặt đồ hiện tại và đợi mở khóa
     if isWalkingPath then
         if isHighPriority then
             cancelCurrentWalk = true
@@ -496,53 +606,65 @@ local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc, isHighPr
         if not hum or not root or hum.Health <= 0 then
             return
         end
-        local path = PathfindingService:CreatePath({
-            AgentRadius = 2.2,
-            AgentHeight = 5.0,
-            AgentCanJump = true,
-            WaypointSpacing = 4.0,
-            Costs = {
-                Water = math.huge,
-                Danger = math.huge
-            }
-        })
-        local computeOk = pcall(function()
-            path:ComputeAsync(root.Position, targetPos)
-        end)
-        if computeOk and path.Status == Enum.PathStatus.Success then
-            local waypoints = path:GetWaypoints()
-            for _, wp in ipairs(waypoints) do
-                if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
-                if not char.Parent or hum.Health <= 0 then break end
-                if IsWaypointOverWaterOrVoid(wp.Position) or wp.Action == Enum.PathWaypointAction.Jump then
-                    hum.Jump = true
-                end
-                hum:MoveTo(wp.Position)
-                local stepStart = os.clock()
-                while (root.Position - wp.Position).Magnitude > 4.2 and (os.clock() - stepStart) < 2.2 do
-                    if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
-                    if (root.Position - wp.Position).Magnitude > 3 and hum.MoveDirection.Magnitude > 0 and root.Velocity.Magnitude < 1.2 then
-                        hum.Jump = true
+
+        -- Cho phép tối đa 2 lần tính toán đường đi (Recompute nếu lần 1 bị vướng địa hình phức tạp)
+        for attempt = 1, 2 do
+            if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+            if (root.Position - targetPos).Magnitude <= 8 then
+                reached = true
+                break
+            end
+
+            local path = PathfindingService:CreatePath({
+                AgentRadius = 2.0,
+                AgentHeight = 5.0,
+                AgentCanJump = true,
+                WaypointSpacing = 3.5,
+                Costs = {
+                    Water = math.huge,
+                    Danger = math.huge
+                }
+            })
+
+            local computeOk = pcall(function()
+                path:ComputeAsync(root.Position, targetPos)
+            end)
+
+            if computeOk and path.Status == Enum.PathStatus.Success then
+                local waypoints = path:GetWaypoints()
+                for i, wp in ipairs(waypoints) do
+                    if i > 1 then -- Bỏ qua waypoint đầu tiên (vị trí đứng hiện tại)
+                        if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+                        if not char.Parent or hum.Health <= 0 then break end
+
+                        local needJump = (wp.Action == Enum.PathWaypointAction.Jump)
+                        MoveToSinglePointSmart(char, hum, root, wp.Position, needJump, stopConditionFunc)
+
+                        if (root.Position - targetPos).Magnitude <= 8 then
+                            reached = true
+                            break
+                        end
                     end
-                    task.wait(0.08)
                 end
-                if (root.Position - targetPos).Magnitude <= 8 then
-                    reached = true
-                    break
+            else
+                -- Fallback đi thẳng nhưng vẫn có cảm biến nhảy qua gạch & né sông
+                if not IsWaypointOverWaterOrVoid(targetPos) then
+                    local t0 = os.clock()
+                    while (root.Position - targetPos).Magnitude > 7 and (os.clock() - t0) < 9 do
+                        if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+                        if IsWaypointOverWaterOrVoid(root.Position + root.CFrame.LookVector * 5) then
+                            ForceCharacterJump(hum)
+                        end
+                        MoveToSinglePointSmart(char, hum, root, targetPos, false, stopConditionFunc)
+                        if (root.Position - targetPos).Magnitude <= 8 then
+                            reached = true
+                            break
+                        end
+                    end
                 end
             end
-        else
-            if not IsWaypointOverWaterOrVoid(targetPos) then
-                hum:MoveTo(targetPos)
-                local t0 = os.clock()
-                while (root.Position - targetPos).Magnitude > 7 and (os.clock() - t0) < 8 do
-                    if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) or IsWaypointOverWaterOrVoid(root.Position + root.CFrame.LookVector * 5) then
-                        hum:MoveTo(root.Position)
-                        break
-                    end
-                    task.wait(0.15)
-                end
-            end
+
+            if reached then break end
         end
     end)
 
@@ -562,10 +684,10 @@ local function WalkToActiveMerchantNow()
             Notify('Merchant Pathfinding', 'No active merchant coordinates found in world!', 3)
             return
         end
-        Notify('Merchant Pathfinding', 'Walking safely to ' .. tostring(mName or 'Merchant') .. ' (Avoiding rivers)...', 3.5)
+        Notify('Merchant Pathfinding', 'Walking safely to ' .. tostring(mName or 'Merchant') .. ' (Smart Jump + Avoid Rivers)...', 3.5)
         WalkSafelyToTargetPosition(mPos, function()
             return NyXConfig.CurrentMerchant == 'NONE'
-        end, true) -- isHighPriority = true
+        end, true)
         if NyXConfig.AutoInteractMerchant then
             if not mPrompt then
                 _, _, mPrompt = FindMerchantWorldPosition(false)
@@ -588,6 +710,7 @@ local function SetMerchantArrivedState(merchantName, worldPos)
     NyXConfig.CurrentMerchant = merchantName:upper()
     NyXConfig.MerchantSpawnTimestamp = os.time()
     NyXConfig.MerchantPosition = worldPos
+    PlayAlertSound()
     SendMerchantArrivedEmbed(merchantName)
     Notify('Merchant Arrived!', merchantName .. ' has arrived! (3m timer started)', 4)
     if NyXConfig.AutoWalkToMerchant then
@@ -602,7 +725,7 @@ local function SetMerchantLeftState(reason)
     NyXConfig.MerchantSpawnTimestamp = 0
     NyXConfig.MerchantPosition = nil
     CachedMerchantObj = nil
-    -- Đã xóa phần gửi Webhook Merchant Left theo yêu cầu, chỉ giữ thông báo UI nội bộ & Respawn
+    -- Không gửi Webhook khi Merchant Left, chỉ cập nhật trạng thái 3 phút nội bộ
     Notify('Merchant Left', prevMerchant .. ' has left! (' .. tostring(reason or '3m Elapsed') .. ')', 4)
     if NyXConfig.RespawnIfMerchantLeft then
         Notify('Auto Respawn', 'Respawning character because merchant left...', 3)
@@ -648,7 +771,6 @@ end
 
 local function GetAccurateServerBiome()
     local foundBiome = nil
-    -- 1. Kiểm tra Attributes (Cực nhanh)
     pcall(function()
         local candidates = {
             Workspace:GetAttribute('Biome'),
@@ -668,7 +790,6 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
-    -- 2. Kiểm tra StringValues (Cực nhanh)
     pcall(function()
         for _, root in ipairs({ReplicatedStorage, Workspace, Lighting}) do
             for _, obj in ipairs(root:GetChildren()) do
@@ -684,7 +805,6 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
-    -- 3. Kiểm tra từ Cached HUD Labels trước
     pcall(function()
         for i = #CachedBiomeLabels, 1, -1 do
             local lbl = CachedBiomeLabels[i]
@@ -701,7 +821,6 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
-    -- 4. Quét PlayerGui tối đa 8 giây 1 lần để nạp Cache mới
     local now = os.clock()
     if (now - LastGuiBiomeScan) < 8 then
         return 'NORMAL'
@@ -735,13 +854,12 @@ local function GetAccurateServerBiome()
 end
 
 -- ==========================================
--- // STRICT MERCHANT ARRIVAL & DEPARTURE PARSER (FIXED WORD BOUNDARY)
+-- // STRICT MERCHANT ARRIVAL & DEPARTURE PARSER
 -- ==========================================
 local function ParseMerchantSystemEvent(rawText)
     local clean = CleanRichText(rawText):upper()
     if clean == '' then return nil, nil end
     local mName = nil
-    -- Đã sửa lỗi dùng %f[%a]...%f[%A] chuẩn xác, không bị nhận nhầm từ SPRING/BRING/STRING thành RIN
     if clean:find('%f[%a]JESTER%f[%A]') then
         mName = 'Jester'
     elseif clean:find('%f[%a]RIN%f[%A]') then
@@ -776,7 +894,7 @@ pcall(function()
 end)
 
 -- ==========================================
--- // SAFE AUTO INVENTORY (NO REMOTE SPAM)
+-- // SAFE AUTO INVENTORY
 -- ==========================================
 local function ClickGuiElement(guiObj)
     pcall(function()
@@ -805,7 +923,6 @@ local function UseItemWithInventoryFailsafe(itemName)
     isUsingInventoryFailsafe = true
 
     pcall(function()
-        -- Chỉ gọi đúng RemoteEvent tên chuẩn (nếu có), tuyệt đối không spam mọi RemoteEvent
         local Remotes = ReplicatedStorage:FindFirstChild('Remotes') or ReplicatedStorage:FindFirstChild('Events')
         if Remotes then
             local exactRemote = Remotes:FindFirstChild('UseItem') or Remotes:FindFirstChild('ItemUse')
@@ -889,7 +1006,7 @@ local function UseItemWithInventoryFailsafe(itemName)
 end
 
 -- ==========================================
--- // ANDROID-COMPACT RESPONSIVE UI CREATION
+-- // ANDROID-COMPACT RESPONSIVE UI + MINI HUD UTILITIES
 -- ==========================================
 local ParentGui = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild('PlayerGui')
 if ParentGui:FindFirstChild('NyXMacroUI') then
@@ -998,6 +1115,34 @@ Notify = function(title, text, duration)
     end)
 end
 
+-- // UI UTILITY: FLOATING MINI STATUS HUD BAR
+local MiniHUD = Instance.new('Frame')
+MiniHUD.Name = 'MiniStatusHUD'
+MiniHUD.AnchorPoint = Vector2.new(0.5, 0)
+MiniHUD.Size = UDim2.new(0, 310, 0, 28)
+MiniHUD.Position = UDim2.new(0.5, 0, 0, 10)
+MiniHUD.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
+MiniHUD.BackgroundTransparency = 0.1
+MiniHUD.Active = true
+MiniHUD.Visible = NyXConfig.ShowMiniHUD
+MiniHUD.ZIndex = 25
+MiniHUD.Parent = ScreenGui
+Instance.new('UICorner', MiniHUD).CornerRadius = UDim.new(1, 0)
+local MiniHUDStroke = Instance.new('UIStroke', MiniHUD)
+MiniHUDStroke.Thickness = 1.2
+MiniHUDStroke.Transparency = 0.3
+RegisterAccent(MiniHUDStroke, 'Color')
+
+local MiniHUDText = Instance.new('TextLabel', MiniHUD)
+MiniHUDText.Size = UDim2.new(1, -20, 1, 0)
+MiniHUDText.Position = UDim2.new(0, 10, 0, 0)
+MiniHUDText.BackgroundTransparency = 1
+MiniHUDText.Text = 'BIOME: NORMAL  |  MERCHANT: NONE  |  00:00:00'
+MiniHUDText.Font = Enum.Font.GothamBold
+MiniHUDText.TextSize = 10
+MiniHUDText.TextColor3 = Color3.fromRGB(240, 240, 255)
+MiniHUDText.ZIndex = 26
+
 -- Compact Main Window (480x285 base size for Android screens)
 local MainWindow = Instance.new('Frame')
 MainWindow.Name = 'MainWindow'
@@ -1073,7 +1218,7 @@ local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
         end
     end))
     TrackConnection(UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and not NyXConfig.LockUIPosition and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             if delta.Magnitude > 5 then
                 hasMoved = true
@@ -1094,6 +1239,9 @@ local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
 end
 
 MakeDraggable(NDButton, NDButton, function()
+    MainWindow.Visible = not MainWindow.Visible
+end)
+MakeDraggable(MiniHUD, MiniHUD, function()
     MainWindow.Visible = not MainWindow.Visible
 end)
 
@@ -1142,7 +1290,7 @@ local BrandSub = Instance.new('TextLabel', Sidebar)
 BrandSub.Size = UDim2.new(0, 88, 0, 12)
 BrandSub.Position = UDim2.new(0, 44, 0, 25)
 BrandSub.BackgroundTransparency = 1
-BrandSub.Text = 'MACRO'
+BrandSub.Text = 'MACRO v5'
 BrandSub.Font = Enum.Font.GothamBold
 BrandSub.TextSize = 9
 BrandSub.TextXAlignment = Enum.TextXAlignment.Left
@@ -1311,7 +1459,6 @@ local function AddToggle(parent, title, subtext, defaultVal, callback)
     Instance.new('UICorner', Knob).CornerRadius = UDim.new(1, 0)
     local state = defaultVal
 
-    -- Tự động đổi màu khi người dùng đổi Theme
     RegisterDynamicAccent(function(newCol)
         if state then
             SwitchBg.BackgroundColor3 = newCol
@@ -1356,7 +1503,6 @@ local function AddInput(parent, title, defaultText, placeholder, callback)
     Box.TextXAlignment = Enum.TextXAlignment.Left
     Instance.new('UICorner', Box).CornerRadius = UDim.new(0, 5)
     Instance.new('UIStroke', Box).Color = Color3.fromRGB(50, 50, 75)
-    -- Đã xóa sự kiện FocusLost bị trùng lặp, chỉ dùng GetPropertyChangedSignal('Text')
     Box:GetPropertyChangedSignal('Text'):Connect(function()
         if callback then callback(Box.Text) end
     end)
@@ -1435,14 +1581,14 @@ local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, call
 end
 
 -- ==========================================
--- // BUILD THE 6 TABS (HOME, MAIN, MERCHANT, CONNECTIONS, PINGS, SETTING)
+-- // BUILD THE 6 TABS
 -- ==========================================
-local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home', 'Dashboard, live status & macro overview.')
+local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home', 'Dashboard, live status & quick UI actions.')
 local MainScroll = CreateTabPage('Main', 'Biome detector, inventory automation & ground item collector.')
-local MerchantScroll = CreateTabPage('Merchant', '3-Min Merchant lifecycle, river-safe pathfinding & auto-respawn.')
+local MerchantScroll = CreateTabPage('Merchant', '3-Min Merchant lifecycle, smart jump pathfinding & auto-respawn.')
 local ConnScroll = CreateTabPage('Connections', 'Discord Webhook URL, User ID & Private Server config.')
 local PingsScroll = CreateTabPage('Pings', 'Select which of the 16 Biomes & 3 Merchants ping your User ID.')
-local SettingScroll = CreateTabPage('Setting', 'UI Scale, OLED Black Screen, Anti-AFK & server tools.')
+local SettingScroll = CreateTabPage('Setting', 'UI Utilities, Mini HUD, Sound Alert, Speed & AFK tools.')
 
 Pages[1].Visible = true
 HomeNavBtn.BackgroundTransparency = 0.15
@@ -1488,7 +1634,7 @@ RegisterAccent(BadgeStroke, 'Color')
 local BadgeTxt = Instance.new('TextLabel', MacroBadge)
 BadgeTxt.Size = UDim2.new(1, 0, 1, 0)
 BadgeTxt.BackgroundTransparency = 1
-BadgeTxt.Text = 'MACRO'
+BadgeTxt.Text = 'MACRO v5'
 BadgeTxt.Font = Enum.Font.GothamBold
 BadgeTxt.TextSize = 9
 RegisterAccent(BadgeTxt, 'TextColor3')
@@ -1584,6 +1730,20 @@ MerchantValueLabel.TextSize = 12
 MerchantValueLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
 MerchantValueLabel.TextXAlignment = Enum.TextXAlignment.Right
 
+AddSectionLabel(HomeScroll, 'QUICK SHORTCUTS')
+AddButton(HomeScroll, 'Unstuck Character Jump Now (Thoát kẹt địa hình)', function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass('Humanoid')
+        local root = char and char:FindFirstChild('HumanoidRootPart')
+        if hum and root then
+            ForceCharacterJump(hum)
+            root.CFrame = root.CFrame + Vector3.new(0, 4, 0)
+            Notify('Unstuck', 'Jumped & lifted character out of stuck ledge!', 2.5)
+        end
+    end)
+end)
+
 -- // TAB 2: MAIN
 AddSectionLabel(MainScroll, 'Biome Detector & Ground Collector')
 AddToggle(MainScroll, 'Start Biome & State Detector', 'Sends Macro Started/Stopped and accurate Biome embeds.', false, function(val)
@@ -1602,7 +1762,7 @@ AddToggle(MainScroll, 'Start Biome & State Detector', 'Sends Macro Started/Stopp
     end
 end)
 
-AddToggle(MainScroll, 'Auto Collect Natural Ground Items', 'Safely walks to nearby potions & coins on the ground.', false, function(val)
+AddToggle(MainScroll, 'Auto Collect Natural Ground Items', 'Safely walks & jumps to nearby potions & coins on the ground.', false, function(val)
     NyXConfig.AutoCollectItems = val
 end)
 
@@ -1687,8 +1847,8 @@ AddToggle(MerchantScroll, 'Enable Merchant Detector (Arrived Webhook)', 'Sends D
     NyXConfig.EnableMerchantWebhook = val
 end)
 
-AddSectionLabel(MerchantScroll, 'Anti-Ban Pathfinding & Respawn')
-AddToggle(MerchantScroll, 'Auto Pathfind Walk to Merchant (Avoid Rivers)', 'Reads merchant XYZ and walks safely along bridges/ground instead of teleporting.', false, function(val)
+AddSectionLabel(MerchantScroll, 'Smart-Jump Pathfinding & Respawn')
+AddToggle(MerchantScroll, 'Auto Pathfind Walk to Merchant (Jump Walls & Avoid Rivers)', 'Automatically jumps over bricks/stairs and walks safely to merchant.', false, function(val)
     NyXConfig.AutoWalkToMerchant = val
 end)
 AddToggle(MerchantScroll, 'Auto Open Merchant Shop on Arrival', 'Automatically triggers the merchant ProximityPrompt once you reach them.', false, function(val)
@@ -1699,6 +1859,10 @@ AddToggle(MerchantScroll, 'Respawn if Merchant Left', 'Automatically resets/resp
 end)
 AddButton(MerchantScroll, 'Walk Safely to Active Merchant Now', function()
     WalkToActiveMerchantNow()
+end)
+AddButton(MerchantScroll, 'Stop Current Pathfinding Walk', function()
+    cancelCurrentWalk = true
+    Notify('Pathfinding', 'Stopped current walking path.', 2)
 end)
 
 -- // TAB 4: CONNECTIONS
@@ -1726,7 +1890,7 @@ AddButton(ConnScroll, 'Test Webhook Connection', function()
     Notify('Webhook Test', 'Sent Webhook Test - Successfully to Discord!', 3)
 end)
 
--- // TAB 5: PINGS (16 BIOMES + 3 MERCHANTS + MANDATORY USER ID CHECK)
+-- // TAB 5: PINGS
 AddSectionLabel(PingsScroll, 'Mandatory Discord User ID for Pings')
 PingUserIDBox = AddInput(PingsScroll, 'Your Discord User ID (Must Enter to Enable Pings)', NyXConfig.DiscordID, 'Enter your numeric Discord User ID here...', function(txt)
     local clean = txt:gsub('%D+', '')
@@ -1819,8 +1983,46 @@ for _, mName in ipairs(All3Merchants) do
     end)
 end
 
--- // TAB 6: SETTING
-AddSectionLabel(SettingScroll, 'Android Screen & UI Customization')
+-- // TAB 6: SETTING & UI UTILITIES
+AddSectionLabel(SettingScroll, 'UI Utilities & Floating Mini HUD')
+AddToggle(SettingScroll, 'Show Floating Mini Status HUD', 'Displays compact Biome/Merchant/Uptime bar at the top of screen.', true, function(val)
+    NyXConfig.ShowMiniHUD = val
+    MiniHUD.Visible = val
+end)
+AddToggle(SettingScroll, 'Lock UI & ND Button Position', 'Prevents accidentally dragging windows on touchscreen.', false, function(val)
+    NyXConfig.LockUIPosition = val
+    Notify('UI Lock', val and 'UI positions locked!' or 'UI positions unlocked!', 2)
+end)
+AddToggle(SettingScroll, 'In-Game Sound Alert on Rare Biome / Merchant', 'Plays an audio chime when a target Biome or Merchant spawns.', true, function(val)
+    NyXConfig.EnableSoundAlert = val
+end)
+AddButton(SettingScroll, 'Reset UI Positions to Center', function()
+    MainWindow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    NDButton.Position = UDim2.new(0.03, 0, 0.2, 0)
+    MiniHUD.Position = UDim2.new(0.5, 0, 0, 10)
+    MainWindow.Visible = true
+    Notify('UI Reset', 'Restored MainWindow, ND Button & Mini HUD positions!', 2.5)
+end)
+
+AddSectionLabel(SettingScroll, 'Character Movement Assist')
+AddToggle(SettingScroll, 'Enable WalkSpeed Assist', 'Helps character walk faster to merchants & ground items.', false, function(val)
+    NyXConfig.WalkSpeedBoost = val
+    pcall(function()
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid')
+        if hum then hum.WalkSpeed = val and NyXConfig.CustomWalkSpeed or 16 end
+    end)
+end)
+AddSlider(SettingScroll, 'Custom WalkSpeed', 16, 45, 24, '', function(val)
+    NyXConfig.CustomWalkSpeed = val
+    if NyXConfig.WalkSpeedBoost then
+        pcall(function()
+            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid')
+            if hum then hum.WalkSpeed = val end
+        end)
+    end
+end)
+
+AddSectionLabel(SettingScroll, 'Android Screen & Theme Customization')
 AddSlider(SettingScroll, 'UI Scale (Resize for Mobile Screen)', 55, 125, 95, '%', function(val)
     NyXConfig.UIScalePercent = val
     RecalculateResponsiveScale()
@@ -1893,6 +2095,14 @@ AddSlider(SettingScroll, 'FPS Cap', 15, 240, 60, ' FPS', function(val)
 end)
 
 AddSectionLabel(SettingScroll, 'Server & Script Management')
+AddButton(SettingScroll, 'Copy Current Server JobId', function()
+    if setclipboard then
+        pcall(setclipboard, tostring(game.JobId))
+        Notify('Copied JobId', 'Server JobId copied to clipboard!', 2.5)
+    else
+        Notify('Server JobId', tostring(game.JobId), 4)
+    end
+end)
 AddButton(SettingScroll, 'Rejoin Current Server', function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
@@ -1912,7 +2122,7 @@ end)
 -- ==========================================
 -- // BACKGROUND LOOPS (BIOME, 3-MIN MERCHANT LIFECYCLE, ITEMS)
 -- ==========================================
--- 1. Biome Detection Loop (With 2-Tick Verification Debounce)
+-- 1. Biome Detection & Mini HUD Sync Loop
 task.spawn(function()
     local confirmedBiome = GetAccurateServerBiome()
     local pendingBiome = confirmedBiome
@@ -1924,8 +2134,21 @@ task.spawn(function()
     end
 
     while ScriptRunning and task.wait(1) do
+        -- Duy trì WalkSpeed nếu bật
+        if NyXConfig.WalkSpeedBoost then
+            pcall(function()
+                local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid')
+                if hum and hum.WalkSpeed ~= NyXConfig.CustomWalkSpeed then
+                    hum.WalkSpeed = NyXConfig.CustomWalkSpeed
+                end
+            end)
+        end
+
         local rawDetected = GetAccurateServerBiome()
-        UptimeValueLabel.Text = GetMacroUptime()
+        local upStr = GetMacroUptime()
+        UptimeValueLabel.Text = upStr
+        MiniHUDText.Text = string.format('BIOME: %s  |  MERCHANT: %s  |  %s', NyXConfig.CurrentDetectedBiome, MerchantValueLabel.Text, upStr)
+
         if rawDetected == pendingBiome then
             pendingCount = pendingCount + 1
         else
@@ -1939,6 +2162,9 @@ task.spawn(function()
             BiomeValueLabel.Text = confirmedBiome
             if BiomeData[confirmedBiome] and BiomeData[confirmedBiome].Hex then
                 BiomeValueLabel.TextColor3 = BiomeData[confirmedBiome].Hex
+            end
+            if NyXConfig.PingBiomes[confirmedBiome] or NyXConfig.StopAutoBiomes[confirmedBiome] then
+                PlayAlertSound()
             end
             if NyXConfig.EnableBiomeWebhook then
                 if previousBiome ~= 'NORMAL' and BiomeData[previousBiome] then
@@ -1989,7 +2215,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Collect Natural Ground Items Loop (Potions / Coins via River-Safe Walk)
+-- 3. Auto Collect Natural Ground Items Loop (Potions / Coins via Smart-Jump Walk)
 task.spawn(function()
     while ScriptRunning and task.wait(2.5) do
         if NyXConfig.AutoCollectItems and not isWalkingPath and NyXConfig.CurrentMerchant == 'NONE' then
@@ -2019,7 +2245,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Biome Randomizer & Strange Controller Loop (Safe Biome Verification Delay)
+-- 4. Auto Biome Randomizer & Strange Controller Loop
 task.spawn(function()
     while ScriptRunning do
         task.wait(1)
@@ -2031,7 +2257,6 @@ task.spawn(function()
             if not shouldStop then
                 if NyXConfig.AutoBiomeRandomizer then
                     UseItemWithInventoryFailsafe('Biome Randomizer')
-                    -- Đợi 3.5 giây và kiểm tra liên tục để tránh dùng đè Strange Controller khi Biome hiếm vừa xuất hiện
                     for _ = 1, 7 do
                         if not ScriptRunning then break end
                         task.wait(0.5)
