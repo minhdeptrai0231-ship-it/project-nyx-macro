@@ -1,46 +1,88 @@
--- // NYX DETECTOR MACRO - ULTRA FIX v5 (SMART JUMP OBSTACLE + UI UTILITIES + NO LEFT WEBHOOK)
--- // Features: 4-Layer Anti-Stuck Jump Pathfinding + Mini Floating HUD + Sound Alert + Zero Memory Leaks
-local Players = game:GetService('Players')
-local ReplicatedStorage = game:GetService('ReplicatedStorage')
-local HttpService = game:GetService('HttpService')
-local VirtualUser = game:GetService('VirtualUser')
-local VirtualInputManager = game:GetService('VirtualInputManager')
-local GuiService = game:GetService('GuiService')
-local Workspace = game:GetService('Workspace')
-local CoreGui = game:GetService('CoreGui')
-local UserInputService = game:GetService('UserInputService')
-local TextChatService = game:GetService('TextChatService')
-local Lighting = game:GetService('Lighting')
-local RunService = game:GetService('RunService')
-local TeleportService = game:GetService('TeleportService')
-local PathfindingService = game:GetService('PathfindingService')
-local SoundService = game:GetService('SoundService')
+-- // NYX DETECTOR MACRO - v6 (GETGENV PROTECTED + HSIN ICON + LIGHTWEIGHT UI)
+local Env = (getgenv and getgenv()) or _G
+
+-- Tự động dọn dẹp phiên bản cũ nếu người dùng chạy lại script (Tránh trùng lặp luồng & Anti-Cheat)
+if Env.NyXDetectorEnv and type(Env.NyXDetectorEnv.Cleanup) == 'function' then
+    pcall(Env.NyXDetectorEnv.Cleanup)
+end
+
+local cloneref = cloneref or function(o) return o end
+local function SafeService(name)
+    local ok, svc = pcall(function()
+        return cloneref(game:GetService(name))
+    end)
+    return ok and svc or game:GetService(name)
+end
+
+local Players = SafeService('Players')
+local ReplicatedStorage = SafeService('ReplicatedStorage')
+local HttpService = SafeService('HttpService')
+local VirtualUser = SafeService('VirtualUser')
+local VirtualInputManager = SafeService('VirtualInputManager')
+local GuiService = SafeService('GuiService')
+local Workspace = SafeService('Workspace')
+local CoreGui = SafeService('CoreGui')
+local UserInputService = SafeService('UserInputService')
+local TextChatService = SafeService('TextChatService')
+local Lighting = SafeService('Lighting')
+local RunService = SafeService('RunService')
+local TeleportService = SafeService('TeleportService')
+local PathfindingService = SafeService('PathfindingService')
+local SoundService = SafeService('SoundService')
 
 local LocalPlayer = Players.LocalPlayer
-local ScriptRunning = true
 local MacroStartTime = 0
 local ScreenGui = nil
 local Notify = function() end
 
--- // Quản lý toàn bộ kết nối để chống Memory Leak khi Uninstall
-local ActiveConnections = {}
+-- // Khởi tạo môi trường trong getgenv()
+Env.NyXDetectorEnv = {
+    Running = true,
+    Connections = {}
+}
+local NyXEnv = Env.NyXDetectorEnv
+
 local function TrackConnection(conn)
     if conn then
-        table.insert(ActiveConnections, conn)
+        table.insert(NyXEnv.Connections, conn)
     end
     return conn
 end
 
-local function CleanupAllConnections()
-    for _, conn in ipairs(ActiveConnections) do
-        pcall(function()
-            if conn and conn.Connected then
-                conn:Disconnect()
+-- // Tải và chuyển đổi ảnh Logo từ URL Web sang Asset hiển thị được trong Roblox
+local HsinLogoURL = 'https://wutheringlab.com/wp-content/uploads/Hsin-icon.webp'
+local HsinLogoFile = 'NyX_Hsin_Icon.webp'
+local CustomLogoAsset = 'rbxassetid://18648155233' -- Fallback icon nếu executor không hỗ trợ getcustomasset
+
+local function GetHsinLogoAsset()
+    local customAssetFunc = getcustomasset or getsynasset
+    if customAssetFunc and writefile and isfile then
+        local ok, assetId = pcall(function()
+            if not isfile(HsinLogoFile) then
+                local req = (syn and syn.request) or http_request or request
+                if req then
+                    local res = req({Url = HsinLogoURL, Method = 'GET'})
+                    if res and res.Body then
+                        writefile(HsinLogoFile, res.Body)
+                    end
+                else
+                    local body = game:HttpGet(HsinLogoURL)
+                    if body then
+                        writefile(HsinLogoFile, body)
+                    end
+                end
+            end
+            if isfile(HsinLogoFile) then
+                return customAssetFunc(HsinLogoFile)
             end
         end)
+        if ok and assetId and assetId ~= '' then
+            return assetId
+        end
     end
-    table.clear(ActiveConnections)
+    return CustomLogoAsset
 end
+CustomLogoAsset = GetHsinLogoAsset()
 
 -- // 16 Standard Biomes Data
 local BiomeData = {
@@ -63,26 +105,12 @@ local BiomeData = {
 }
 
 local NormalizedBiomeLookup = {
-    ['NORMAL'] = 'NORMAL',
-    ['WINDY'] = 'WINDY',
-    ['SNOWY'] = 'SNOWY',
-    ['RAINY'] = 'RAINY',
-    ['SANDSTORM'] = 'SANDSTORM',
-    ['SANDY'] = 'SANDSTORM',
-    ['HELL'] = 'HELL',
-    ['STARFALL'] = 'STARFALL',
-    ['HEAVEN'] = 'HEAVEN',
-    ['LOSTFOREST'] = 'LOST FOREST',
-    ['CORRUPTION'] = 'CORRUPTION',
-    ['CORRUPTED'] = 'CORRUPTION',
-    ['NULL'] = 'NULL',
-    ['GLITCHED'] = 'GLITCHED',
-    ['GLITCH'] = 'GLITCHED',
-    ['DREAMSPACE'] = 'DREAMSPACE',
-    ['CYBERSPACE'] = 'CYBERSPACE',
-    ['SINGULARITY'] = 'SINGULARITY',
-    ['THERADIANTFOREST'] = 'THE RADIANT FOREST',
-    ['RADIANTFOREST'] = 'THE RADIANT FOREST'
+    ['NORMAL'] = 'NORMAL', ['WINDY'] = 'WINDY', ['SNOWY'] = 'SNOWY', ['RAINY'] = 'RAINY',
+    ['SANDSTORM'] = 'SANDSTORM', ['SANDY'] = 'SANDSTORM', ['HELL'] = 'HELL', ['STARFALL'] = 'STARFALL',
+    ['HEAVEN'] = 'HEAVEN', ['LOSTFOREST'] = 'LOST FOREST', ['CORRUPTION'] = 'CORRUPTION', ['CORRUPTED'] = 'CORRUPTION',
+    ['NULL'] = 'NULL', ['GLITCHED'] = 'GLITCHED', ['GLITCH'] = 'GLITCHED', ['DREAMSPACE'] = 'DREAMSPACE',
+    ['CYBERSPACE'] = 'CYBERSPACE', ['SINGULARITY'] = 'SINGULARITY',
+    ['THERADIANTFOREST'] = 'THE RADIANT FOREST', ['RADIANTFOREST'] = 'THE RADIANT FOREST'
 }
 
 local All16Biomes = {
@@ -93,13 +121,13 @@ local All16Biomes = {
 
 local All3Merchants = {'Mari', 'Jester', 'Rin'}
 local MerchantData = {
-    ['Mari'] = {Color = 0x2ECC71, Image = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS6L6PcpIMSqDqM8SO6q7sZxIFoBOp71Gsmxvve1WiqAA&s'},
-    ['Jester'] = {Color = 0x9B59B6, Image = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6v3ZqckK1GNCg6SYg4TCfpRWtphoD0FizegtT1LB1RQ&s=10'},
-    ['Rin'] = {Color = 0x3498DB, Image = 'https://static.wikia.nocookie.net/sol-rng/images/a/a7/RinRender.png/revision/latest/scale-to-width-down/1200?cb=20260612154656'}
+    ['Mari'] = {Color = 0x2ECC71, Image = ''https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS6L6PcpIMSqDqM8SO6q7sZxIFoBOp71Gsmxvve1WiqAA&s'},
+    ['Jester'] = {Color = 0x9B59B6, Image = ''https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6v3ZqckK1GNCg6SYg4TCfpRWtphoD0FizegtT1LB1RQ&s=10''},
+    ['Rin'] = {Color = 0x3498DB, Image = ''https://static.wikia.nocookie.net/sol-rng/images/a/a7/RinRender.png/revision/latest/scale-to-width-down/1200?cb=20260612154656'}
 }
 
--- // Configuration Table
-local NyXConfig = {
+-- // Lưu trữ Config trong getgenv()
+Env.NyXConfig = Env.NyXConfig or {
     WebhookURL = '',
     DiscordID = '',
     PrivateServerLink = '',
@@ -114,38 +142,26 @@ local NyXConfig = {
     AutoBiomeRandomizer = false,
     AutoStrangeController = false,
     UseInterval = 20,
-    StopAutoBiomes = {
-        ['GLITCHED'] = true,
-        ['DREAMSPACE'] = true,
-        ['CYBERSPACE'] = true
-    },
-    PingBiomes = {
-        ['GLITCHED'] = true,
-        ['DREAMSPACE'] = true,
-        ['CYBERSPACE'] = true
-    },
-    PingMerchants = {
-        ['Mari'] = false,
-        ['Jester'] = false,
-        ['Rin'] = false
-    },
+    StopAutoBiomes = {['GLITCHED'] = true, ['DREAMSPACE'] = true, ['CYBERSPACE'] = true},
+    PingBiomes = {['GLITCHED'] = true, ['DREAMSPACE'] = true, ['CYBERSPACE'] = true},
+    PingMerchants = {['Mari'] = false, ['Jester'] = false, ['Rin'] = false},
     CurrentDetectedBiome = 'NORMAL',
     CurrentMerchant = 'NONE',
     MerchantSpawnTimestamp = 0,
-    MerchantDuration = 180, -- 3 minutes (180 seconds)
+    MerchantDuration = 180,
     MerchantPosition = nil,
     AntiAFK = true,
     Disable3DRendering = false,
-    -- UI Utilities Config
     ShowMiniHUD = true,
     LockUIPosition = false,
     EnableSoundAlert = true,
     WalkSpeedBoost = false,
     CustomWalkSpeed = 24,
-    UIAccentColor = Color3.fromRGB(135, 95, 255),
-    GlassTransparency = 0.08,
+    UIAccentColor = Color3.fromRGB(95, 145, 255),
+    GlassTransparency = 0.04,
     UIScalePercent = 95
 }
+local NyXConfig = Env.NyXConfig
 
 for _, bName in ipairs(All16Biomes) do
     if NyXConfig.PingBiomes[bName] == nil then
@@ -153,7 +169,6 @@ for _, bName in ipairs(All16Biomes) do
     end
 end
 
--- // In-Game Sound Alert Helper
 local function PlayAlertSound()
     if not NyXConfig.EnableSoundAlert then return end
     pcall(function()
@@ -209,7 +224,7 @@ LoadWebhookConfig()
 
 -- // Anti-AFK & Auto-Reconnect
 TrackConnection(LocalPlayer.Idled:Connect(function()
-    if not ScriptRunning or not NyXConfig.AntiAFK then return end
+    if not NyXEnv.Running or not NyXConfig.AntiAFK then return end
     pcall(function()
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new(0, 0))
@@ -224,7 +239,7 @@ end))
 
 pcall(function()
     TrackConnection(GuiService.ErrorMessageChanged:Connect(function()
-        if ScriptRunning and NyXConfig.AutoReconnect then
+        if NyXEnv.Running and NyXConfig.AutoReconnect then
             task.wait(3)
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end
@@ -253,7 +268,7 @@ local function CleanRichText(str)
 end
 
 -- ==========================================
--- // DISCORD WEBHOOK SYSTEM (USER-DEFINED PINGS)
+-- // DISCORD WEBHOOK SYSTEM
 -- ==========================================
 local function BuildUserPingContent(shouldPing)
     if not shouldPing then return '' end
@@ -379,7 +394,7 @@ local function SendMerchantArrivedEmbed(merchantName)
 end
 
 -- ==========================================
--- // SMART PATHFINDING + 4-LAYER ANTI-STUCK WALL/LEDGE JUMP
+-- // SMART PATHFINDING + 4-LAYER ANTI-STUCK JUMP
 -- ==========================================
 local isWalkingPath = false
 local cancelCurrentWalk = false
@@ -396,7 +411,6 @@ local function RespawnCharacterSafely()
     end)
 end
 
--- Hàm ép nhảy mạnh mẽ (kết hợp cả thuộc tính Jump và State Jumping để không bị kẹt cạnh gạch)
 local function ForceCharacterJump(hum)
     if not hum then return end
     pcall(function()
@@ -408,7 +422,6 @@ local function ForceCharacterJump(hum)
     end)
 end
 
--- Tia cảm biến phát hiện bậc gạch / tường chắn phía trước mặt nhân vật
 local function HasObstacleInFront(char, root, targetPos)
     local hitObstacle = false
     pcall(function()
@@ -423,7 +436,6 @@ local function HasObstacleInFront(char, root, targetPos)
         rayParams.FilterDescendantsInstances = {char}
         rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-        -- Bắn 3 tia ở tầm ống đồng (-1.8), đầu gối (-0.8) và ngực (+0.5)
         for _, yOffset in ipairs({-1.8, -0.8, 0.5}) do
             local origin = root.Position + Vector3.new(0, yOffset, 0)
             local result = Workspace:Raycast(origin, flatDir * 4.2, rayParams)
@@ -467,7 +479,7 @@ local function MatchMerchantFromObject(obj)
 end
 
 TrackConnection(Workspace.DescendantAdded:Connect(function(obj)
-    if not ScriptRunning then return end
+    if not NyXEnv.Running then return end
     if obj:IsA('ProximityPrompt') or obj:IsA('Model') then
         task.defer(function()
             local mName = MatchMerchantFromObject(obj)
@@ -530,7 +542,6 @@ local function IsWaypointOverWaterOrVoid(pos)
     return isHazard
 end
 
--- Hàm đi tới 1 điểm Waypoint có chống đập đầu vào gạch + tự động nhảy + tự lách sang ngang nếu kẹt
 local function MoveToSinglePointSmart(char, hum, root, pointPos, requireJump, stopConditionFunc)
     if requireJump or (pointPos.Y - root.Position.Y) > 1.5 or IsWaypointOverWaterOrVoid(pointPos) or HasObstacleInFront(char, root, pointPos) then
         ForceCharacterJump(hum)
@@ -544,15 +555,13 @@ local function MoveToSinglePointSmart(char, hum, root, pointPos, requireJump, st
 
     while (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(pointPos.X, 0, pointPos.Z)).Magnitude > 3.6
           and (os.clock() - stepStart) < 2.6 do
-        if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+        if not NyXEnv.Running or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
         if not char.Parent or hum.Health <= 0 then break end
 
-        -- 1. Kiểm tra chướng ngại vật phía trước hoặc điểm đến cao hơn chân
         if HasObstacleInFront(char, root, pointPos) or (pointPos.Y - root.Position.Y) > 1.6 then
             ForceCharacterJump(hum)
         end
 
-        -- 2. Kiểm tra tiến độ di chuyển thực tế mỗi 0.3s (Tránh dùng Velocity cũ bị lỗi)
         if (os.clock() - lastCheckTime) >= 0.3 then
             local movedDist = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(lastCheckPos.X, 0, lastCheckPos.Z)).Magnitude
             lastCheckTime = os.clock()
@@ -562,12 +571,11 @@ local function MoveToSinglePointSmart(char, hum, root, pointPos, requireJump, st
                 stuckStrikes = stuckStrikes + 1
                 ForceCharacterJump(hum)
 
-                -- Nếu nhảy 2 lần vẫn vướng gờ gạch, tự động lách nhẹ sang ngang + nhảy để thoát góc kẹt
                 if stuckStrikes >= 2 then
                     local sideDir = root.CFrame.RightVector * ((stuckStrikes % 2 == 0) and 5 or -5)
-                    localunstuckPos = root.Position - root.CFrame.LookVector * 2 + sideDir
+                    local unstuckPos = root.Position - root.CFrame.LookVector * 2 + sideDir
                     ForceCharacterJump(hum)
-                    hum:MoveTo(localunstuckPos)
+                    hum:MoveTo(unstuckPos)
                     task.wait(0.22)
                     ForceCharacterJump(hum)
                     hum:MoveTo(pointPos)
@@ -607,9 +615,8 @@ local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc, isHighPr
             return
         end
 
-        -- Cho phép tối đa 2 lần tính toán đường đi (Recompute nếu lần 1 bị vướng địa hình phức tạp)
         for attempt = 1, 2 do
-            if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+            if not NyXEnv.Running or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
             if (root.Position - targetPos).Magnitude <= 8 then
                 reached = true
                 break
@@ -633,8 +640,8 @@ local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc, isHighPr
             if computeOk and path.Status == Enum.PathStatus.Success then
                 local waypoints = path:GetWaypoints()
                 for i, wp in ipairs(waypoints) do
-                    if i > 1 then -- Bỏ qua waypoint đầu tiên (vị trí đứng hiện tại)
-                        if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+                    if i > 1 then
+                        if not NyXEnv.Running or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
                         if not char.Parent or hum.Health <= 0 then break end
 
                         local needJump = (wp.Action == Enum.PathWaypointAction.Jump)
@@ -647,11 +654,10 @@ local function WalkSafelyToTargetPosition(targetPos, stopConditionFunc, isHighPr
                     end
                 end
             else
-                -- Fallback đi thẳng nhưng vẫn có cảm biến nhảy qua gạch & né sông
                 if not IsWaypointOverWaterOrVoid(targetPos) then
                     local t0 = os.clock()
                     while (root.Position - targetPos).Magnitude > 7 and (os.clock() - t0) < 9 do
-                        if not ScriptRunning or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
+                        if not NyXEnv.Running or cancelCurrentWalk or (stopConditionFunc and stopConditionFunc()) then break end
                         if IsWaypointOverWaterOrVoid(root.Position + root.CFrame.LookVector * 5) then
                             ForceCharacterJump(hum)
                         end
@@ -684,7 +690,7 @@ local function WalkToActiveMerchantNow()
             Notify('Merchant Pathfinding', 'No active merchant coordinates found in world!', 3)
             return
         end
-        Notify('Merchant Pathfinding', 'Walking safely to ' .. tostring(mName or 'Merchant') .. ' (Smart Jump + Avoid Rivers)...', 3.5)
+        Notify('Merchant Pathfinding', 'Walking safely to ' .. tostring(mName or 'Merchant') .. '...', 3.5)
         WalkSafelyToTargetPosition(mPos, function()
             return NyXConfig.CurrentMerchant == 'NONE'
         end, true)
@@ -700,7 +706,7 @@ local function WalkToActiveMerchantNow()
 end
 
 -- ==========================================
--- // MERCHANT LIFECYCLE MANAGER (3-MINUTE TIMER + NO LEFT WEBHOOK)
+-- // MERCHANT LIFECYCLE MANAGER (3M TIMER, NO LEFT WEBHOOK)
 -- ==========================================
 local function SetMerchantArrivedState(merchantName, worldPos)
     if NyXConfig.CurrentMerchant == merchantName:upper() then
@@ -725,7 +731,6 @@ local function SetMerchantLeftState(reason)
     NyXConfig.MerchantSpawnTimestamp = 0
     NyXConfig.MerchantPosition = nil
     CachedMerchantObj = nil
-    -- Không gửi Webhook khi Merchant Left, chỉ cập nhật trạng thái 3 phút nội bộ
     Notify('Merchant Left', prevMerchant .. ' has left! (' .. tostring(reason or '3m Elapsed') .. ')', 4)
     if NyXConfig.RespawnIfMerchantLeft then
         Notify('Auto Respawn', 'Respawning character because merchant left...', 3)
@@ -735,7 +740,7 @@ local function SetMerchantLeftState(reason)
 end
 
 -- ==========================================
--- // ULTRA-ACCURATE BIOME SCANNER (CACHED & OPTIMIZED)
+-- // BIOME SCANNER (CACHED & OPTIMIZED)
 -- ==========================================
 local CachedBiomeLabels = {}
 local LastGuiBiomeScan = 0
@@ -853,9 +858,6 @@ local function GetAccurateServerBiome()
     return foundBiome or 'NORMAL'
 end
 
--- ==========================================
--- // STRICT MERCHANT ARRIVAL & DEPARTURE PARSER
--- ==========================================
 local function ParseMerchantSystemEvent(rawText)
     local clean = CleanRichText(rawText):upper()
     if clean == '' then return nil, nil end
@@ -879,7 +881,7 @@ end
 pcall(function()
     if TextChatService and TextChatService.MessageReceived then
         TrackConnection(TextChatService.MessageReceived:Connect(function(message)
-            if not ScriptRunning then return end
+            if not NyXEnv.Running then return end
             if message.TextSource ~= nil then return end
             local txt = (message.Text or '') .. ' ' .. (message.PrefixText or '')
             local mName, action = ParseMerchantSystemEvent(txt)
@@ -1006,7 +1008,7 @@ local function UseItemWithInventoryFailsafe(itemName)
 end
 
 -- ==========================================
--- // ANDROID-COMPACT RESPONSIVE UI + MINI HUD UTILITIES
+-- // REDESIGNED ULTRA-LIGHTWEIGHT FLAT UI (HSIN LOGO)
 -- ==========================================
 local ParentGui = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild('PlayerGui')
 if ParentGui:FindFirstChild('NyXMacroUI') then
@@ -1021,23 +1023,23 @@ ScreenGui.DisplayOrder = 99999
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = ParentGui
 
--- OLED Black Screen Battery Saver Overlay
+-- OLED Black Screen Saver
 local BlackSaverFrame = Instance.new('Frame')
-BlackSaverFrame.Name = 'BlackScreenOverlay'
 BlackSaverFrame.Size = UDim2.new(1, 0, 1, 0)
 BlackSaverFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BlackSaverFrame.Visible = false
+BlackSaverFrame.BorderSizePixel = 0
+BlackSaverFrame.Visible = NyXConfig.BlackScreenSaver
 BlackSaverFrame.ZIndex = 1
 BlackSaverFrame.Parent = ScreenGui
 
 local BlackSaverLabel = Instance.new('TextLabel', BlackSaverFrame)
-BlackSaverLabel.Size = UDim2.new(1, 0, 0, 40)
-BlackSaverLabel.Position = UDim2.new(0, 0, 0.45, -20)
+BlackSaverLabel.Size = UDim2.new(1, 0, 0, 30)
+BlackSaverLabel.Position = UDim2.new(0, 0, 0.46, 0)
 BlackSaverLabel.BackgroundTransparency = 1
-BlackSaverLabel.Text = 'NYX DETECTOR MACRO - BATTERY SAVER ACTIVE'
-BlackSaverLabel.Font = Enum.Font.GothamBlack
-BlackSaverLabel.TextSize = 14
-BlackSaverLabel.TextColor3 = Color3.fromRGB(120, 120, 150)
+BlackSaverLabel.Text = 'OLED BATTERY SAVER ACTIVE'
+BlackSaverLabel.Font = Enum.Font.GothamBold
+BlackSaverLabel.TextSize = 13
+BlackSaverLabel.TextColor3 = Color3.fromRGB(100, 105, 125)
 BlackSaverLabel.ZIndex = 2
 
 local AccentObjects = {}
@@ -1062,105 +1064,110 @@ local function UpdateAccentColor(newColor)
     end
 end
 
-local ToastHolder = Instance.new('Frame')
-ToastHolder.Size = UDim2.new(0, 220, 1, -16)
-ToastHolder.Position = UDim2.new(1, -230, 0, 8)
+-- Lightweight Toast Notification
+local ToastHolder = Instance.new('Frame', ScreenGui)
+ToastHolder.Size = UDim2.new(0, 210, 1, -16)
+ToastHolder.Position = UDim2.new(1, -220, 0, 8)
 ToastHolder.BackgroundTransparency = 1
 ToastHolder.ZIndex = 20
-ToastHolder.Parent = ScreenGui
 
-local ToastLayout = Instance.new('UIListLayout')
+local ToastLayout = Instance.new('UIListLayout', ToastHolder)
 ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-ToastLayout.Padding = UDim.new(0, 6)
-ToastLayout.Parent = ToastHolder
+ToastLayout.Padding = UDim.new(0, 5)
 
 Notify = function(title, text, duration)
     task.spawn(function()
         if not ScreenGui or not ScreenGui.Parent then return end
-        local Card = Instance.new('Frame')
-        Card.Size = UDim2.new(1, 0, 0, 48)
-        Card.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
-        Card.BackgroundTransparency = 0.08
+        local Card = Instance.new('Frame', ToastHolder)
+        Card.Size = UDim2.new(1, 0, 0, 44)
+        Card.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+        Card.BorderSizePixel = 0
         Card.ZIndex = 21
-        Card.Parent = ToastHolder
-        local Crn = Instance.new('UICorner', Card)
-        Crn.CornerRadius = UDim.new(0, 8)
-        local Strk = Instance.new('UIStroke', Card)
-        Strk.Color = NyXConfig.UIAccentColor
-        Strk.Thickness = 1.2
-        Strk.Transparency = 0.25
+        Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
+
+        local AccentLeft = Instance.new('Frame', Card)
+        AccentLeft.Size = UDim2.new(0, 3, 1, -10)
+        AccentLeft.Position = UDim2.new(0, 4, 0, 5)
+        AccentLeft.BackgroundColor3 = NyXConfig.UIAccentColor
+        AccentLeft.BorderSizePixel = 0
+        AccentLeft.ZIndex = 22
+        Instance.new('UICorner', AccentLeft).CornerRadius = UDim.new(1, 0)
+
         local Tbl = Instance.new('TextLabel', Card)
-        Tbl.Size = UDim2.new(1, -16, 0, 18)
-        Tbl.Position = UDim2.new(0, 10, 0, 4)
+        Tbl.Size = UDim2.new(1, -18, 0, 16)
+        Tbl.Position = UDim2.new(0, 12, 0, 4)
         Tbl.BackgroundTransparency = 1
         Tbl.Text = title
-        Tbl.TextColor3 = Color3.fromRGB(245, 245, 255)
+        Tbl.TextColor3 = Color3.fromRGB(245, 247, 255)
         Tbl.Font = Enum.Font.GothamBold
         Tbl.TextSize = 11
         Tbl.ZIndex = 22
         Tbl.TextXAlignment = Enum.TextXAlignment.Left
+
         local Sub = Instance.new('TextLabel', Card)
-        Sub.Size = UDim2.new(1, -16, 0, 20)
-        Sub.Position = UDim2.new(0, 10, 0, 22)
+        Sub.Size = UDim2.new(1, -18, 0, 18)
+        Sub.Position = UDim2.new(0, 12, 0, 20)
         Sub.BackgroundTransparency = 1
         Sub.Text = text
-        Sub.TextColor3 = Color3.fromRGB(175, 175, 195)
+        Sub.TextColor3 = Color3.fromRGB(165, 170, 190)
         Sub.Font = Enum.Font.Gotham
         Sub.TextSize = 9
         Sub.TextWrapped = true
         Sub.ZIndex = 22
         Sub.TextXAlignment = Enum.TextXAlignment.Left
+
         task.wait(duration or 3)
         if Card and Card.Parent then Card:Destroy() end
     end)
 end
 
--- // UI UTILITY: FLOATING MINI STATUS HUD BAR
-local MiniHUD = Instance.new('Frame')
-MiniHUD.Name = 'MiniStatusHUD'
+-- // Mini Status HUD Bar
+local MiniHUD = Instance.new('Frame', ScreenGui)
 MiniHUD.AnchorPoint = Vector2.new(0.5, 0)
-MiniHUD.Size = UDim2.new(0, 310, 0, 28)
-MiniHUD.Position = UDim2.new(0.5, 0, 0, 10)
-MiniHUD.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
-MiniHUD.BackgroundTransparency = 0.1
+MiniHUD.Size = UDim2.new(0, 300, 0, 24)
+MiniHUD.Position = UDim2.new(0.5, 0, 0, 8)
+MiniHUD.BackgroundColor3 = Color3.fromRGB(16, 18, 25)
+MiniHUD.BackgroundTransparency = 0.08
+MiniHUD.BorderSizePixel = 0
 MiniHUD.Active = true
 MiniHUD.Visible = NyXConfig.ShowMiniHUD
 MiniHUD.ZIndex = 25
-MiniHUD.Parent = ScreenGui
-Instance.new('UICorner', MiniHUD).CornerRadius = UDim.new(1, 0)
-local MiniHUDStroke = Instance.new('UIStroke', MiniHUD)
-MiniHUDStroke.Thickness = 1.2
-MiniHUDStroke.Transparency = 0.3
-RegisterAccent(MiniHUDStroke, 'Color')
+Instance.new('UICorner', MiniHUD).CornerRadius = UDim.new(0, 6)
 
 local MiniHUDText = Instance.new('TextLabel', MiniHUD)
-MiniHUDText.Size = UDim2.new(1, -20, 1, 0)
-MiniHUDText.Position = UDim2.new(0, 10, 0, 0)
+MiniHUDText.Size = UDim2.new(1, -12, 1, 0)
+MiniHUDText.Position = UDim2.new(0, 6, 0, 0)
 MiniHUDText.BackgroundTransparency = 1
 MiniHUDText.Text = 'BIOME: NORMAL  |  MERCHANT: NONE  |  00:00:00'
 MiniHUDText.Font = Enum.Font.GothamBold
 MiniHUDText.TextSize = 10
-MiniHUDText.TextColor3 = Color3.fromRGB(240, 240, 255)
+MiniHUDText.TextColor3 = Color3.fromRGB(235, 240, 255)
 MiniHUDText.ZIndex = 26
 
--- Compact Main Window (480x285 base size for Android screens)
-local MainWindow = Instance.new('Frame')
+-- // Redesigned Streamlined Main Window (490x295)
+local MainWindow = Instance.new('Frame', ScreenGui)
 MainWindow.Name = 'MainWindow'
 MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
-MainWindow.Size = UDim2.new(0, 480, 0, 285)
+MainWindow.Size = UDim2.new(0, 490, 0, 295)
 MainWindow.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainWindow.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+MainWindow.BackgroundColor3 = Color3.fromRGB(15, 17, 24)
 MainWindow.BackgroundTransparency = NyXConfig.GlassTransparency
+MainWindow.BorderSizePixel = 0
 MainWindow.Active = true
 MainWindow.ZIndex = 5
-MainWindow.Parent = ScreenGui
+Instance.new('UICorner', MainWindow).CornerRadius = UDim.new(0, 10)
+
+local MainStroke = Instance.new('UIStroke', MainWindow)
+MainStroke.Thickness = 1
+MainStroke.Transparency = 0.5
+RegisterAccent(MainStroke, 'Color')
 
 local WindowScale = Instance.new('UIScale', MainWindow)
 local function RecalculateResponsiveScale()
     pcall(function()
         local cam = Workspace.CurrentCamera
         local vp = cam and cam.ViewportSize or Vector2.new(800, 480)
-        local autoRatio = math.clamp(math.min(vp.X / 560, vp.Y / 340), 0.65, 1.1)
+        local autoRatio = math.clamp(math.min(vp.X / 550, vp.Y / 335), 0.65, 1.1)
         WindowScale.Scale = autoRatio * (NyXConfig.UIScalePercent / 100)
     end)
 end
@@ -1169,43 +1176,21 @@ if Workspace.CurrentCamera then
     TrackConnection(Workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(RecalculateResponsiveScale))
 end
 
-local MainCorner = Instance.new('UICorner', MainWindow)
-MainCorner.CornerRadius = UDim.new(0, 12)
-local MainStroke = Instance.new('UIStroke', MainWindow)
-MainStroke.Thickness = 1.3
-MainStroke.Transparency = 0.35
-RegisterAccent(MainStroke, 'Color')
+-- // Floating Hsin Image Logo Toggle Button (Thay thế nút chữ ND NyX cũ)
+local LogoToggleBtn = Instance.new('ImageButton', ScreenGui)
+LogoToggleBtn.Name = 'HsinToggleBtn'
+LogoToggleBtn.Size = UDim2.new(0, 46, 0, 46)
+LogoToggleBtn.Position = UDim2.new(0.03, 0, 0.2, 0)
+LogoToggleBtn.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+LogoToggleBtn.Image = CustomLogoAsset
+LogoToggleBtn.ScaleType = Enum.ScaleType.Fit
+LogoToggleBtn.Active = true
+LogoToggleBtn.ZIndex = 30
+Instance.new('UICorner', LogoToggleBtn).CornerRadius = UDim.new(0, 10)
 
--- Compact Floating "ND" Button
-local NDButton = Instance.new('TextButton')
-NDButton.Name = 'NDLogoBtn'
-NDButton.Size = UDim2.new(0, 44, 0, 44)
-NDButton.Position = UDim2.new(0.03, 0, 0.2, 0)
-NDButton.BackgroundColor3 = Color3.fromRGB(15, 15, 24)
-NDButton.BackgroundTransparency = 0.08
-NDButton.Text = 'ND'
-NDButton.TextColor3 = Color3.fromRGB(245, 240, 255)
-NDButton.Font = Enum.Font.GothamBlack
-NDButton.TextSize = 17
-NDButton.Active = true
-NDButton.ZIndex = 30
-NDButton.Parent = ScreenGui
-
-local NDCrn = Instance.new('UICorner', NDButton)
-NDCrn.CornerRadius = UDim.new(0, 10)
-local NDStroke = Instance.new('UIStroke', NDButton)
-NDStroke.Thickness = 1.8
-RegisterAccent(NDStroke, 'Color')
-
-local NDSub = Instance.new('TextLabel', NDButton)
-NDSub.Size = UDim2.new(1, 0, 0, 10)
-NDSub.Position = UDim2.new(0, 0, 0.72, 0)
-NDSub.BackgroundTransparency = 1
-NDSub.Text = 'NYX'
-NDSub.Font = Enum.Font.GothamBold
-NDSub.TextSize = 7
-NDSub.ZIndex = 31
-RegisterAccent(NDSub, 'TextColor3')
+local LogoBtnStroke = Instance.new('UIStroke', LogoToggleBtn)
+LogoBtnStroke.Thickness = 1.5
+RegisterAccent(LogoBtnStroke, 'Color')
 
 local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
     local dragging, hasMoved, dragStart, startPos = false, false, nil, nil
@@ -1238,59 +1223,44 @@ local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
     end))
 end
 
-MakeDraggable(NDButton, NDButton, function()
+MakeDraggable(LogoToggleBtn, LogoToggleBtn, function()
     MainWindow.Visible = not MainWindow.Visible
 end)
 MakeDraggable(MiniHUD, MiniHUD, function()
     MainWindow.Visible = not MainWindow.Visible
 end)
 
--- Left Sidebar
+-- // Top Bar & Compact Left Sidebar
 local Sidebar = Instance.new('Frame', MainWindow)
-Sidebar.Size = UDim2.new(0, 138, 1, 0)
-Sidebar.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
-Sidebar.BackgroundTransparency = 0.2
-local SidebarCrn = Instance.new('UICorner', Sidebar)
-SidebarCrn.CornerRadius = UDim.new(0, 12)
+Sidebar.Size = UDim2.new(0, 128, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(20, 22, 31)
+Sidebar.BorderSizePixel = 0
+Instance.new('UICorner', Sidebar).CornerRadius = UDim.new(0, 10)
 
-local SidebarDivider = Instance.new('Frame', MainWindow)
-SidebarDivider.Size = UDim2.new(0, 1, 1, 0)
-SidebarDivider.Position = UDim2.new(0, 138, 0, 0)
-SidebarDivider.BackgroundColor3 = Color3.fromRGB(45, 45, 68)
-SidebarDivider.BorderSizePixel = 0
-
-local BrandIcon = Instance.new('Frame', Sidebar)
-BrandIcon.Size = UDim2.new(0, 28, 0, 28)
-BrandIcon.Position = UDim2.new(0, 10, 0, 10)
-BrandIcon.BackgroundColor3 = Color3.fromRGB(26, 24, 42)
-Instance.new('UICorner', BrandIcon).CornerRadius = UDim.new(1, 0)
-local BrandStroke = Instance.new('UIStroke', BrandIcon)
-BrandStroke.Thickness = 1.3
-RegisterAccent(BrandStroke, 'Color')
-
-local BrandLogoTxt = Instance.new('TextLabel', BrandIcon)
-BrandLogoTxt.Size = UDim2.new(1, 0, 1, 0)
-BrandLogoTxt.BackgroundTransparency = 1
-BrandLogoTxt.Text = 'N'
-BrandLogoTxt.Font = Enum.Font.GothamBlack
-BrandLogoTxt.TextSize = 14
-BrandLogoTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
+-- Sidebar Hsin Logo Image
+local BrandImage = Instance.new('ImageLabel', Sidebar)
+BrandImage.Size = UDim2.new(0, 30, 0, 30)
+BrandImage.Position = UDim2.new(0, 10, 0, 10)
+BrandImage.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
+BrandImage.Image = CustomLogoAsset
+BrandImage.ScaleType = Enum.ScaleType.Fit
+Instance.new('UICorner', BrandImage).CornerRadius = UDim.new(0, 7)
 
 local BrandTitle = Instance.new('TextLabel', Sidebar)
-BrandTitle.Size = UDim2.new(0, 88, 0, 16)
+BrandTitle.Size = UDim2.new(1, -46, 0, 16)
 BrandTitle.Position = UDim2.new(0, 44, 0, 10)
 BrandTitle.BackgroundTransparency = 1
-BrandTitle.Text = 'NyX Detector'
+BrandTitle.Text = 'NyX Macro'
 BrandTitle.Font = Enum.Font.GothamBlack
 BrandTitle.TextSize = 12
-BrandTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+BrandTitle.TextColor3 = Color3.fromRGB(245, 247, 255)
 BrandTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local BrandSub = Instance.new('TextLabel', Sidebar)
-BrandSub.Size = UDim2.new(0, 88, 0, 12)
+BrandSub.Size = UDim2.new(1, -46, 0, 12)
 BrandSub.Position = UDim2.new(0, 44, 0, 25)
 BrandSub.BackgroundTransparency = 1
-BrandSub.Text = 'MACRO v5'
+BrandSub.Text = 'LITE v6'
 BrandSub.Font = Enum.Font.GothamBold
 BrandSub.TextSize = 9
 BrandSub.TextXAlignment = Enum.TextXAlignment.Left
@@ -1299,29 +1269,29 @@ RegisterAccent(BrandSub, 'TextColor3')
 MakeDraggable(Sidebar, MainWindow)
 
 local CloseBtn = Instance.new('TextButton', MainWindow)
-CloseBtn.Size = UDim2.new(0, 22, 0, 22)
-CloseBtn.Position = UDim2.new(1, -30, 0, 10)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 38)
-CloseBtn.Text = 'x'
-CloseBtn.TextColor3 = Color3.fromRGB(190, 190, 215)
+CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.Position = UDim2.new(1, -32, 0, 8)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(26, 29, 40)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Text = '×'
+CloseBtn.TextColor3 = Color3.fromRGB(200, 205, 225)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 14
+CloseBtn.TextSize = 16
 Instance.new('UICorner', CloseBtn).CornerRadius = UDim.new(0, 6)
-Instance.new('UIStroke', CloseBtn).Color = Color3.fromRGB(55, 55, 80)
 CloseBtn.MouseButton1Click:Connect(function()
     MainWindow.Visible = false
 end)
 
 local NavHolder = Instance.new('Frame', Sidebar)
-NavHolder.Size = UDim2.new(1, -16, 1, -52)
-NavHolder.Position = UDim2.new(0, 8, 0, 44)
+NavHolder.Size = UDim2.new(1, -14, 1, -54)
+NavHolder.Position = UDim2.new(0, 7, 0, 46)
 NavHolder.BackgroundTransparency = 1
 local NavLayout = Instance.new('UIListLayout', NavHolder)
-NavLayout.Padding = UDim.new(0, 3)
+NavLayout.Padding = UDim.new(0, 4)
 
 local ContentArea = Instance.new('Frame', MainWindow)
-ContentArea.Size = UDim2.new(1, -139, 1, 0)
-ContentArea.Position = UDim2.new(0, 139, 0, 0)
+ContentArea.Size = UDim2.new(1, -132, 1, 0)
+ContentArea.Position = UDim2.new(0, 132, 0, 0)
 ContentArea.BackgroundTransparency = 1
 
 local Pages = {}
@@ -1332,177 +1302,177 @@ local function CreateTabPage(tabName, subtitleText)
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.BackgroundTransparency = 1
     Page.Visible = false
+
     local HeaderTitle = Instance.new('TextLabel', Page)
-    HeaderTitle.Size = UDim2.new(1, -48, 0, 20)
-    HeaderTitle.Position = UDim2.new(0, 16, 0, 10)
+    HeaderTitle.Size = UDim2.new(1, -48, 0, 18)
+    HeaderTitle.Position = UDim2.new(0, 12, 0, 9)
     HeaderTitle.BackgroundTransparency = 1
     HeaderTitle.Text = tabName
     HeaderTitle.Font = Enum.Font.GothamBlack
-    HeaderTitle.TextSize = 15
-    HeaderTitle.TextColor3 = Color3.fromRGB(250, 250, 255)
+    HeaderTitle.TextSize = 14
+    HeaderTitle.TextColor3 = Color3.fromRGB(245, 247, 255)
     HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+
     local HeaderSub = Instance.new('TextLabel', Page)
-    HeaderSub.Size = UDim2.new(1, -48, 0, 14)
-    HeaderSub.Position = UDim2.new(0, 16, 0, 29)
+    HeaderSub.Size = UDim2.new(1, -48, 0, 12)
+    HeaderSub.Position = UDim2.new(0, 12, 0, 26)
     HeaderSub.BackgroundTransparency = 1
     HeaderSub.Text = subtitleText
     HeaderSub.Font = Enum.Font.Gotham
-    HeaderSub.TextSize = 10
-    HeaderSub.TextColor3 = Color3.fromRGB(150, 150, 175)
+    HeaderSub.TextSize = 9
+    HeaderSub.TextColor3 = Color3.fromRGB(145, 150, 175)
     HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
-    local HeaderLine = Instance.new('Frame', Page)
-    HeaderLine.Size = UDim2.new(1, 0, 0, 1)
-    HeaderLine.Position = UDim2.new(0, 0, 0, 48)
-    HeaderLine.BackgroundColor3 = Color3.fromRGB(40, 40, 62)
-    HeaderLine.BorderSizePixel = 0
+
     local Scroll = Instance.new('ScrollingFrame', Page)
-    Scroll.Size = UDim2.new(1, -24, 1, -56)
-    Scroll.Position = UDim2.new(0, 14, 0, 52)
+    Scroll.Size = UDim2.new(1, -20, 1, -48)
+    Scroll.Position = UDim2.new(0, 10, 0, 42)
     Scroll.BackgroundTransparency = 1
+    Scroll.BorderSizePixel = 0
     Scroll.ScrollBarThickness = 2
     Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     RegisterAccent(Scroll, 'ScrollBarImageColor3')
+
     local ScrollLayout = Instance.new('UIListLayout', Scroll)
-    ScrollLayout.Padding = UDim.new(0, 7)
+    ScrollLayout.Padding = UDim.new(0, 5)
+
     local NavBtn = Instance.new('TextButton', NavHolder)
     NavBtn.Size = UDim2.new(1, 0, 0, 28)
-    NavBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 42)
+    NavBtn.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
     NavBtn.BackgroundTransparency = 1
-    NavBtn.Text = '     ' .. tabName
+    NavBtn.BorderSizePixel = 0
+    NavBtn.Text = '   ' .. tabName
     NavBtn.Font = Enum.Font.GothamBold
     NavBtn.TextSize = 11
-    NavBtn.TextColor3 = Color3.fromRGB(160, 160, 185)
+    NavBtn.TextColor3 = Color3.fromRGB(155, 160, 185)
     NavBtn.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new('UICorner', NavBtn).CornerRadius = UDim.new(0, 7)
+    Instance.new('UICorner', NavBtn).CornerRadius = UDim.new(0, 6)
+
     local ActiveBar = Instance.new('Frame', NavBtn)
-    ActiveBar.Size = UDim2.new(0, 3, 0, 15)
+    ActiveBar.Size = UDim2.new(0, 3, 0, 14)
     ActiveBar.Position = UDim2.new(0, 0, 0.5, -7)
     ActiveBar.BorderSizePixel = 0
     ActiveBar.Visible = false
     Instance.new('UICorner', ActiveBar).CornerRadius = UDim.new(1, 0)
     RegisterAccent(ActiveBar, 'BackgroundColor3')
+
     NavBtn.MouseButton1Click:Connect(function()
-        for _, p in pairs(Pages) do p.Visible = false end
-        for _, b in pairs(NavButtons) do
+        for _, p in ipairs(Pages) do p.Visible = false end
+        for _, b in ipairs(NavButtons) do
             b.Btn.BackgroundTransparency = 1
-            b.Btn.TextColor3 = Color3.fromRGB(160, 160, 185)
+            b.Btn.TextColor3 = Color3.fromRGB(155, 160, 185)
             b.Bar.Visible = false
         end
         Page.Visible = true
-        NavBtn.BackgroundTransparency = 0.15
+        NavBtn.BackgroundTransparency = 0
         NavBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ActiveBar.Visible = true
     end)
+
     table.insert(Pages, Page)
     table.insert(NavButtons, {Btn = NavBtn, Bar = ActiveBar})
     return Scroll, NavBtn, ActiveBar
 end
 
 local function AddSectionLabel(parent, text)
-    local Holder = Instance.new('Frame', parent)
-    Holder.Size = UDim2.new(1, -6, 0, 18)
-    Holder.BackgroundTransparency = 1
-    local Bar = Instance.new('Frame', Holder)
-    Bar.Size = UDim2.new(0, 3, 0, 12)
-    Bar.Position = UDim2.new(0, 0, 0.5, -6)
-    Instance.new('UICorner', Bar).CornerRadius = UDim.new(1, 0)
-    RegisterAccent(Bar, 'BackgroundColor3')
-    local Lbl = Instance.new('TextLabel', Holder)
-    Lbl.Size = UDim2.new(1, -12, 1, 0)
-    Lbl.Position = UDim2.new(0, 8, 0, 0)
+    local Lbl = Instance.new('TextLabel', parent)
+    Lbl.Size = UDim2.new(1, -4, 0, 16)
     Lbl.BackgroundTransparency = 1
-    Lbl.Text = text:upper()
+    Lbl.Text = '• ' .. text:upper()
     Lbl.Font = Enum.Font.GothamBold
-    Lbl.TextSize = 10
-    Lbl.TextColor3 = Color3.fromRGB(175, 175, 200)
+    Lbl.TextSize = 9
     Lbl.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterAccent(Lbl, 'TextColor3')
 end
 
 local function AddToggle(parent, title, subtext, defaultVal, callback)
-    local Card = Instance.new('Frame', parent)
-    Card.Size = UDim2.new(1, -6, 0, 38)
-    Card.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-    Card.BackgroundTransparency = 0.15
-    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 8)
-    local Strk = Instance.new('UIStroke', Card)
-    Strk.Color = Color3.fromRGB(42, 42, 64)
-    Strk.Thickness = 1
+    local Card = Instance.new('TextButton', parent)
+    Card.Size = UDim2.new(1, -4, 0, 36)
+    Card.BackgroundColor3 = Color3.fromRGB(22, 25, 35)
+    Card.BorderSizePixel = 0
+    Card.Text = ''
+    Card.AutoButtonColor = false
+    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
+
     local TitleLbl = Instance.new('TextLabel', Card)
-    TitleLbl.Size = UDim2.new(1, -65, 0, 16)
+    TitleLbl.Size = UDim2.new(1, -58, 0, 15)
     TitleLbl.Position = UDim2.new(0, 10, 0, 4)
     TitleLbl.BackgroundTransparency = 1
     TitleLbl.Text = title
     TitleLbl.Font = Enum.Font.GothamBold
-    TitleLbl.TextSize = 11
-    TitleLbl.TextColor3 = Color3.fromRGB(240, 240, 250)
+    TitleLbl.TextSize = 10
+    TitleLbl.TextColor3 = Color3.fromRGB(240, 242, 252)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
     local SubLbl = Instance.new('TextLabel', Card)
-    SubLbl.Size = UDim2.new(1, -65, 0, 14)
-    SubLbl.Position = UDim2.new(0, 10, 0, 20)
+    SubLbl.Size = UDim2.new(1, -58, 0, 13)
+    SubLbl.Position = UDim2.new(0, 10, 0, 19)
     SubLbl.BackgroundTransparency = 1
     SubLbl.Text = subtext
     SubLbl.Font = Enum.Font.Gotham
-    SubLbl.TextSize = 9
-    SubLbl.TextColor3 = Color3.fromRGB(145, 145, 170)
+    SubLbl.TextSize = 8
+    SubLbl.TextColor3 = Color3.fromRGB(140, 145, 168)
     SubLbl.TextXAlignment = Enum.TextXAlignment.Left
-    local SwitchBg = Instance.new('TextButton', Card)
-    SwitchBg.Size = UDim2.new(0, 36, 0, 18)
-    SwitchBg.Position = UDim2.new(1, -46, 0.5, -9)
-    SwitchBg.Text = ''
-    SwitchBg.BackgroundColor3 = defaultVal and NyXConfig.UIAccentColor or Color3.fromRGB(45, 45, 65)
+
+    local SwitchBg = Instance.new('Frame', Card)
+    SwitchBg.Size = UDim2.new(0, 34, 0, 16)
+    SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
+    SwitchBg.BorderSizePixel = 0
+    SwitchBg.BackgroundColor3 = defaultVal and NyXConfig.UIAccentColor or Color3.fromRGB(45, 48, 65)
     Instance.new('UICorner', SwitchBg).CornerRadius = UDim.new(1, 0)
+
     local Knob = Instance.new('Frame', SwitchBg)
     Knob.Size = UDim2.new(0, 12, 0, 12)
-    Knob.Position = defaultVal and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
+    Knob.Position = defaultVal and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
     Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Knob.BorderSizePixel = 0
     Instance.new('UICorner', Knob).CornerRadius = UDim.new(1, 0)
-    local state = defaultVal
 
+    local state = defaultVal
     RegisterDynamicAccent(function(newCol)
-        if state then
-            SwitchBg.BackgroundColor3 = newCol
-        end
+        if state then SwitchBg.BackgroundColor3 = newCol end
     end)
 
-    SwitchBg.MouseButton1Click:Connect(function()
+    Card.MouseButton1Click:Connect(function()
         state = not state
-        SwitchBg.BackgroundColor3 = state and NyXConfig.UIAccentColor or Color3.fromRGB(45, 45, 65)
-        Knob.Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
+        SwitchBg.BackgroundColor3 = state and NyXConfig.UIAccentColor or Color3.fromRGB(45, 48, 65)
+        Knob.Position = state and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
         if callback then callback(state) end
     end)
 end
 
 local function AddInput(parent, title, defaultText, placeholder, callback)
     local Card = Instance.new('Frame', parent)
-    Card.Size = UDim2.new(1, -6, 0, 48)
-    Card.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-    Card.BackgroundTransparency = 0.15
-    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 8)
-    Instance.new('UIStroke', Card).Color = Color3.fromRGB(42, 42, 64)
+    Card.Size = UDim2.new(1, -4, 0, 44)
+    Card.BackgroundColor3 = Color3.fromRGB(22, 25, 35)
+    Card.BorderSizePixel = 0
+    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
+
     local TitleLbl = Instance.new('TextLabel', Card)
-    TitleLbl.Size = UDim2.new(1, -20, 0, 14)
-    TitleLbl.Position = UDim2.new(0, 10, 0, 4)
+    TitleLbl.Size = UDim2.new(1, -16, 0, 14)
+    TitleLbl.Position = UDim2.new(0, 8, 0, 3)
     TitleLbl.BackgroundTransparency = 1
     TitleLbl.Text = title
     TitleLbl.Font = Enum.Font.GothamBold
-    TitleLbl.TextSize = 10
-    TitleLbl.TextColor3 = Color3.fromRGB(230, 230, 245)
+    TitleLbl.TextSize = 9
+    TitleLbl.TextColor3 = Color3.fromRGB(220, 225, 240)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
     local Box = Instance.new('TextBox', Card)
-    Box.Size = UDim2.new(1, -20, 0, 22)
-    Box.Position = UDim2.new(0, 10, 0, 21)
-    Box.BackgroundColor3 = Color3.fromRGB(13, 13, 22)
+    Box.Size = UDim2.new(1, -16, 0, 20)
+    Box.Position = UDim2.new(0, 8, 0, 19)
+    Box.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
+    Box.BorderSizePixel = 0
     Box.Text = defaultText or ''
     Box.PlaceholderText = placeholder or ''
-    Box.TextColor3 = Color3.fromRGB(240, 240, 255)
-    Box.PlaceholderColor3 = Color3.fromRGB(110, 110, 135)
+    Box.TextColor3 = Color3.fromRGB(240, 242, 255)
+    Box.PlaceholderColor3 = Color3.fromRGB(105, 110, 130)
     Box.Font = Enum.Font.Gotham
-    Box.TextSize = 10
+    Box.TextSize = 9
     Box.ClearTextOnFocus = false
     Box.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new('UICorner', Box).CornerRadius = UDim.new(0, 5)
-    Instance.new('UIStroke', Box).Color = Color3.fromRGB(50, 50, 75)
+    Instance.new('UICorner', Box).CornerRadius = UDim.new(0, 4)
+
     Box:GetPropertyChangedSignal('Text'):Connect(function()
         if callback then callback(Box.Text) end
     end)
@@ -1511,17 +1481,14 @@ end
 
 local function AddButton(parent, title, callback)
     local Btn = Instance.new('TextButton', parent)
-    Btn.Size = UDim2.new(1, -6, 0, 30)
-    Btn.BackgroundColor3 = Color3.fromRGB(25, 24, 42)
+    Btn.Size = UDim2.new(1, -4, 0, 28)
+    Btn.BackgroundColor3 = Color3.fromRGB(26, 30, 44)
+    Btn.BorderSizePixel = 0
     Btn.Text = title
     Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 11
-    Btn.TextColor3 = Color3.fromRGB(245, 245, 255)
-    Instance.new('UICorner', Btn).CornerRadius = UDim.new(0, 7)
-    local Strk = Instance.new('UIStroke', Btn)
-    Strk.Thickness = 1.1
-    Strk.Transparency = 0.35
-    RegisterAccent(Strk, 'Color')
+    Btn.TextSize = 10
+    Btn.TextColor3 = Color3.fromRGB(245, 247, 255)
+    Instance.new('UICorner', Btn).CornerRadius = UDim.new(0, 6)
     Btn.MouseButton1Click:Connect(function()
         if callback then callback() end
     end)
@@ -1529,31 +1496,36 @@ end
 
 local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, callback)
     local Card = Instance.new('Frame', parent)
-    Card.Size = UDim2.new(1, -6, 0, 42)
-    Card.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-    Card.BackgroundTransparency = 0.15
-    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 8)
-    Instance.new('UIStroke', Card).Color = Color3.fromRGB(42, 42, 64)
+    Card.Size = UDim2.new(1, -4, 0, 38)
+    Card.BackgroundColor3 = Color3.fromRGB(22, 25, 35)
+    Card.BorderSizePixel = 0
+    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
+
     local TitleLbl = Instance.new('TextLabel', Card)
-    TitleLbl.Size = UDim2.new(1, -20, 0, 16)
-    TitleLbl.Position = UDim2.new(0, 10, 0, 4)
+    TitleLbl.Size = UDim2.new(1, -16, 0, 14)
+    TitleLbl.Position = UDim2.new(0, 8, 0, 4)
     TitleLbl.BackgroundTransparency = 1
     TitleLbl.Text = title .. ': ' .. tostring(defaultVal) .. (suffix or '')
     TitleLbl.Font = Enum.Font.GothamBold
-    TitleLbl.TextSize = 10
-    TitleLbl.TextColor3 = Color3.fromRGB(235, 235, 250)
+    TitleLbl.TextSize = 9
+    TitleLbl.TextColor3 = Color3.fromRGB(235, 238, 250)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
     local BarBg = Instance.new('TextButton', Card)
-    BarBg.Size = UDim2.new(1, -20, 0, 8)
-    BarBg.Position = UDim2.new(0, 10, 0, 26)
-    BarBg.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+    BarBg.Size = UDim2.new(1, -16, 0, 7)
+    BarBg.Position = UDim2.new(0, 8, 0, 23)
+    BarBg.BackgroundColor3 = Color3.fromRGB(13, 15, 20)
+    BarBg.BorderSizePixel = 0
     BarBg.Text = ''
     Instance.new('UICorner', BarBg).CornerRadius = UDim.new(1, 0)
+
     local Fill = Instance.new('Frame', BarBg)
     local pct = math.clamp((defaultVal - minVal) / (maxVal - minVal), 0, 1)
     Fill.Size = UDim2.new(pct, 0, 1, 0)
+    Fill.BorderSizePixel = 0
     Instance.new('UICorner', Fill).CornerRadius = UDim.new(1, 0)
     RegisterAccent(Fill, 'BackgroundColor3')
+
     local sliding = false
     local function UpdateFromInput(input)
         local rel = math.clamp((input.Position.X - BarBg.AbsolutePosition.X) / math.max(1, BarBg.AbsoluteSize.X), 0, 1)
@@ -1583,155 +1555,120 @@ end
 -- ==========================================
 -- // BUILD THE 6 TABS
 -- ==========================================
-local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home', 'Dashboard, live status & quick UI actions.')
-local MainScroll = CreateTabPage('Main', 'Biome detector, inventory automation & ground item collector.')
-local MerchantScroll = CreateTabPage('Merchant', '3-Min Merchant lifecycle, smart jump pathfinding & auto-respawn.')
-local ConnScroll = CreateTabPage('Connections', 'Discord Webhook URL, User ID & Private Server config.')
-local PingsScroll = CreateTabPage('Pings', 'Select which of the 16 Biomes & 3 Merchants ping your User ID.')
-local SettingScroll = CreateTabPage('Setting', 'UI Utilities, Mini HUD, Sound Alert, Speed & AFK tools.')
+local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home', 'Live status & quick controls')
+local MainScroll = CreateTabPage('Main', 'Biome detector & item automation')
+local MerchantScroll = CreateTabPage('Merchant', '3m Merchant tracker & smart walk')
+local ConnScroll = CreateTabPage('Webhook', 'Discord Webhook, User ID & Server link')
+local PingsScroll = CreateTabPage('Pings', '16 Biomes & 3 Merchants ping filter')
+local SettingScroll = CreateTabPage('Settings', 'UI tools, speed, FPS & system')
 
 Pages[1].Visible = true
-HomeNavBtn.BackgroundTransparency = 0.15
+HomeNavBtn.BackgroundTransparency = 0
 HomeNavBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 HomeNavBar.Visible = true
 
 -- // TAB 1: HOME
-local WelcomeCard = Instance.new('Frame', HomeScroll)
-WelcomeCard.Size = UDim2.new(1, -6, 0, 54)
-WelcomeCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-WelcomeCard.BackgroundTransparency = 0.12
-Instance.new('UICorner', WelcomeCard).CornerRadius = UDim.new(0, 10)
-Instance.new('UIStroke', WelcomeCard).Color = Color3.fromRGB(45, 45, 68)
-
-local WBackLbl = Instance.new('TextLabel', WelcomeCard)
-WBackLbl.Size = UDim2.new(0, 180, 0, 14)
-WBackLbl.Position = UDim2.new(0, 14, 0, 8)
-WBackLbl.BackgroundTransparency = 1
-WBackLbl.Text = 'Welcome back,'
-WBackLbl.Font = Enum.Font.Gotham
-WBackLbl.TextSize = 10
-WBackLbl.TextColor3 = Color3.fromRGB(165, 165, 190)
-WBackLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-local WUserLbl = Instance.new('TextLabel', WelcomeCard)
-WUserLbl.Size = UDim2.new(0, 200, 0, 22)
-WUserLbl.Position = UDim2.new(0, 14, 0, 24)
-WUserLbl.BackgroundTransparency = 1
-WUserLbl.Text = LocalPlayer.DisplayName:upper()
-WUserLbl.Font = Enum.Font.GothamBlack
-WUserLbl.TextSize = 16
-WUserLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-WUserLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-local MacroBadge = Instance.new('Frame', WelcomeCard)
-MacroBadge.Size = UDim2.new(0, 76, 0, 22)
-MacroBadge.Position = UDim2.new(1, -88, 0.5, -11)
-MacroBadge.BackgroundColor3 = Color3.fromRGB(24, 22, 42)
-Instance.new('UICorner', MacroBadge).CornerRadius = UDim.new(1, 0)
-local BadgeStroke = Instance.new('UIStroke', MacroBadge)
-BadgeStroke.Thickness = 1.1
-RegisterAccent(BadgeStroke, 'Color')
-local BadgeTxt = Instance.new('TextLabel', MacroBadge)
-BadgeTxt.Size = UDim2.new(1, 0, 1, 0)
-BadgeTxt.BackgroundTransparency = 1
-BadgeTxt.Text = 'MACRO v5'
-BadgeTxt.Font = Enum.Font.GothamBold
-BadgeTxt.TextSize = 9
-RegisterAccent(BadgeTxt, 'TextColor3')
-
-AddSectionLabel(HomeScroll, 'LIVE STATUS')
-
 local StatusRow = Instance.new('Frame', HomeScroll)
-StatusRow.Size = UDim2.new(1, -6, 0, 56)
+StatusRow.Size = UDim2.new(1, -4, 0, 48)
 StatusRow.BackgroundTransparency = 1
 
 local UptimeCard = Instance.new('Frame', StatusRow)
-UptimeCard.Size = UDim2.new(0.485, 0, 1, 0)
-UptimeCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-UptimeCard.BackgroundTransparency = 0.12
-Instance.new('UICorner', UptimeCard).CornerRadius = UDim.new(0, 10)
-local UpStroke = Instance.new('UIStroke', UptimeCard)
-UpStroke.Thickness = 1.1
-UpStroke.Transparency = 0.35
-RegisterAccent(UpStroke, 'Color')
+UptimeCard.Size = UDim2.new(0.49, 0, 1, 0)
+UptimeCard.BackgroundColor3 = Color3.fromRGB(22, 25, 35)
+UptimeCard.BorderSizePixel = 0
+Instance.new('UICorner', UptimeCard).CornerRadius = UDim.new(0, 6)
 
 local UpTitle = Instance.new('TextLabel', UptimeCard)
-UpTitle.Size = UDim2.new(1, -20, 0, 14)
-UpTitle.Position = UDim2.new(0, 12, 0, 8)
+UpTitle.Size = UDim2.new(1, -16, 0, 13)
+UpTitle.Position = UDim2.new(0, 10, 0, 6)
 UpTitle.BackgroundTransparency = 1
-UpTitle.Text = 'Uptime'
-UpTitle.Font = Enum.Font.Gotham
-UpTitle.TextSize = 10
-UpTitle.TextColor3 = Color3.fromRGB(160, 160, 185)
+UpTitle.Text = 'MACRO UPTIME'
+UpTitle.Font = Enum.Font.GothamBold
+UpTitle.TextSize = 8
+UpTitle.TextColor3 = Color3.fromRGB(145, 150, 175)
 UpTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local UptimeValueLabel = Instance.new('TextLabel', UptimeCard)
-UptimeValueLabel.Size = UDim2.new(1, -20, 0, 22)
-UptimeValueLabel.Position = UDim2.new(0, 12, 0, 24)
+UptimeValueLabel.Size = UDim2.new(1, -16, 0, 20)
+UptimeValueLabel.Position = UDim2.new(0, 10, 0, 20)
 UptimeValueLabel.BackgroundTransparency = 1
 UptimeValueLabel.Text = '00:00:00'
 UptimeValueLabel.Font = Enum.Font.GothamBlack
-UptimeValueLabel.TextSize = 16
+UptimeValueLabel.TextSize = 14
 UptimeValueLabel.TextXAlignment = Enum.TextXAlignment.Left
 RegisterAccent(UptimeValueLabel, 'TextColor3')
 
 local BiomeCard = Instance.new('Frame', StatusRow)
-BiomeCard.Size = UDim2.new(0.485, 0, 1, 0)
-BiomeCard.Position = UDim2.new(0.515, 0, 0, 0)
-BiomeCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-BiomeCard.BackgroundTransparency = 0.12
-Instance.new('UICorner', BiomeCard).CornerRadius = UDim.new(0, 10)
-Instance.new('UIStroke', BiomeCard).Color = Color3.fromRGB(45, 45, 68)
+BiomeCard.Size = UDim2.new(0.49, 0, 1, 0)
+BiomeCard.Position = UDim2.new(0.51, 0, 0, 0)
+BiomeCard.BackgroundColor3 = Color3.fromRGB(22, 25, 35)
+BiomeCard.BorderSizePixel = 0
+Instance.new('UICorner', BiomeCard).CornerRadius = UDim.new(0, 6)
 
 local BmTitle = Instance.new('TextLabel', BiomeCard)
-BmTitle.Size = UDim2.new(1, -20, 0, 14)
-BmTitle.Position = UDim2.new(0, 12, 0, 8)
+BmTitle.Size = UDim2.new(1, -16, 0, 13)
+BmTitle.Position = UDim2.new(0, 10, 0, 6)
 BmTitle.BackgroundTransparency = 1
-BmTitle.Text = 'Current Biome'
-BmTitle.Font = Enum.Font.Gotham
-BmTitle.TextSize = 10
-BmTitle.TextColor3 = Color3.fromRGB(160, 160, 185)
+BmTitle.Text = 'CURRENT BIOME'
+BmTitle.Font = Enum.Font.GothamBold
+BmTitle.TextSize = 8
+BmTitle.TextColor3 = Color3.fromRGB(145, 150, 175)
 BmTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local BiomeValueLabel = Instance.new('TextLabel', BiomeCard)
-BiomeValueLabel.Size = UDim2.new(1, -20, 0, 22)
-BiomeValueLabel.Position = UDim2.new(0, 12, 0, 24)
+BiomeValueLabel.Size = UDim2.new(1, -16, 0, 20)
+BiomeValueLabel.Position = UDim2.new(0, 10, 0, 20)
 BiomeValueLabel.BackgroundTransparency = 1
 BiomeValueLabel.Text = 'NORMAL'
 BiomeValueLabel.Font = Enum.Font.GothamBlack
-BiomeValueLabel.TextSize = 14
+BiomeValueLabel.TextSize = 13
 BiomeValueLabel.TextColor3 = Color3.fromRGB(80, 250, 123)
 BiomeValueLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local MerchantStatusCard = Instance.new('Frame', HomeScroll)
-MerchantStatusCard.Size = UDim2.new(1, -6, 0, 42)
-MerchantStatusCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-MerchantStatusCard.BackgroundTransparency = 0.12
-Instance.new('UICorner', MerchantStatusCard).CornerRadius = UDim.new(0, 10)
-Instance.new('UIStroke', MerchantStatusCard).Color = Color3.fromRGB(45, 45, 68)
+MerchantStatusCard.Size = UDim2.new(1, -4, 0, 34)
+MerchantStatusCard.BackgroundColor3 = Color3.fromRGB(22, 25, 35)
+MerchantStatusCard.BorderSizePixel = 0
+Instance.new('UICorner', MerchantStatusCard).CornerRadius = UDim.new(0, 6)
 
 local MerTitle = Instance.new('TextLabel', MerchantStatusCard)
 MerTitle.Size = UDim2.new(0.55, 0, 1, 0)
-MerTitle.Position = UDim2.new(0, 12, 0, 0)
+MerTitle.Position = UDim2.new(0, 10, 0, 0)
 MerTitle.BackgroundTransparency = 1
-MerTitle.Text = 'Active Merchant (3m Timer):'
+MerTitle.Text = 'Active Merchant (3m):'
 MerTitle.Font = Enum.Font.GothamBold
-MerTitle.TextSize = 11
-MerTitle.TextColor3 = Color3.fromRGB(185, 185, 210)
+MerTitle.TextSize = 10
+MerTitle.TextColor3 = Color3.fromRGB(180, 185, 210)
 MerTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local MerchantValueLabel = Instance.new('TextLabel', MerchantStatusCard)
-MerchantValueLabel.Size = UDim2.new(0.4, -12, 1, 0)
+MerchantValueLabel.Size = UDim2.new(0.4, -10, 1, 0)
 MerchantValueLabel.Position = UDim2.new(0.6, 0, 0, 0)
 MerchantValueLabel.BackgroundTransparency = 1
 MerchantValueLabel.Text = 'NONE'
 MerchantValueLabel.Font = Enum.Font.GothamBlack
-MerchantValueLabel.TextSize = 12
+MerchantValueLabel.TextSize = 11
 MerchantValueLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
 MerchantValueLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-AddSectionLabel(HomeScroll, 'QUICK SHORTCUTS')
-AddButton(HomeScroll, 'Unstuck Character Jump Now (Thoát kẹt địa hình)', function()
+AddSectionLabel(HomeScroll, 'Quick Controls')
+AddToggle(HomeScroll, 'Start Biome & State Detector', 'Enable macro timer & Discord biome notifications.', NyXConfig.EnableBiomeWebhook, function(val)
+    if val then
+        NyXConfig.EnableBiomeWebhook = true
+        MacroStartTime = os.time()
+        SendMacroStateEmbed(true)
+        Notify('NyX Macro', 'Macro Started!', 2.5)
+    else
+        local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
+        NyXConfig.EnableBiomeWebhook = false
+        SendMacroStateEmbed(false, finalElapsed)
+        MacroStartTime = 0
+        UptimeValueLabel.Text = '00:00:00'
+        Notify('NyX Macro', 'Macro Stopped!', 2.5)
+    end
+end)
+
+AddButton(HomeScroll, 'Unstuck Character Jump (Thoát kẹt gạch)', function()
     pcall(function()
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass('Humanoid')
@@ -1739,30 +1676,14 @@ AddButton(HomeScroll, 'Unstuck Character Jump Now (Thoát kẹt địa hình)', 
         if hum and root then
             ForceCharacterJump(hum)
             root.CFrame = root.CFrame + Vector3.new(0, 4, 0)
-            Notify('Unstuck', 'Jumped & lifted character out of stuck ledge!', 2.5)
+            Notify('Unstuck', 'Character lifted out of obstacle!', 2)
         end
     end)
 end)
 
 -- // TAB 2: MAIN
-AddSectionLabel(MainScroll, 'Biome Detector & Ground Collector')
-AddToggle(MainScroll, 'Start Biome & State Detector', 'Sends Macro Started/Stopped and accurate Biome embeds.', false, function(val)
-    if val then
-        NyXConfig.EnableBiomeWebhook = true
-        MacroStartTime = os.time()
-        SendMacroStateEmbed(true)
-        Notify('NyX Detector Macro', 'Macro Started!', 2.5)
-    else
-        local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
-        NyXConfig.EnableBiomeWebhook = false
-        SendMacroStateEmbed(false, finalElapsed)
-        MacroStartTime = 0
-        UptimeValueLabel.Text = '00:00:00'
-        Notify('NyX Detector Macro', 'Macro Stopped!', 2.5)
-    end
-end)
-
-AddToggle(MainScroll, 'Auto Collect Natural Ground Items', 'Safely walks & jumps to nearby potions & coins on the ground.', false, function(val)
+AddSectionLabel(MainScroll, 'Ground Item Collector')
+AddToggle(MainScroll, 'Auto Collect Ground Items', 'Walks & jumps safely to nearby potions/coins.', NyXConfig.AutoCollectItems, function(val)
     NyXConfig.AutoCollectItems = val
 end)
 
@@ -1773,246 +1694,231 @@ end)
 AddButton(MainScroll, 'Use Now: Strange Controller', function()
     task.spawn(function() UseItemWithInventoryFailsafe('Strange Controller') end)
 end)
-AddSlider(MainScroll, 'Item Use Interval', 5, 300, 20, 's', function(val)
+AddSlider(MainScroll, 'Item Use Interval', 5, 300, NyXConfig.UseInterval, 's', function(val)
     NyXConfig.UseInterval = val
 end)
-AddToggle(MainScroll, 'Auto Biome Randomizer', 'Automatically opens inventory and uses Biome Randomizer.', false, function(val)
+AddToggle(MainScroll, 'Auto Biome Randomizer', 'Uses Biome Randomizer on interval.', NyXConfig.AutoBiomeRandomizer, function(val)
     NyXConfig.AutoBiomeRandomizer = val
 end)
-AddToggle(MainScroll, 'Auto Strange Controller', 'Automatically opens inventory and uses Strange Controller.', false, function(val)
+AddToggle(MainScroll, 'Auto Strange Controller', 'Uses Strange Controller on interval.', NyXConfig.AutoStrangeController, function(val)
     NyXConfig.AutoStrangeController = val
 end)
 
-AddSectionLabel(MainScroll, 'Stop Auto In (Pause Randomizer on Target Biomes)')
+AddSectionLabel(MainScroll, 'Stop Auto In (Target Biomes)')
 local StopGridFrame = Instance.new('Frame', MainScroll)
-StopGridFrame.Name = 'StopFilterContainer'
-StopGridFrame.Size = UDim2.new(1, -6, 0, 118)
+StopGridFrame.Size = UDim2.new(1, -4, 0, 112)
 StopGridFrame.BackgroundTransparency = 1
 local GridLayout = Instance.new('UIGridLayout', StopGridFrame)
-GridLayout.CellSize = UDim2.new(0.24, -4, 0, 24)
+GridLayout.CellSize = UDim2.new(0.24, -3, 0, 23)
 GridLayout.CellPadding = UDim2.new(0, 4, 0, 4)
 
 for _, bName in ipairs(All16Biomes) do
     local Chip = Instance.new('TextButton', StopGridFrame)
     local isOn = NyXConfig.StopAutoBiomes[bName] == true
-    Chip.BackgroundColor3 = isOn and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+    Chip.BackgroundColor3 = isOn and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
+    Chip.BorderSizePixel = 0
     Chip.Text = bName
     Chip.Font = Enum.Font.GothamBold
     Chip.TextSize = 8
-    Chip.TextColor3 = Color3.fromRGB(245, 245, 255)
-    Instance.new('UICorner', Chip).CornerRadius = UDim.new(0, 5)
+    Chip.TextColor3 = Color3.fromRGB(240, 242, 255)
+    Instance.new('UICorner', Chip).CornerRadius = UDim.new(0, 4)
 
     RegisterDynamicAccent(function(newCol)
-        if NyXConfig.StopAutoBiomes[bName] then
-            Chip.BackgroundColor3 = newCol
-        end
+        if NyXConfig.StopAutoBiomes[bName] then Chip.BackgroundColor3 = newCol end
     end)
 
     Chip.MouseButton1Click:Connect(function()
         NyXConfig.StopAutoBiomes[bName] = not NyXConfig.StopAutoBiomes[bName]
-        Chip.BackgroundColor3 = NyXConfig.StopAutoBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+        Chip.BackgroundColor3 = NyXConfig.StopAutoBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
     end)
 end
 
--- // TAB 3: MERCHANT (DEDICATED CATEGORY)
-AddSectionLabel(MerchantScroll, 'Merchant Lifecycle & 3-Min Timer')
+-- // TAB 3: MERCHANT
+AddSectionLabel(MerchantScroll, '3-Minute Merchant Status')
 local MerchantLiveCard = Instance.new('Frame', MerchantScroll)
-MerchantLiveCard.Size = UDim2.new(1, -6, 0, 46)
-MerchantLiveCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-MerchantLiveCard.BackgroundTransparency = 0.12
-Instance.new('UICorner', MerchantLiveCard).CornerRadius = UDim.new(0, 8)
-Instance.new('UIStroke', MerchantLiveCard).Color = Color3.fromRGB(45, 45, 68)
+MerchantLiveCard.Size = UDim2.new(1, -4, 0, 42)
+MerchantLiveCard.BackgroundColor3 = Color3.fromRGB(22, 25, 35)
+MerchantLiveCard.BorderSizePixel = 0
+Instance.new('UICorner', MerchantLiveCard).CornerRadius = UDim.new(0, 6)
 
 local MTabStatusLbl = Instance.new('TextLabel', MerchantLiveCard)
-MTabStatusLbl.Size = UDim2.new(1, -20, 0, 18)
-MTabStatusLbl.Position = UDim2.new(0, 10, 0, 5)
+MTabStatusLbl.Size = UDim2.new(1, -16, 0, 16)
+MTabStatusLbl.Position = UDim2.new(0, 8, 0, 4)
 MTabStatusLbl.BackgroundTransparency = 1
 MTabStatusLbl.Text = 'Status: NONE (Waiting for Spawn)'
 MTabStatusLbl.Font = Enum.Font.GothamBold
-MTabStatusLbl.TextSize = 11
-MTabStatusLbl.TextColor3 = Color3.fromRGB(240, 240, 255)
+MTabStatusLbl.TextSize = 10
+MTabStatusLbl.TextColor3 = Color3.fromRGB(240, 242, 255)
 MTabStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 
 local MTabCoordsLbl = Instance.new('TextLabel', MerchantLiveCard)
-MTabCoordsLbl.Size = UDim2.new(1, -20, 0, 16)
-MTabCoordsLbl.Position = UDim2.new(0, 10, 0, 24)
+MTabCoordsLbl.Size = UDim2.new(1, -16, 0, 14)
+MTabCoordsLbl.Position = UDim2.new(0, 8, 0, 22)
 MTabCoordsLbl.BackgroundTransparency = 1
 MTabCoordsLbl.Text = 'XYZ Coordinates: N/A'
 MTabCoordsLbl.Font = Enum.Font.Gotham
-MTabCoordsLbl.TextSize = 10
-MTabCoordsLbl.TextColor3 = Color3.fromRGB(160, 160, 190)
+MTabCoordsLbl.TextSize = 9
+MTabCoordsLbl.TextColor3 = Color3.fromRGB(150, 155, 180)
 MTabCoordsLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-AddToggle(MerchantScroll, 'Enable Merchant Detector (Arrived Webhook)', 'Sends Discord webhook when Mari, Jester or Rin arrives (3m timer tracked locally).', false, function(val)
+AddToggle(MerchantScroll, 'Enable Merchant Arrived Webhook', 'Sends Discord webhook on arrival (No Left webhook).', NyXConfig.EnableMerchantWebhook, function(val)
     NyXConfig.EnableMerchantWebhook = val
 end)
-
-AddSectionLabel(MerchantScroll, 'Smart-Jump Pathfinding & Respawn')
-AddToggle(MerchantScroll, 'Auto Pathfind Walk to Merchant (Jump Walls & Avoid Rivers)', 'Automatically jumps over bricks/stairs and walks safely to merchant.', false, function(val)
+AddToggle(MerchantScroll, 'Auto Walk & Jump to Merchant', 'Smart obstacle jump & river avoidance.', NyXConfig.AutoWalkToMerchant, function(val)
     NyXConfig.AutoWalkToMerchant = val
 end)
-AddToggle(MerchantScroll, 'Auto Open Merchant Shop on Arrival', 'Automatically triggers the merchant ProximityPrompt once you reach them.', false, function(val)
+AddToggle(MerchantScroll, 'Auto Open Shop on Arrival', 'Fires ProximityPrompt when reaching merchant.', NyXConfig.AutoInteractMerchant, function(val)
     NyXConfig.AutoInteractMerchant = val
 end)
-AddToggle(MerchantScroll, 'Respawn if Merchant Left', 'Automatically resets/respawns your character when the 3-minute merchant leaves.', false, function(val)
+AddToggle(MerchantScroll, 'Respawn When Merchant Leaves (3m)', 'Resets character after 3m merchant despawns.', NyXConfig.RespawnIfMerchantLeft, function(val)
     NyXConfig.RespawnIfMerchantLeft = val
 end)
 AddButton(MerchantScroll, 'Walk Safely to Active Merchant Now', function()
     WalkToActiveMerchantNow()
 end)
-AddButton(MerchantScroll, 'Stop Current Pathfinding Walk', function()
+AddButton(MerchantScroll, 'Stop Walking Path', function()
     cancelCurrentWalk = true
-    Notify('Pathfinding', 'Stopped current walking path.', 2)
+    Notify('Pathfinding', 'Stopped walking.', 2)
 end)
 
--- // TAB 4: CONNECTIONS
+-- // TAB 4: WEBHOOK
 local ConnUserIDBox, PingUserIDBox
-AddSectionLabel(ConnScroll, 'Discord Webhook & Server Link')
+AddSectionLabel(ConnScroll, 'Discord Configuration')
 AddInput(ConnScroll, 'Webhook URL', NyXConfig.WebhookURL, 'https://discord.com/api/webhooks/...', function(txt)
     NyXConfig.WebhookURL = txt:gsub('%s+', '')
 end)
-ConnUserIDBox = AddInput(ConnScroll, 'Discord User ID (Required for Pings)', NyXConfig.DiscordID, 'Ex: 123456789012345678', function(txt)
+ConnUserIDBox = AddInput(ConnScroll, 'Discord User ID', NyXConfig.DiscordID, 'Numeric ID (Ex: 1234567890)', function(txt)
     local clean = txt:gsub('%D+', '')
     NyXConfig.DiscordID = clean
-    if PingUserIDBox and PingUserIDBox.Text ~= clean then
-        PingUserIDBox.Text = clean
-    end
+    if PingUserIDBox and PingUserIDBox.Text ~= clean then PingUserIDBox.Text = clean end
 end)
 AddInput(ConnScroll, 'Private Server Link', NyXConfig.PrivateServerLink, 'https://www.roblox.com/games/...', function(txt)
     NyXConfig.PrivateServerLink = txt
 end)
-AddButton(ConnScroll, 'Save Webhook & Ping Config', function()
+AddButton(ConnScroll, 'Save Config to File', function()
     SaveWebhookConfig()
-    Notify('Config Saved', 'Webhook, User ID, Private Server & Ping rules saved!', 3)
+    Notify('Saved', 'Configuration saved!', 2.5)
 end)
 AddButton(ConnScroll, 'Test Webhook Connection', function()
     SendTestWebhookEmbed(false)
-    Notify('Webhook Test', 'Sent Webhook Test - Successfully to Discord!', 3)
+    Notify('Webhook Test', 'Sent test embed to Discord!', 2.5)
 end)
 
 -- // TAB 5: PINGS
-AddSectionLabel(PingsScroll, 'Mandatory Discord User ID for Pings')
-PingUserIDBox = AddInput(PingsScroll, 'Your Discord User ID (Must Enter to Enable Pings)', NyXConfig.DiscordID, 'Enter your numeric Discord User ID here...', function(txt)
+AddSectionLabel(PingsScroll, 'User ID for Mention Pings')
+PingUserIDBox = AddInput(PingsScroll, 'Your Discord User ID', NyXConfig.DiscordID, 'Enter numeric Discord ID...', function(txt)
     local clean = txt:gsub('%D+', '')
     NyXConfig.DiscordID = clean
-    if ConnUserIDBox and ConnUserIDBox.Text ~= clean then
-        ConnUserIDBox.Text = clean
-    end
+    if ConnUserIDBox and ConnUserIDBox.Text ~= clean then ConnUserIDBox.Text = clean end
 end)
-AddButton(PingsScroll, 'Test Ping With User ID Now', function()
+AddButton(PingsScroll, 'Test User ID Ping', function()
     local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
     if cleanID == '' then
-        Notify('User ID Required!', 'Please enter your numeric Discord User ID above before testing pings!', 4)
+        Notify('User ID Required', 'Enter your Discord User ID first!', 3)
         return
     end
     SendTestWebhookEmbed(true)
-    Notify('Ping Sent!', 'Sent test ping to <@' .. cleanID .. '> on Discord!', 3)
+    Notify('Ping Sent', 'Sent ping to <@' .. cleanID .. '>!', 2.5)
 end)
 
-AddSectionLabel(PingsScroll, 'Which Biomes Should Ping You? (16 Biomes)')
+AddSectionLabel(PingsScroll, 'Biome Pings (16 Biomes)')
 local PingBiomeGrid = Instance.new('Frame', PingsScroll)
-PingBiomeGrid.Name = 'PingBiomeContainer'
-PingBiomeGrid.Size = UDim2.new(1, -6, 0, 118)
+PingBiomeGrid.Size = UDim2.new(1, -4, 0, 112)
 PingBiomeGrid.BackgroundTransparency = 1
 local PGridLayout = Instance.new('UIGridLayout', PingBiomeGrid)
-PGridLayout.CellSize = UDim2.new(0.24, -4, 0, 24)
+PGridLayout.CellSize = UDim2.new(0.24, -3, 0, 23)
 PGridLayout.CellPadding = UDim2.new(0, 4, 0, 4)
 
 for _, bName in ipairs(All16Biomes) do
     local Chip = Instance.new('TextButton', PingBiomeGrid)
     local isOn = NyXConfig.PingBiomes[bName] == true
-    Chip.BackgroundColor3 = isOn and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+    Chip.BackgroundColor3 = isOn and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
+    Chip.BorderSizePixel = 0
     Chip.Text = bName
     Chip.Font = Enum.Font.GothamBold
     Chip.TextSize = 8
-    Chip.TextColor3 = Color3.fromRGB(245, 245, 255)
-    Instance.new('UICorner', Chip).CornerRadius = UDim.new(0, 5)
+    Chip.TextColor3 = Color3.fromRGB(240, 242, 255)
+    Instance.new('UICorner', Chip).CornerRadius = UDim.new(0, 4)
 
     RegisterDynamicAccent(function(newCol)
-        if NyXConfig.PingBiomes[bName] then
-            Chip.BackgroundColor3 = newCol
-        end
+        if NyXConfig.PingBiomes[bName] then Chip.BackgroundColor3 = newCol end
     end)
 
     Chip.MouseButton1Click:Connect(function()
         local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
         if not NyXConfig.PingBiomes[bName] and cleanID == '' then
-            Notify('Discord User ID Required!', 'You must enter your Discord User ID above before selecting biomes to ping!', 4)
+            Notify('User ID Required', 'Enter your Discord ID above first!', 3)
             return
         end
         NyXConfig.PingBiomes[bName] = not NyXConfig.PingBiomes[bName]
-        Chip.BackgroundColor3 = NyXConfig.PingBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+        Chip.BackgroundColor3 = NyXConfig.PingBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
         SaveWebhookConfig()
     end)
 end
 
-AddSectionLabel(PingsScroll, 'Which Merchants Should Ping You? (Mari / Jester / Rin)')
+AddSectionLabel(PingsScroll, 'Merchant Pings (Mari / Jester / Rin)')
 local PingMerchantRow = Instance.new('Frame', PingsScroll)
-PingMerchantRow.Name = 'PingMerchantContainer'
-PingMerchantRow.Size = UDim2.new(1, -6, 0, 32)
+PingMerchantRow.Size = UDim2.new(1, -4, 0, 28)
 PingMerchantRow.BackgroundTransparency = 1
 local MGridLayout = Instance.new('UIGridLayout', PingMerchantRow)
-MGridLayout.CellSize = UDim2.new(0.32, -4, 0, 28)
-MGridLayout.CellPadding = UDim2.new(0, 6, 0, 0)
+MGridLayout.CellSize = UDim2.new(0.32, -3, 0, 26)
+MGridLayout.CellPadding = UDim2.new(0, 5, 0, 0)
 
 for _, mName in ipairs(All3Merchants) do
     local MChip = Instance.new('TextButton', PingMerchantRow)
     local isOn = NyXConfig.PingMerchants[mName] == true
-    MChip.BackgroundColor3 = isOn and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+    MChip.BackgroundColor3 = isOn and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
+    MChip.BorderSizePixel = 0
     MChip.Text = mName:upper()
     MChip.Font = Enum.Font.GothamBold
-    MChip.TextSize = 10
-    MChip.TextColor3 = Color3.fromRGB(245, 245, 255)
-    Instance.new('UICorner', MChip).CornerRadius = UDim.new(0, 6)
+    MChip.TextSize = 9
+    MChip.TextColor3 = Color3.fromRGB(240, 242, 255)
+    Instance.new('UICorner', MChip).CornerRadius = UDim.new(0, 5)
 
     RegisterDynamicAccent(function(newCol)
-        if NyXConfig.PingMerchants[mName] then
-            MChip.BackgroundColor3 = newCol
-        end
+        if NyXConfig.PingMerchants[mName] then MChip.BackgroundColor3 = newCol end
     end)
 
     MChip.MouseButton1Click:Connect(function()
         local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
         if not NyXConfig.PingMerchants[mName] and cleanID == '' then
-            Notify('Discord User ID Required!', 'You must enter your Discord User ID above before enabling Merchant pings!', 4)
+            Notify('User ID Required', 'Enter your Discord ID above first!', 3)
             return
         end
         NyXConfig.PingMerchants[mName] = not NyXConfig.PingMerchants[mName]
-        MChip.BackgroundColor3 = NyXConfig.PingMerchants[mName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 22, 36)
+        MChip.BackgroundColor3 = NyXConfig.PingMerchants[mName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
         SaveWebhookConfig()
     end)
 end
 
--- // TAB 6: SETTING & UI UTILITIES
-AddSectionLabel(SettingScroll, 'UI Utilities & Floating Mini HUD')
-AddToggle(SettingScroll, 'Show Floating Mini Status HUD', 'Displays compact Biome/Merchant/Uptime bar at the top of screen.', true, function(val)
+-- // TAB 6: SETTINGS & UTILITIES
+AddSectionLabel(SettingScroll, 'UI Utilities & Alerts')
+AddToggle(SettingScroll, 'Show Floating Mini HUD', 'Compact status bar at top of screen.', NyXConfig.ShowMiniHUD, function(val)
     NyXConfig.ShowMiniHUD = val
     MiniHUD.Visible = val
 end)
-AddToggle(SettingScroll, 'Lock UI & ND Button Position', 'Prevents accidentally dragging windows on touchscreen.', false, function(val)
+AddToggle(SettingScroll, 'Lock UI & Logo Position', 'Prevents accidental dragging.', NyXConfig.LockUIPosition, function(val)
     NyXConfig.LockUIPosition = val
-    Notify('UI Lock', val and 'UI positions locked!' or 'UI positions unlocked!', 2)
 end)
-AddToggle(SettingScroll, 'In-Game Sound Alert on Rare Biome / Merchant', 'Plays an audio chime when a target Biome or Merchant spawns.', true, function(val)
+AddToggle(SettingScroll, 'Sound Alert on Target Spawn', 'Plays chime when rare biome/merchant spawns.', NyXConfig.EnableSoundAlert, function(val)
     NyXConfig.EnableSoundAlert = val
 end)
-AddButton(SettingScroll, 'Reset UI Positions to Center', function()
+AddButton(SettingScroll, 'Reset UI Positions to Default', function()
     MainWindow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    NDButton.Position = UDim2.new(0.03, 0, 0.2, 0)
-    MiniHUD.Position = UDim2.new(0.5, 0, 0, 10)
+    LogoToggleBtn.Position = UDim2.new(0.03, 0, 0.2, 0)
+    MiniHUD.Position = UDim2.new(0.5, 0, 0, 8)
     MainWindow.Visible = true
-    Notify('UI Reset', 'Restored MainWindow, ND Button & Mini HUD positions!', 2.5)
 end)
 
-AddSectionLabel(SettingScroll, 'Character Movement Assist')
-AddToggle(SettingScroll, 'Enable WalkSpeed Assist', 'Helps character walk faster to merchants & ground items.', false, function(val)
+AddSectionLabel(SettingScroll, 'Movement & Appearance')
+AddToggle(SettingScroll, 'WalkSpeed Boost', 'Speeds up walking to merchants/items.', NyXConfig.WalkSpeedBoost, function(val)
     NyXConfig.WalkSpeedBoost = val
     pcall(function()
         local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid')
         if hum then hum.WalkSpeed = val and NyXConfig.CustomWalkSpeed or 16 end
     end)
 end)
-AddSlider(SettingScroll, 'Custom WalkSpeed', 16, 45, 24, '', function(val)
+AddSlider(SettingScroll, 'WalkSpeed Value', 16, 45, NyXConfig.CustomWalkSpeed, '', function(val)
     NyXConfig.CustomWalkSpeed = val
     if NyXConfig.WalkSpeedBoost then
         pcall(function()
@@ -2021,62 +1927,55 @@ AddSlider(SettingScroll, 'Custom WalkSpeed', 16, 45, 24, '', function(val)
         end)
     end
 end)
-
-AddSectionLabel(SettingScroll, 'Android Screen & Theme Customization')
-AddSlider(SettingScroll, 'UI Scale (Resize for Mobile Screen)', 55, 125, 95, '%', function(val)
+AddSlider(SettingScroll, 'UI Scale', 55, 125, NyXConfig.UIScalePercent, '%', function(val)
     NyXConfig.UIScalePercent = val
     RecalculateResponsiveScale()
 end)
 
 local ColorRow = Instance.new('Frame', SettingScroll)
-ColorRow.Size = UDim2.new(1, -6, 0, 28)
+ColorRow.Size = UDim2.new(1, -4, 0, 24)
 ColorRow.BackgroundTransparency = 1
 local ColorGrid = Instance.new('UIGridLayout', ColorRow)
-ColorGrid.CellSize = UDim2.new(0.2, -4, 0, 26)
+ColorGrid.CellSize = UDim2.new(0.2, -3, 0, 22)
 ColorGrid.CellPadding = UDim2.new(0, 4, 0, 0)
 
 local ThemePresets = {
-    {Name = 'Purple', Col = Color3.fromRGB(135, 95, 255)},
-    {Name = 'Cyan', Col = Color3.fromRGB(0, 210, 255)},
-    {Name = 'Crimson', Col = Color3.fromRGB(255, 65, 90)},
+    {Name = 'Blue', Col = Color3.fromRGB(95, 145, 255)},
+    {Name = 'Purple', Col = Color3.fromRGB(145, 95, 255)},
+    {Name = 'Crimson', Col = Color3.fromRGB(255, 70, 95)},
     {Name = 'Emerald', Col = Color3.fromRGB(46, 213, 115)},
     {Name = 'Gold', Col = Color3.fromRGB(255, 175, 45)}
 }
 for _, preset in ipairs(ThemePresets) do
     local CBtn = Instance.new('TextButton', ColorRow)
     CBtn.BackgroundColor3 = preset.Col
+    CBtn.BorderSizePixel = 0
     CBtn.Text = preset.Name
     CBtn.Font = Enum.Font.GothamBold
-    CBtn.TextSize = 9
+    CBtn.TextSize = 8
     CBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Instance.new('UICorner', CBtn).CornerRadius = UDim.new(0, 6)
+    Instance.new('UICorner', CBtn).CornerRadius = UDim.new(0, 4)
     CBtn.MouseButton1Click:Connect(function()
         UpdateAccentColor(preset.Col)
     end)
 end
 
-AddSlider(SettingScroll, 'Window Transparency', 0, 65, 8, '%', function(val)
-    NyXConfig.GlassTransparency = val / 100
-    MainWindow.BackgroundTransparency = NyXConfig.GlassTransparency
-end)
-
-AddSectionLabel(SettingScroll, 'Battery Saver, Performance & AFK')
-AddToggle(SettingScroll, 'OLED Black Screen Battery Saver', 'Covers the screen in pure black while keeping NyX UI & ND button accessible.', false, function(val)
+AddSectionLabel(SettingScroll, 'Performance & System')
+AddToggle(SettingScroll, 'OLED Black Screen Saver', 'Covers screen in black to save battery.', NyXConfig.BlackScreenSaver, function(val)
     NyXConfig.BlackScreenSaver = val
     BlackSaverFrame.Visible = val
 end)
-AddToggle(SettingScroll, 'Enable Anti-AFK', 'Prevents 20-minute idle disconnect.', true, function(val)
-    NyXConfig.AntiAFK = val
-end)
-AddToggle(SettingScroll, 'Auto Reconnect on Disconnect / Kick', 'Automatically rejoins the server if your connection drops.', true, function(val)
-    NyXConfig.AutoReconnect = val
-end)
-AddToggle(SettingScroll, 'Disable 3D Rendering (CPU / GPU Saver)', 'Turns off 3D world rendering for low-resource AFK macroing.', false, function(val)
+AddToggle(SettingScroll, 'Disable 3D Rendering', 'Maximizes FPS & reduces CPU/GPU load.', NyXConfig.Disable3DRendering, function(val)
     NyXConfig.Disable3DRendering = val
     pcall(function() RunService:Set3dRenderingEnabled(not val) end)
 end)
-
-AddButton(SettingScroll, 'Boost FPS (Remove Particles & Shadows)', function()
+AddToggle(SettingScroll, 'Enable Anti-AFK', 'Prevents 20m idle kick.', NyXConfig.AntiAFK, function(val)
+    NyXConfig.AntiAFK = val
+end)
+AddToggle(SettingScroll, 'Auto Reconnect', 'Rejoins server on disconnect.', NyXConfig.AutoReconnect, function(val)
+    NyXConfig.AutoReconnect = val
+end)
+AddButton(SettingScroll, 'Boost FPS (Clear Particles & Shadows)', function()
     pcall(function()
         Lighting.GlobalShadows = false
         for _, v in ipairs(Workspace:GetDescendants()) do
@@ -2087,42 +1986,46 @@ AddButton(SettingScroll, 'Boost FPS (Remove Particles & Shadows)', function()
             end
         end
     end)
-    Notify('FPS Boost', 'Particles disabled and textures optimized!', 3)
+    Notify('FPS Boost', 'Optimized world materials & particles!', 2.5)
 end)
-
-AddSlider(SettingScroll, 'FPS Cap', 15, 240, 60, ' FPS', function(val)
-    if setfpscap then pcall(setfpscap, val) end
-end)
-
-AddSectionLabel(SettingScroll, 'Server & Script Management')
 AddButton(SettingScroll, 'Copy Current Server JobId', function()
     if setclipboard then
         pcall(setclipboard, tostring(game.JobId))
-        Notify('Copied JobId', 'Server JobId copied to clipboard!', 2.5)
-    else
-        Notify('Server JobId', tostring(game.JobId), 4)
+        Notify('Copied', 'JobId copied to clipboard!', 2)
     end
 end)
 AddButton(SettingScroll, 'Rejoin Current Server', function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
 
-AddButton(SettingScroll, 'Uninstall / Destroy NyX Detector Macro', function()
-    ScriptRunning = false
+-- // Hàm dọn dẹp tập trung lưu trong getgenv()
+NyXEnv.Cleanup = function()
+    NyXEnv.Running = false
     cancelCurrentWalk = true
     pcall(function() RunService:Set3dRenderingEnabled(true) end)
     if NyXConfig.EnableBiomeWebhook then
         local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
         SendMacroStateEmbed(false, finalElapsed)
     end
-    CleanupAllConnections()
-    if ScreenGui then ScreenGui:Destroy() end
+    for _, conn in ipairs(NyXEnv.Connections) do
+        pcall(function()
+            if conn and conn.Connected then conn:Disconnect() end
+        end)
+    end
+    table.clear(NyXEnv.Connections)
+    if ScreenGui and ScreenGui.Parent then
+        ScreenGui:Destroy()
+    end
+end
+
+AddButton(SettingScroll, 'Uninstall / Destroy Script', function()
+    NyXEnv.Cleanup()
 end)
 
 -- ==========================================
--- // BACKGROUND LOOPS (BIOME, 3-MIN MERCHANT LIFECYCLE, ITEMS)
+-- // BACKGROUND LOOPS
 -- ==========================================
--- 1. Biome Detection & Mini HUD Sync Loop
+-- 1. Biome Detection & Mini HUD Sync
 task.spawn(function()
     local confirmedBiome = GetAccurateServerBiome()
     local pendingBiome = confirmedBiome
@@ -2133,8 +2036,7 @@ task.spawn(function()
         BiomeValueLabel.TextColor3 = BiomeData[confirmedBiome].Hex
     end
 
-    while ScriptRunning and task.wait(1) do
-        -- Duy trì WalkSpeed nếu bật
+    while NyXEnv.Running and task.wait(1) do
         if NyXConfig.WalkSpeedBoost then
             pcall(function()
                 local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid')
@@ -2177,15 +2079,15 @@ task.spawn(function()
                 end
             end
             if NyXConfig.StopAutoBiomes[confirmedBiome] then
-                Notify('Stop Auto In', 'Detected ' .. confirmedBiome .. '! Pausing item usage.', 4)
+                Notify('Stop Auto In', 'Detected ' .. confirmedBiome .. '! Pausing items.', 4)
             end
         end
     end
 end)
 
--- 2. Merchant Lifecycle Loop (3-Minute Countdown -> Merchant Left = NONE, No Left Webhook)
+-- 2. Merchant Lifecycle Loop (3m Countdown -> Merchant Left = NONE, No Left Webhook)
 task.spawn(function()
-    while ScriptRunning and task.wait(1) do
+    while NyXEnv.Running and task.wait(1) do
         local worldMerchant, worldPos = FindMerchantWorldPosition(false)
         if worldMerchant and NyXConfig.CurrentMerchant == 'NONE' then
             SetMerchantArrivedState(worldMerchant, worldPos)
@@ -2215,9 +2117,9 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Collect Natural Ground Items Loop (Potions / Coins via Smart-Jump Walk)
+-- 3. Auto Collect Ground Items Loop
 task.spawn(function()
-    while ScriptRunning and task.wait(2.5) do
+    while NyXEnv.Running and task.wait(2.5) do
         if NyXConfig.AutoCollectItems and not isWalkingPath and NyXConfig.CurrentMerchant == 'NONE' then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -2247,7 +2149,7 @@ end)
 
 -- 4. Auto Biome Randomizer & Strange Controller Loop
 task.spawn(function()
-    while ScriptRunning do
+    while NyXEnv.Running do
         task.wait(1)
         if NyXConfig.AutoBiomeRandomizer or NyXConfig.AutoStrangeController then
             local currentB = GetAccurateServerBiome()
@@ -2258,7 +2160,7 @@ task.spawn(function()
                 if NyXConfig.AutoBiomeRandomizer then
                     UseItemWithInventoryFailsafe('Biome Randomizer')
                     for _ = 1, 7 do
-                        if not ScriptRunning then break end
+                        if not NyXEnv.Running then break end
                         task.wait(0.5)
                         local checkB = GetAccurateServerBiome()
                         NyXConfig.CurrentDetectedBiome = checkB
@@ -2274,7 +2176,7 @@ task.spawn(function()
             end
 
             local waited = 0
-            while ScriptRunning and waited < NyXConfig.UseInterval do
+            while NyXEnv.Running and waited < NyXConfig.UseInterval do
                 task.wait(1)
                 waited = waited + 1
                 if not NyXConfig.AutoBiomeRandomizer and not NyXConfig.AutoStrangeController then
