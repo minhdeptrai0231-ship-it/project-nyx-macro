@@ -1,4 +1,4 @@
--- // NYX DETECTOR MACRO - v6 (GETGENV PROTECTED + HSIN ICON + LIGHTWEIGHT UI)
+-- // NYX DETECTOR MACRO - v6.1 (CLEAN ASCII + FULL FIXES + GETGENV PROTECTED)
 local Env = (getgenv and getgenv()) or _G
 
 -- Tự động dọn dẹp phiên bản cũ nếu người dùng chạy lại script (Tránh trùng lặp luồng & Anti-Cheat)
@@ -114,14 +114,14 @@ local NormalizedBiomeLookup = {
 }
 
 local All16Biomes = {
-    'NORMAL', 'WINDY', 'SNOWY', 'RAINY', 'SANDSTORM', 'HELL', 
-    'STARFALL', 'HEAVEN', 'LOST FOREST', 'CORRUPTION', 'NULL', 
+    'NORMAL', 'WINDY', 'SNOWY', 'RAINY', 'SANDSTORM', 'HELL',
+    'STARFALL', 'HEAVEN', 'LOST FOREST', 'CORRUPTION', 'NULL',
     'GLITCHED', 'DREAMSPACE', 'CYBERSPACE', 'SINGULARITY', 'THE RADIANT FOREST'
 }
 
 local All3Merchants = {'Mari', 'Jester', 'Rin'}
 local MerchantData = {
-    ['Mari'] = {Color = 0x2ECC71, Image = ''https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS6L6PcpIMSqDqM8SO6q7sZxIFoBOp71Gsmxvve1WiqAA&s'},
+     ['Mari'] = {Color = 0x2ECC71, Image = ''https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS6L6PcpIMSqDqM8SO6q7sZxIFoBOp71Gsmxvve1WiqAA&s'},
     ['Jester'] = {Color = 0x9B59B6, Image = ''https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6v3ZqckK1GNCg6SYg4TCfpRWtphoD0FizegtT1LB1RQ&s=10''},
     ['Rin'] = {Color = 0x3498DB, Image = ''https://static.wikia.nocookie.net/sol-rng/images/a/a7/RinRender.png/revision/latest/scale-to-width-down/1200?cb=20260612154656'}
 }
@@ -167,6 +167,9 @@ for _, bName in ipairs(All16Biomes) do
     if NyXConfig.PingBiomes[bName] == nil then
         NyXConfig.PingBiomes[bName] = false
     end
+    if NyXConfig.StopAutoBiomes[bName] == nil then
+        NyXConfig.StopAutoBiomes[bName] = false
+    end
 end
 
 local function PlayAlertSound()
@@ -184,7 +187,7 @@ local function PlayAlertSound()
 end
 
 -- ==========================================
--- // CONFIG SAVE / LOAD
+-- // CONFIG SAVE / LOAD (ĐÃ NÂNG CẤP LƯU TOÀN BỘ CONFIG)
 -- ==========================================
 local WebhookConfigFile = 'NyX_WebhookConfig.json'
 local function SaveWebhookConfig()
@@ -194,8 +197,25 @@ local function SaveWebhookConfig()
                 WebhookURL = NyXConfig.WebhookURL,
                 DiscordID = NyXConfig.DiscordID,
                 PrivateServerLink = NyXConfig.PrivateServerLink,
+                EnableMerchantWebhook = NyXConfig.EnableMerchantWebhook,
+                AutoWalkToMerchant = NyXConfig.AutoWalkToMerchant,
+                RespawnIfMerchantLeft = NyXConfig.RespawnIfMerchantLeft,
+                AutoInteractMerchant = NyXConfig.AutoInteractMerchant,
+                AutoCollectItems = NyXConfig.AutoCollectItems,
+                AutoReconnect = NyXConfig.AutoReconnect,
+                AutoBiomeRandomizer = NyXConfig.AutoBiomeRandomizer,
+                AutoStrangeController = NyXConfig.AutoStrangeController,
+                UseInterval = NyXConfig.UseInterval,
+                StopAutoBiomes = NyXConfig.StopAutoBiomes,
                 PingBiomes = NyXConfig.PingBiomes,
-                PingMerchants = NyXConfig.PingMerchants
+                PingMerchants = NyXConfig.PingMerchants,
+                AntiAFK = NyXConfig.AntiAFK,
+                ShowMiniHUD = NyXConfig.ShowMiniHUD,
+                LockUIPosition = NyXConfig.LockUIPosition,
+                EnableSoundAlert = NyXConfig.EnableSoundAlert,
+                WalkSpeedBoost = NyXConfig.WalkSpeedBoost,
+                CustomWalkSpeed = NyXConfig.CustomWalkSpeed,
+                UIScalePercent = NyXConfig.UIScalePercent
             }
             writefile(WebhookConfigFile, HttpService:JSONEncode(data))
         end)
@@ -207,9 +227,29 @@ local function LoadWebhookConfig()
         pcall(function()
             local decoded = HttpService:JSONDecode(readfile(WebhookConfigFile))
             if type(decoded) == 'table' then
-                NyXConfig.WebhookURL = tostring(decoded.WebhookURL or ''):gsub('%s+', '')
-                NyXConfig.DiscordID = tostring(decoded.DiscordID or ''):gsub('%D+', '')
-                NyXConfig.PrivateServerLink = tostring(decoded.PrivateServerLink or '')
+                NyXConfig.WebhookURL = tostring(decoded.WebhookURL or NyXConfig.WebhookURL or ''):gsub('%s+', '')
+                NyXConfig.DiscordID = tostring(decoded.DiscordID or NyXConfig.DiscordID or ''):gsub('%D+', '')
+                NyXConfig.PrivateServerLink = tostring(decoded.PrivateServerLink or NyXConfig.PrivateServerLink or '')
+
+                local boolKeys = {
+                    'EnableMerchantWebhook', 'AutoWalkToMerchant', 'RespawnIfMerchantLeft',
+                    'AutoInteractMerchant', 'AutoCollectItems', 'AutoReconnect',
+                    'AutoBiomeRandomizer', 'AutoStrangeController', 'AntiAFK',
+                    'ShowMiniHUD', 'LockUIPosition', 'EnableSoundAlert', 'WalkSpeedBoost'
+                }
+                for _, key in ipairs(boolKeys) do
+                    if type(decoded[key]) == 'boolean' then
+                        NyXConfig[key] = decoded[key]
+                    end
+                end
+
+                if type(decoded.UseInterval) == 'number' then NyXConfig.UseInterval = math.clamp(decoded.UseInterval, 5, 300) end
+                if type(decoded.CustomWalkSpeed) == 'number' then NyXConfig.CustomWalkSpeed = math.clamp(decoded.CustomWalkSpeed, 16, 45) end
+                if type(decoded.UIScalePercent) == 'number' then NyXConfig.UIScalePercent = math.clamp(decoded.UIScalePercent, 55, 125) end
+
+                if type(decoded.StopAutoBiomes) == 'table' then
+                    for k, v in pairs(decoded.StopAutoBiomes) do NyXConfig.StopAutoBiomes[k] = v end
+                end
                 if type(decoded.PingBiomes) == 'table' then
                     for k, v in pairs(decoded.PingBiomes) do NyXConfig.PingBiomes[k] = v end
                 end
@@ -268,7 +308,7 @@ local function CleanRichText(str)
 end
 
 -- ==========================================
--- // DISCORD WEBHOOK SYSTEM
+-- // DISCORD WEBHOOK SYSTEM (NON-BLOCKING ASYNC)
 -- ==========================================
 local function BuildUserPingContent(shouldPing)
     if not shouldPing then return '' end
@@ -289,13 +329,15 @@ local function SendRawWebhook(payload)
     }
     local req = (syn and syn.request) or http_request or request
     if req then
-        pcall(function()
-            req({
-                Url = cleanUrl,
-                Method = 'POST',
-                Headers = {['Content-Type'] = 'application/json'},
-                Body = HttpService:JSONEncode(payload)
-            })
+        task.spawn(function()
+            pcall(function()
+                req({
+                    Url = cleanUrl,
+                    Method = 'POST',
+                    Headers = {['Content-Type'] = 'application/json'},
+                    Body = HttpService:JSONEncode(payload)
+                })
+            end)
         end)
     end
 end
@@ -706,7 +748,7 @@ local function WalkToActiveMerchantNow()
 end
 
 -- ==========================================
--- // MERCHANT LIFECYCLE MANAGER (3M TIMER, NO LEFT WEBHOOK)
+-- // MERCHANT LIFECYCLE MANAGER (3M TIMER, STREAMING SAFE)
 -- ==========================================
 local function SetMerchantArrivedState(merchantName, worldPos)
     if NyXConfig.CurrentMerchant == merchantName:upper() then
@@ -719,14 +761,14 @@ local function SetMerchantArrivedState(merchantName, worldPos)
     PlayAlertSound()
     SendMerchantArrivedEmbed(merchantName)
     Notify('Merchant Arrived!', merchantName .. ' has arrived! (3m timer started)', 4)
-    if NyXConfig.AutoWalkToMerchant then
+    if NyXConfig.AutoWalkToMerchant and worldPos then
         WalkToActiveMerchantNow()
     end
 end
 
 local function SetMerchantLeftState(reason)
     if NyXConfig.CurrentMerchant == 'NONE' then return end
-    local prevMerchant = NyXConfig.CurrentMerchant:sub(1,1):upper() .. NyXConfig.CurrentMerchant:sub(2):lower()
+    local prevMerchant = NyXConfig.CurrentMerchant:sub(1, 1):upper() .. NyXConfig.CurrentMerchant:sub(2):lower()
     NyXConfig.CurrentMerchant = 'NONE'
     NyXConfig.MerchantSpawnTimestamp = 0
     NyXConfig.MerchantPosition = nil
@@ -740,7 +782,7 @@ local function SetMerchantLeftState(reason)
 end
 
 -- ==========================================
--- // BIOME SCANNER (CACHED & OPTIMIZED)
+-- // BIOME SCANNER (CACHED + FORCE SCAN SUPPORT)
 -- ==========================================
 local CachedBiomeLabels = {}
 local LastGuiBiomeScan = 0
@@ -774,7 +816,7 @@ local function IsValidHudBiomeLabel(v)
     return true
 end
 
-local function GetAccurateServerBiome()
+local function GetAccurateServerBiome(forceScan)
     local foundBiome = nil
     pcall(function()
         local candidates = {
@@ -810,24 +852,26 @@ local function GetAccurateServerBiome()
     end)
     if foundBiome then return foundBiome end
 
-    pcall(function()
-        for i = #CachedBiomeLabels, 1, -1 do
-            local lbl = CachedBiomeLabels[i]
-            if not lbl or not lbl.Parent then
-                table.remove(CachedBiomeLabels, i)
-            elseif lbl.Visible and lbl.Text ~= '' then
-                local bMatch = ParseStrictBiomeToken(lbl.Text, true) or ParseStrictBiomeToken(lbl.Text, false)
-                if bMatch then
-                    foundBiome = bMatch
-                    if bMatch ~= 'NORMAL' then return end
+    if not forceScan then
+        pcall(function()
+            for i = #CachedBiomeLabels, 1, -1 do
+                local lbl = CachedBiomeLabels[i]
+                if not lbl or not lbl.Parent then
+                    table.remove(CachedBiomeLabels, i)
+                elseif lbl.Visible and lbl.Text ~= '' then
+                    local bMatch = ParseStrictBiomeToken(lbl.Text, true) or ParseStrictBiomeToken(lbl.Text, false)
+                    if bMatch then
+                        foundBiome = bMatch
+                        if bMatch ~= 'NORMAL' then return end
+                    end
                 end
             end
-        end
-    end)
-    if foundBiome then return foundBiome end
+        end)
+        if foundBiome then return foundBiome end
+    end
 
     local now = os.clock()
-    if (now - LastGuiBiomeScan) < 8 then
+    if not forceScan and (now - LastGuiBiomeScan) < 8 then
         return 'NORMAL'
     end
     LastGuiBiomeScan = now
@@ -1176,7 +1220,7 @@ if Workspace.CurrentCamera then
     TrackConnection(Workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(RecalculateResponsiveScale))
 end
 
--- // Floating Hsin Image Logo Toggle Button (Thay thế nút chữ ND NyX cũ)
+-- // Floating Hsin Image Logo Toggle Button
 local LogoToggleBtn = Instance.new('ImageButton', ScreenGui)
 LogoToggleBtn.Name = 'HsinToggleBtn'
 LogoToggleBtn.Size = UDim2.new(0, 46, 0, 46)
@@ -1260,7 +1304,7 @@ local BrandSub = Instance.new('TextLabel', Sidebar)
 BrandSub.Size = UDim2.new(1, -46, 0, 12)
 BrandSub.Position = UDim2.new(0, 44, 0, 25)
 BrandSub.BackgroundTransparency = 1
-BrandSub.Text = 'LITE v6'
+BrandSub.Text = 'LITE v6.1'
 BrandSub.Font = Enum.Font.GothamBold
 BrandSub.TextSize = 9
 BrandSub.TextXAlignment = Enum.TextXAlignment.Left
@@ -1278,9 +1322,9 @@ CloseBtn.TextColor3 = Color3.fromRGB(200, 205, 225)
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.TextSize = 16
 Instance.new('UICorner', CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function()
+TrackConnection(CloseBtn.MouseButton1Click:Connect(function()
     MainWindow.Visible = false
-end)
+end))
 
 local NavHolder = Instance.new('Frame', Sidebar)
 NavHolder.Size = UDim2.new(1, -14, 1, -54)
@@ -1356,7 +1400,7 @@ local function CreateTabPage(tabName, subtitleText)
     Instance.new('UICorner', ActiveBar).CornerRadius = UDim.new(1, 0)
     RegisterAccent(ActiveBar, 'BackgroundColor3')
 
-    NavBtn.MouseButton1Click:Connect(function()
+    TrackConnection(NavBtn.MouseButton1Click:Connect(function()
         for _, p in ipairs(Pages) do p.Visible = false end
         for _, b in ipairs(NavButtons) do
             b.Btn.BackgroundTransparency = 1
@@ -1367,7 +1411,7 @@ local function CreateTabPage(tabName, subtitleText)
         NavBtn.BackgroundTransparency = 0
         NavBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ActiveBar.Visible = true
-    end)
+    end))
 
     table.insert(Pages, Page)
     table.insert(NavButtons, {Btn = NavBtn, Bar = ActiveBar})
@@ -1433,12 +1477,13 @@ local function AddToggle(parent, title, subtext, defaultVal, callback)
         if state then SwitchBg.BackgroundColor3 = newCol end
     end)
 
-    Card.MouseButton1Click:Connect(function()
+    TrackConnection(Card.MouseButton1Click:Connect(function()
         state = not state
         SwitchBg.BackgroundColor3 = state and NyXConfig.UIAccentColor or Color3.fromRGB(45, 48, 65)
         Knob.Position = state and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
         if callback then callback(state) end
-    end)
+        SaveWebhookConfig()
+    end))
 end
 
 local function AddInput(parent, title, defaultText, placeholder, callback)
@@ -1473,9 +1518,9 @@ local function AddInput(parent, title, defaultText, placeholder, callback)
     Box.TextXAlignment = Enum.TextXAlignment.Left
     Instance.new('UICorner', Box).CornerRadius = UDim.new(0, 4)
 
-    Box:GetPropertyChangedSignal('Text'):Connect(function()
+    TrackConnection(Box:GetPropertyChangedSignal('Text'):Connect(function()
         if callback then callback(Box.Text) end
-    end)
+    end))
     return Box
 end
 
@@ -1489,9 +1534,9 @@ local function AddButton(parent, title, callback)
     Btn.TextSize = 10
     Btn.TextColor3 = Color3.fromRGB(245, 247, 255)
     Instance.new('UICorner', Btn).CornerRadius = UDim.new(0, 6)
-    Btn.MouseButton1Click:Connect(function()
+    TrackConnection(Btn.MouseButton1Click:Connect(function()
         if callback then callback() end
-    end)
+    end))
 end
 
 local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, callback)
@@ -1547,7 +1592,10 @@ local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, call
     end))
     TrackConnection(UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            sliding = false
+            if sliding then
+                sliding = false
+                SaveWebhookConfig()
+            end
         end
     end))
 end
@@ -1727,10 +1775,11 @@ for _, bName in ipairs(All16Biomes) do
         if NyXConfig.StopAutoBiomes[bName] then Chip.BackgroundColor3 = newCol end
     end)
 
-    Chip.MouseButton1Click:Connect(function()
+    TrackConnection(Chip.MouseButton1Click:Connect(function()
         NyXConfig.StopAutoBiomes[bName] = not NyXConfig.StopAutoBiomes[bName]
         Chip.BackgroundColor3 = NyXConfig.StopAutoBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
-    end)
+        SaveWebhookConfig()
+    end))
 end
 
 -- // TAB 3: MERCHANT
@@ -1844,7 +1893,7 @@ for _, bName in ipairs(All16Biomes) do
         if NyXConfig.PingBiomes[bName] then Chip.BackgroundColor3 = newCol end
     end)
 
-    Chip.MouseButton1Click:Connect(function()
+    TrackConnection(Chip.MouseButton1Click:Connect(function()
         local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
         if not NyXConfig.PingBiomes[bName] and cleanID == '' then
             Notify('User ID Required', 'Enter your Discord ID above first!', 3)
@@ -1853,7 +1902,7 @@ for _, bName in ipairs(All16Biomes) do
         NyXConfig.PingBiomes[bName] = not NyXConfig.PingBiomes[bName]
         Chip.BackgroundColor3 = NyXConfig.PingBiomes[bName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
         SaveWebhookConfig()
-    end)
+    end))
 end
 
 AddSectionLabel(PingsScroll, 'Merchant Pings (Mari / Jester / Rin)')
@@ -1879,7 +1928,7 @@ for _, mName in ipairs(All3Merchants) do
         if NyXConfig.PingMerchants[mName] then MChip.BackgroundColor3 = newCol end
     end)
 
-    MChip.MouseButton1Click:Connect(function()
+    TrackConnection(MChip.MouseButton1Click:Connect(function()
         local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
         if not NyXConfig.PingMerchants[mName] and cleanID == '' then
             Notify('User ID Required', 'Enter your Discord ID above first!', 3)
@@ -1888,7 +1937,7 @@ for _, mName in ipairs(All3Merchants) do
         NyXConfig.PingMerchants[mName] = not NyXConfig.PingMerchants[mName]
         MChip.BackgroundColor3 = NyXConfig.PingMerchants[mName] and NyXConfig.UIAccentColor or Color3.fromRGB(22, 25, 35)
         SaveWebhookConfig()
-    end)
+    end))
 end
 
 -- // TAB 6: SETTINGS & UTILITIES
@@ -1955,9 +2004,9 @@ for _, preset in ipairs(ThemePresets) do
     CBtn.TextSize = 8
     CBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new('UICorner', CBtn).CornerRadius = UDim.new(0, 4)
-    CBtn.MouseButton1Click:Connect(function()
+    TrackConnection(CBtn.MouseButton1Click:Connect(function()
         UpdateAccentColor(preset.Col)
-    end)
+    end))
 end
 
 AddSectionLabel(SettingScroll, 'Performance & System')
@@ -2013,6 +2062,9 @@ NyXEnv.Cleanup = function()
         end)
     end
     table.clear(NyXEnv.Connections)
+    table.clear(AccentObjects)
+    table.clear(DynamicAccentCallbacks)
+    table.clear(CachedBiomeLabels)
     if ScreenGui and ScreenGui.Parent then
         ScreenGui:Destroy()
     end
@@ -2027,7 +2079,7 @@ end)
 -- ==========================================
 -- 1. Biome Detection & Mini HUD Sync
 task.spawn(function()
-    local confirmedBiome = GetAccurateServerBiome()
+    local confirmedBiome = GetAccurateServerBiome(true)
     local pendingBiome = confirmedBiome
     local pendingCount = 0
     NyXConfig.CurrentDetectedBiome = confirmedBiome
@@ -2046,7 +2098,7 @@ task.spawn(function()
             end)
         end
 
-        local rawDetected = GetAccurateServerBiome()
+        local rawDetected = GetAccurateServerBiome(false)
         local upStr = GetMacroUptime()
         UptimeValueLabel.Text = upStr
         MiniHUDText.Text = string.format('BIOME: %s  |  MERCHANT: %s  |  %s', NyXConfig.CurrentDetectedBiome, MerchantValueLabel.Text, upStr)
@@ -2085,15 +2137,23 @@ task.spawn(function()
     end
 end)
 
--- 2. Merchant Lifecycle Loop (3m Countdown -> Merchant Left = NONE, No Left Webhook)
+-- 2. Merchant Lifecycle Loop (3m Countdown -> StreamingEnabled Safe)
 task.spawn(function()
     while NyXEnv.Running and task.wait(1) do
         local worldMerchant, worldPos = FindMerchantWorldPosition(false)
         if worldMerchant and NyXConfig.CurrentMerchant == 'NONE' then
             SetMerchantArrivedState(worldMerchant, worldPos)
         elseif worldMerchant and NyXConfig.CurrentMerchant == worldMerchant:upper() then
-            NyXConfig.MerchantPosition = worldPos
+            if not NyXConfig.MerchantPosition and worldPos then
+                NyXConfig.MerchantPosition = worldPos
+                if NyXConfig.AutoWalkToMerchant and not isWalkingPath then
+                    WalkToActiveMerchantNow()
+                end
+            elseif worldPos then
+                NyXConfig.MerchantPosition = worldPos
+            end
         end
+
         if NyXConfig.CurrentMerchant ~= 'NONE' then
             local elapsed = os.time() - NyXConfig.MerchantSpawnTimestamp
             local remaining = math.max(0, NyXConfig.MerchantDuration - elapsed)
@@ -2105,8 +2165,13 @@ task.spawn(function()
             if NyXConfig.MerchantPosition then
                 local p = NyXConfig.MerchantPosition
                 MTabCoordsLbl.Text = string.format('XYZ Coordinates: %.0f, %.0f, %.0f', p.X, p.Y, p.Z)
+            else
+                MTabCoordsLbl.Text = 'XYZ Coordinates: Streaming / Out of Range'
             end
-            if remaining <= 0 or (not worldMerchant and elapsed > 15) then
+
+            -- Chỉ báo Despawn sớm nếu trước đó đã từng thấy Model trong phạm vi tải (MerchantPosition ~= nil)
+            local wasModelLoadedBefore = (NyXConfig.MerchantPosition ~= nil)
+            if remaining <= 0 or (wasModelLoadedBefore and not worldMerchant and elapsed > 15) then
                 SetMerchantLeftState(remaining <= 0 and '3m Timer Expired' or 'Model Despawned')
             end
         else
@@ -2147,12 +2212,12 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Biome Randomizer & Strange Controller Loop
+-- 4. Auto Biome Randomizer & Strange Controller Loop (Force-Scan Protected)
 task.spawn(function()
     while NyXEnv.Running do
         task.wait(1)
         if NyXConfig.AutoBiomeRandomizer or NyXConfig.AutoStrangeController then
-            local currentB = GetAccurateServerBiome()
+            local currentB = GetAccurateServerBiome(true)
             NyXConfig.CurrentDetectedBiome = currentB
             local shouldStop = NyXConfig.StopAutoBiomes[currentB] == true
 
@@ -2162,7 +2227,7 @@ task.spawn(function()
                     for _ = 1, 7 do
                         if not NyXEnv.Running then break end
                         task.wait(0.5)
-                        local checkB = GetAccurateServerBiome()
+                        local checkB = GetAccurateServerBiome(true)
                         NyXConfig.CurrentDetectedBiome = checkB
                         if NyXConfig.StopAutoBiomes[checkB] then
                             shouldStop = true
@@ -2170,7 +2235,7 @@ task.spawn(function()
                         end
                     end
                 end
-                if not shouldStop and NyXConfig.AutoStrangeController and not NyXConfig.StopAutoBiomes[GetAccurateServerBiome()] then
+                if not shouldStop and NyXConfig.AutoStrangeController and not NyXConfig.StopAutoBiomes[GetAccurateServerBiome(true)] then
                     UseItemWithInventoryFailsafe('Strange Controller')
                 end
             end
