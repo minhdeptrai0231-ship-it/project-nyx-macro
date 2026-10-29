@@ -1,7 +1,6 @@
--- // NYX DETECTOR MACRO - v6 (GETGENV PROTECTED + HSIN ICON + LIGHTWEIGHT UI)
+-- // NYX DETECTOR MACRO - v7 (UNIFIED MACRO START + NEW EMBED STYLE + FIXED GOLD BUTTON)
 local Env = (getgenv and getgenv()) or _G
 
--- Tự động dọn dẹp phiên bản cũ nếu người dùng chạy lại script (Tránh trùng lặp luồng & Anti-Cheat)
 if Env.NyXDetectorEnv and type(Env.NyXDetectorEnv.Cleanup) == 'function' then
     pcall(Env.NyXDetectorEnv.Cleanup)
 end
@@ -31,11 +30,12 @@ local PathfindingService = SafeService('PathfindingService')
 local SoundService = SafeService('SoundService')
 
 local LocalPlayer = Players.LocalPlayer
+local AccountUsername = tostring(LocalPlayer and LocalPlayer.Name or 'Unknown')
 local MacroStartTime = 0
 local ScreenGui = nil
 local Notify = function() end
 
--- // Khởi tạo môi trường trong getgenv()
+-- // Quản lý môi trường trong getgenv()
 Env.NyXDetectorEnv = {
     Running = true,
     Connections = {}
@@ -49,10 +49,10 @@ local function TrackConnection(conn)
     return conn
 end
 
--- // Tải và chuyển đổi ảnh Logo từ URL Web sang Asset hiển thị được trong Roblox
+-- // Tải và chuyển đổi ảnh Logo từ URL Web
 local HsinLogoURL = 'https://wutheringlab.com/wp-content/uploads/Hsin-icon.webp'
 local HsinLogoFile = 'NyX_Hsin_Icon.webp'
-local CustomLogoAsset = 'rbxassetid://18648155233' -- Fallback icon nếu executor không hỗ trợ getcustomasset
+local CustomLogoAsset = 'rbxassetid://18648155233'
 
 local function GetHsinLogoAsset()
     local customAssetFunc = getcustomasset or getsynasset
@@ -86,22 +86,22 @@ CustomLogoAsset = GetHsinLogoAsset()
 
 -- // 16 Standard Biomes Data
 local BiomeData = {
-    ['NORMAL'] = {Color = 0xAAAAAA, Hex = Color3.fromRGB(80, 250, 123), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['WINDY'] = {Color = 0x55FFFF, Hex = Color3.fromRGB(85, 255, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['SNOWY'] = {Color = 0xAAFFFF, Hex = Color3.fromRGB(170, 255, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['RAINY'] = {Color = 0x4477FF, Hex = Color3.fromRGB(68, 119, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['SANDSTORM'] = {Color = 0xCC9955, Hex = Color3.fromRGB(235, 180, 90), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['HELL'] = {Color = 0xFF3300, Hex = Color3.fromRGB(255, 65, 35), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['STARFALL'] = {Color = 0x2266FF, Hex = Color3.fromRGB(80, 140, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['HEAVEN'] = {Color = 0xFFEEAA, Hex = Color3.fromRGB(255, 238, 170), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['LOST FOREST'] = {Color = 0x33FF33, Hex = Color3.fromRGB(51, 255, 51), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['CORRUPTION'] = {Color = 0x8833FF, Hex = Color3.fromRGB(165, 90, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['NULL'] = {Color = 0x777777, Hex = Color3.fromRGB(160, 160, 160), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['GLITCHED'] = {Color = 0x228855, Hex = Color3.fromRGB(60, 220, 140), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['DREAMSPACE'] = {Color = 0xFF66CC, Hex = Color3.fromRGB(255, 102, 204), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['CYBERSPACE'] = {Color = 0x2255AA, Hex = Color3.fromRGB(70, 150, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['SINGULARITY'] = {Color = 0xFF9955, Hex = Color3.fromRGB(255, 153, 85), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'},
-    ['THE RADIANT FOREST'] = {Color = 0xCC33FF, Hex = Color3.fromRGB(204, 51, 255), Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'}
+    ['NORMAL'] = {Color = 0xAAAAAA, Hex = Color3.fromRGB(80, 250, 123), Image = 'https://static.wikia.nocookie.net/sol-rng/images/c/c9/Daytime_img.png/revision/latest/scale-to-width-down/1000?cb=20241116044859'},
+    ['WINDY'] = {Color = 0x55FFFF, Hex = Color3.fromRGB(85, 255, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/b/b0/Windy03.10.26.gif/revision/latest?cb=20261003094316'},
+    ['SNOWY'] = {Color = 0xAAFFFF, Hex = Color3.fromRGB(170, 255, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/1/1f/SnowyBiomeInGame.gif/revision/latest?cb=20261003145146'},
+    ['RAINY'] = {Color = 0x4477FF, Hex = Color3.fromRGB(68, 119, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/6/65/Rainy03.10.2026.gif/revision/latest?cb=20261003094418'},
+    ['SANDSTORM'] = {Color = 0xCC9955, Hex = Color3.fromRGB(235, 180, 90), Image = 'https://static.wikia.nocookie.net/sol-rng/images/7/7c/Sand_Storm.png/revision/latest/scale-to-width-down/1000?cb=20241229095728'},
+    ['HELL'] = {Color = 0xFF3300, Hex = Color3.fromRGB(255, 65, 35), Image = 'https://static.wikia.nocookie.net/sol-rng/images/2/28/Hell_Updated_03.10.26.gif/revision/latest?cb=20261003093055'},
+    ['STARFALL'] = {Color = 0x2266FF, Hex = Color3.fromRGB(80, 140, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/c/cd/0-3-10-26.Starfall.gif/revision/latest?cb=20261003091407'},
+    ['HEAVEN'] = {Color = 0xFFEEAA, Hex = Color3.fromRGB(255, 238, 170), Image = 'https://static.wikia.nocookie.net/sol-rng/images/c/c3/Heaven03.10.26.gif/revision/latest?cb=20261003094940'},
+    ['LOST FOREST'] = {Color = 0x33FF33, Hex = Color3.fromRGB(51, 255, 51), Image = 'https://static.wikia.nocookie.net/sol-rng/images/9/9c/LostForest.gif/revision/latest?cb=20261022114232'},
+    ['CORRUPTION'] = {Color = 0x8833FF, Hex = Color3.fromRGB(165, 90, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/f/f9/CorruptionBiomeUpdated03.10.26.gif/revision/latest?cb=20261003094031'},
+    ['NULL'] = {Color = 0x777777, Hex = Color3.fromRGB(160, 160, 160), Image = 'https://static.wikia.nocookie.net/sol-rng/images/6/66/NullBiome.gif/revision/latest?cb=20261003110602'},
+    ['GLITCHED'] = {Color = 0x228855, Hex = Color3.fromRGB(60, 220, 140), Image = 'https://static.wikia.nocookie.net/sol-rng/images/5/58/GlitchedNew.png/revision/latest/scale-to-width-down/1000?cb=20260730105915'},
+    ['DREAMSPACE'] = {Color = 0xFF66CC, Hex = Color3.fromRGB(255, 102, 204), Image = 'https://static.wikia.nocookie.net/sol-rng/images/4/48/Dreamspace_Biome.png/revision/latest/scale-to-width-down/1000?cb=20260730105754'},
+    ['CYBERSPACE'] = {Color = 0x2255AA, Hex = Color3.fromRGB(70, 150, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/e/e9/CyberspaceNew.png/revision/latest/scale-to-width-down/1000?cb=20260730105943'},
+    ['SINGULARITY'] = {Color = 0xFF9955, Hex = Color3.fromRGB(255, 153, 85), Image = 'https://static.wikia.nocookie.net/sol-rng/images/f/f7/SingularityBiome.png/revision/latest/scale-to-width-down/1000?cb=20260426050520'},
+    ['THE RADIANT FOREST'] = {Color = 0xCC33FF, Hex = Color3.fromRGB(204, 51, 255), Image = 'https://static.wikia.nocookie.net/sol-rng/images/8/8b/RadiantForestTitle.png/revision/latest/scale-to-width-down/1000?cb=20261019232543'}
 }
 
 local NormalizedBiomeLookup = {
@@ -126,13 +126,12 @@ local MerchantData = {
     ['Rin'] = {Color = 0x3498DB, Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'}
 }
 
--- // Lưu trữ Config trong getgenv()
+-- // Lưu trữ Config trong getgenv() (Tích hợp chung MacroActive cho cả Biome và Merchant)
 Env.NyXConfig = Env.NyXConfig or {
     WebhookURL = '',
     DiscordID = '',
     PrivateServerLink = '',
-    EnableBiomeWebhook = false,
-    EnableMerchantWebhook = false,
+    MacroActive = false,
     AutoWalkToMerchant = false,
     RespawnIfMerchantLeft = false,
     AutoInteractMerchant = false,
@@ -249,7 +248,7 @@ end)
 local function GetMacroUptime(forcedElapsed)
     local elapsed = forcedElapsed
     if not elapsed then
-        if not NyXConfig.EnableBiomeWebhook or MacroStartTime == 0 then
+        if not NyXConfig.MacroActive or MacroStartTime == 0 then
             return '00:00:00'
         end
         elapsed = math.floor(os.time() - MacroStartTime)
@@ -268,8 +267,24 @@ local function CleanRichText(str)
 end
 
 -- ==========================================
--- // DISCORD WEBHOOK SYSTEM
+-- // DISCORD WEBHOOK SYSTEM (NEW EMBED LAYOUT WITH USERNAME & DYNAMIC TIMESTAMP)
 -- ==========================================
+local EmbedFooterText = 'NyX Macro | Release v1.0.0'
+
+local function GetDiscordTimestampLine()
+    local now = os.time()
+    -- Hiển thị đúng định dạng trong ảnh: 16:50:52 ( 26 giây trước )
+    return string.format('<t:%d:T> ( <t:%d:R> )', now, now)
+end
+
+local function GetFormattedPrivateServer()
+    local link = tostring(NyXConfig.PrivateServerLink or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    if link ~= '' then
+        return link
+    end
+    return 'None'
+end
+
 local function BuildUserPingContent(shouldPing)
     if not shouldPing then return '' end
     local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
@@ -302,38 +317,61 @@ end
 
 local function SendTestWebhookEmbed(withUserPing)
     local contentMsg = BuildUserPingContent(withUserPing)
+    local desc = table.concat({
+        GetDiscordTimestampLine(),
+        '**Username**',
+        '`' .. AccountUsername .. '`',
+        '**Private Server**',
+        GetFormattedPrivateServer()
+    }, '\n')
+
     SendRawWebhook({
         ['content'] = contentMsg,
         ['embeds'] = {{
             ['title'] = withUserPing and 'Ping With User ID - Successfully' or 'Webhook Test - Successfully',
-            ['description'] = withUserPing and ('User ID Ping verified for ' .. contentMsg) or 'Connection verified. NyX Detector Macro is ready.',
+            ['description'] = desc,
             ['color'] = 0x2ECC71,
-            ['footer'] = {['text'] = 'Project NyX'}
+            ['footer'] = {['text'] = EmbedFooterText}
         }}
     })
 end
 
 local function SendMacroStateEmbed(isStarted, finalElapsed)
-    local currentClock = os.date('%H:%M:%S')
     if isStarted then
+        local desc = table.concat({
+            GetDiscordTimestampLine(),
+            '**Username**',
+            '`' .. AccountUsername .. '`',
+            '**Private Server**',
+            GetFormattedPrivateServer()
+        }, '\n')
+
         SendRawWebhook({
             ['content'] = '',
             ['embeds'] = {{
                 ['title'] = 'Macro Started',
-                ['description'] = '**NyX Detector Macro** has started monitoring Biomes and Merchants.\n**Macro Uptime :** `00:00:00`',
+                ['description'] = desc,
                 ['color'] = 0x00FF88,
-                ['footer'] = {['text'] = 'NyX Detector Macro | ' .. currentClock}
+                ['footer'] = {['text'] = EmbedFooterText}
             }}
         })
     else
         local uptimeStr = GetMacroUptime(finalElapsed or 0)
+        local desc = table.concat({
+            GetDiscordTimestampLine(),
+            '**Username**',
+            '`' .. AccountUsername .. '`',
+            '**Total Uptime**',
+            '`' .. uptimeStr .. '`'
+        }, '\n')
+
         SendRawWebhook({
             ['content'] = '',
             ['embeds'] = {{
                 ['title'] = 'Macro Stopped',
-                ['description'] = '**NyX Detector Macro** has been stopped.\n**Total Uptime :** `' .. uptimeStr .. '` *(Reset)*',
+                ['description'] = desc,
                 ['color'] = 0xFF3344,
-                ['footer'] = {['text'] = 'NyX Detector Macro | ' .. currentClock}
+                ['footer'] = {['text'] = EmbedFooterText}
             }}
         })
     end
@@ -342,53 +380,73 @@ end
 local function SendBiomeStartedEmbed(biomeName, color, imageUrl)
     local shouldPing = NyXConfig.PingBiomes[biomeName] == true
     local contentMsg = BuildUserPingContent(shouldPing)
-    local psDisplay = NyXConfig.PrivateServerLink ~= '' and ('[Click to Join Server](' .. NyXConfig.PrivateServerLink .. ')') or '`None`'
-    local currentClock = os.date('%H:%M:%S')
-    local uptimeStr = GetMacroUptime()
+    local displayBiome = (biomeName == 'SANDSTORM') and 'SAND STORM' or biomeName
+
+    local desc = table.concat({
+        GetDiscordTimestampLine(),
+        '**Username**',
+        '`' .. AccountUsername .. '`',
+        '**Private Server**',
+        GetFormattedPrivateServer()
+    }, '\n')
+
     SendRawWebhook({
         ['content'] = contentMsg,
         ['embeds'] = {{
-            ['title'] = 'Biome Started - ' .. biomeName,
-            ['description'] = '**Macro Uptime :** `' .. uptimeStr .. '`\n**Private Server :** ' .. psDisplay,
-            ['color'] = color or 0x9B59B6,
+            ['title'] = 'Biome Started - ' .. displayBiome,
+            ['description'] = desc,
+            ['color'] = color or 0xCC9955,
             ['thumbnail'] = {['url'] = imageUrl},
-            ['footer'] = {['text'] = 'NyX Detector Macro | ' .. currentClock}
+            ['footer'] = {['text'] = EmbedFooterText}
         }}
     })
 end
 
 local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
-    local currentClock = os.date('%H:%M:%S')
-    local uptimeStr = GetMacroUptime()
+    local displayBiome = (biomeName == 'SANDSTORM') and 'SAND STORM' or biomeName
+    local desc = table.concat({
+        GetDiscordTimestampLine(),
+        '**Username**',
+        '`' .. AccountUsername .. '`'
+    }, '\n')
+
     SendRawWebhook({
         ['content'] = '',
         ['embeds'] = {{
-            ['title'] = 'Biome Ended - ' .. biomeName,
-            ['description'] = '**Macro Uptime :** `' .. uptimeStr .. '`',
+            ['title'] = 'Biome Ended - ' .. displayBiome,
+            ['description'] = desc,
             ['color'] = color or 0x555555,
             ['thumbnail'] = {['url'] = imageUrl},
-            ['footer'] = {['text'] = 'NyX Detector Macro | ' .. currentClock}
+            ['footer'] = {['text'] = EmbedFooterText}
         }}
     })
 end
 
 local function SendMerchantArrivedEmbed(merchantName)
-    if not NyXConfig.EnableMerchantWebhook then return end
+    if not NyXConfig.MacroActive then return end
     local mInfo = MerchantData[merchantName] or {
         Color = 0xF1C40F,
         Image = 'https://tr.rbxcdn.com/180DAY-b568b5a06678921704d6c473e1ab1cb8/150/150/Image/Png/noFilter'
     }
     local shouldPing = NyXConfig.PingMerchants[merchantName] == true
     local contentMsg = BuildUserPingContent(shouldPing)
-    local psDisplay = NyXConfig.PrivateServerLink ~= '' and ('[Click to Join Server](' .. NyXConfig.PrivateServerLink .. ')') or '`None`'
+
+    local desc = table.concat({
+        GetDiscordTimestampLine(),
+        '**Username**',
+        '`' .. AccountUsername .. '`',
+        '**Private Server**',
+        GetFormattedPrivateServer()
+    }, '\n')
+
     SendRawWebhook({
         ['content'] = contentMsg,
         ['embeds'] = {{
-            ['title'] = merchantName .. ' has arrived!',
-            ['description'] = '**Merchant :** `' .. merchantName .. '`\n**Duration :** `03:00`\n**Macro Uptime :** `' .. GetMacroUptime() .. '`\n**Private Server :** ' .. psDisplay,
+            ['title'] = 'Merchant Arrived - ' .. merchantName:upper(),
+            ['description'] = desc,
             ['color'] = mInfo.Color,
             ['thumbnail'] = {['url'] = mInfo.Image},
-            ['footer'] = {['text'] = 'NyX Detector Macro | ' .. os.date('%H:%M:%S')}
+            ['footer'] = {['text'] = EmbedFooterText}
         }}
     })
 end
@@ -1176,7 +1234,7 @@ if Workspace.CurrentCamera then
     TrackConnection(Workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(RecalculateResponsiveScale))
 end
 
--- // Floating Hsin Image Logo Toggle Button (Thay thế nút chữ ND NyX cũ)
+-- // Floating Hsin Image Logo Toggle Button
 local LogoToggleBtn = Instance.new('ImageButton', ScreenGui)
 LogoToggleBtn.Name = 'HsinToggleBtn'
 LogoToggleBtn.Size = UDim2.new(0, 46, 0, 46)
@@ -1260,7 +1318,7 @@ local BrandSub = Instance.new('TextLabel', Sidebar)
 BrandSub.Size = UDim2.new(1, -46, 0, 12)
 BrandSub.Position = UDim2.new(0, 44, 0, 25)
 BrandSub.BackgroundTransparency = 1
-BrandSub.Text = 'LITE v6'
+BrandSub.Text = 'LITE v7'
 BrandSub.Font = Enum.Font.GothamBold
 BrandSub.TextSize = 9
 BrandSub.TextXAlignment = Enum.TextXAlignment.Left
@@ -1555,8 +1613,8 @@ end
 -- ==========================================
 -- // BUILD THE 6 TABS
 -- ==========================================
-local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home', 'Live status & quick controls')
-local MainScroll = CreateTabPage('Main', 'Biome detector & item automation')
+local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home', 'Live status & unified macro start')
+local MainScroll = CreateTabPage('Main', 'Ground collector & item automation')
 local MerchantScroll = CreateTabPage('Merchant', '3m Merchant tracker & smart walk')
 local ConnScroll = CreateTabPage('Webhook', 'Discord Webhook, User ID & Server link')
 local PingsScroll = CreateTabPage('Pings', '16 Biomes & 3 Merchants ping filter')
@@ -1651,16 +1709,17 @@ MerchantValueLabel.TextSize = 11
 MerchantValueLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
 MerchantValueLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-AddSectionLabel(HomeScroll, 'Quick Controls')
-AddToggle(HomeScroll, 'Start Biome & State Detector', 'Enable macro timer & Discord biome notifications.', NyXConfig.EnableBiomeWebhook, function(val)
+AddSectionLabel(HomeScroll, 'Unified Macro Control')
+-- Tích hợp cả Biome & Merchant vào chung nút Start Macro
+AddToggle(HomeScroll, 'Start Macro (Biome & Merchant Detector)', 'Automatically starts Biome & Merchant webhook detection together.', NyXConfig.MacroActive, function(val)
     if val then
-        NyXConfig.EnableBiomeWebhook = true
+        NyXConfig.MacroActive = true
         MacroStartTime = os.time()
         SendMacroStateEmbed(true)
-        Notify('NyX Macro', 'Macro Started!', 2.5)
+        Notify('NyX Macro', 'Macro Started (Biome + Merchant Active)!', 2.5)
     else
         local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
-        NyXConfig.EnableBiomeWebhook = false
+        NyXConfig.MacroActive = false
         SendMacroStateEmbed(false, finalElapsed)
         MacroStartTime = 0
         UptimeValueLabel.Text = '00:00:00'
@@ -1733,7 +1792,7 @@ for _, bName in ipairs(All16Biomes) do
     end)
 end
 
--- // TAB 3: MERCHANT
+-- // TAB 3: MERCHANT (Đã xóa nút bật/tắt Merchant Detector riêng lẻ)
 AddSectionLabel(MerchantScroll, '3-Minute Merchant Status')
 local MerchantLiveCard = Instance.new('Frame', MerchantScroll)
 MerchantLiveCard.Size = UDim2.new(1, -4, 0, 42)
@@ -1761,9 +1820,7 @@ MTabCoordsLbl.TextSize = 9
 MTabCoordsLbl.TextColor3 = Color3.fromRGB(150, 155, 180)
 MTabCoordsLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-AddToggle(MerchantScroll, 'Enable Merchant Arrived Webhook', 'Sends Discord webhook on arrival (No Left webhook).', NyXConfig.EnableMerchantWebhook, function(val)
-    NyXConfig.EnableMerchantWebhook = val
-end)
+AddSectionLabel(MerchantScroll, 'Merchant Walk & Actions')
 AddToggle(MerchantScroll, 'Auto Walk & Jump to Merchant', 'Smart obstacle jump & river avoidance.', NyXConfig.AutoWalkToMerchant, function(val)
     NyXConfig.AutoWalkToMerchant = val
 end)
@@ -1792,7 +1849,7 @@ ConnUserIDBox = AddInput(ConnScroll, 'Discord User ID', NyXConfig.DiscordID, 'Nu
     NyXConfig.DiscordID = clean
     if PingUserIDBox and PingUserIDBox.Text ~= clean then PingUserIDBox.Text = clean end
 end)
-AddInput(ConnScroll, 'Private Server Link', NyXConfig.PrivateServerLink, 'https://www.roblox.com/games/...', function(txt)
+AddInput(ConnScroll, 'Private Server Link', NyXConfig.PrivateServerLink, 'https://www.roblox.com/share?code=...', function(txt)
     NyXConfig.PrivateServerLink = txt
 end)
 AddButton(ConnScroll, 'Save Config to File', function()
@@ -1932,12 +1989,15 @@ AddSlider(SettingScroll, 'UI Scale', 55, 125, NyXConfig.UIScalePercent, '%', fun
     RecalculateResponsiveScale()
 end)
 
+-- Đã sửa lỗi nút Gold bị rớt dòng: dùng UIListLayout ngang với 5 nút tỷ lệ 0.188 + Padding 0.015 vừa khít 100%
 local ColorRow = Instance.new('Frame', SettingScroll)
 ColorRow.Size = UDim2.new(1, -4, 0, 24)
 ColorRow.BackgroundTransparency = 1
-local ColorGrid = Instance.new('UIGridLayout', ColorRow)
-ColorGrid.CellSize = UDim2.new(0.2, -3, 0, 22)
-ColorGrid.CellPadding = UDim2.new(0, 4, 0, 0)
+local ColorListLayout = Instance.new('UIListLayout', ColorRow)
+ColorListLayout.FillDirection = Enum.FillDirection.Horizontal
+ColorListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+ColorListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+ColorListLayout.Padding = UDim.new(0.015, 0)
 
 local ThemePresets = {
     {Name = 'Blue', Col = Color3.fromRGB(95, 145, 255)},
@@ -1946,8 +2006,10 @@ local ThemePresets = {
     {Name = 'Emerald', Col = Color3.fromRGB(46, 213, 115)},
     {Name = 'Gold', Col = Color3.fromRGB(255, 175, 45)}
 }
-for _, preset in ipairs(ThemePresets) do
+for i, preset in ipairs(ThemePresets) do
     local CBtn = Instance.new('TextButton', ColorRow)
+    CBtn.LayoutOrder = i
+    CBtn.Size = UDim2.new(0.188, 0, 1, 0)
     CBtn.BackgroundColor3 = preset.Col
     CBtn.BorderSizePixel = 0
     CBtn.Text = preset.Name
@@ -2003,7 +2065,7 @@ NyXEnv.Cleanup = function()
     NyXEnv.Running = false
     cancelCurrentWalk = true
     pcall(function() RunService:Set3dRenderingEnabled(true) end)
-    if NyXConfig.EnableBiomeWebhook then
+    if NyXConfig.MacroActive then
         local finalElapsed = (MacroStartTime > 0) and (os.time() - MacroStartTime) or 0
         SendMacroStateEmbed(false, finalElapsed)
     end
@@ -2068,7 +2130,7 @@ task.spawn(function()
             if NyXConfig.PingBiomes[confirmedBiome] or NyXConfig.StopAutoBiomes[confirmedBiome] then
                 PlayAlertSound()
             end
-            if NyXConfig.EnableBiomeWebhook then
+            if NyXConfig.MacroActive then
                 if previousBiome ~= 'NORMAL' and BiomeData[previousBiome] then
                     local prevInfo = BiomeData[previousBiome]
                     SendBiomeEndedEmbed(previousBiome, prevInfo.Color, prevInfo.Image)
