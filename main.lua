@@ -1,4 +1,4 @@
--- // NYX DETECTOR MACRO - v8.1 (HOTFIX LOAD ISSUE + ASYNC LOGO + <50 LOCALS)
+-- // NYX MACRO v9 (UNIFIED TOP BAR + SEQUENTIAL WEBHOOK QUEUE + ULTRA LITE UI)
 if not game:IsLoaded() then
     pcall(function() game.Loaded:Wait() end)
 end
@@ -112,13 +112,13 @@ local All19Biomes = {
 
 local All4Merchants = {'Mari', 'Jester', 'Rin', 'Sinister S.'}
 local MerchantData = {
-    ['Mari'] = {Color = 0x2ECC71, Image = DefaultIcon},
-    ['Jester'] = {Color = 0x9B59B6, Image = DefaultIcon},
-    ['Rin'] = {Color = 0x3498DB, Image = DefaultIcon},
-    ['Sinister S.'] = {Color = 0xE67E22, Image = DefaultIcon}
+    ['Mari'] = {Color = 0x2ECC71, Image = https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR58Oq3eDhzyAT-bzed3b_4Mp9ylpaSn8EhSDCvvZJvBg&s=10},
+    ['Jester'] = {Color = 0x9B59B6, Image = https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSRnYiHseVh0504lCdb6dOQXFBpteEH78GmEIirpIgnJw&s},
+    ['Rin'] = {Color = 0x3498DB, Image = https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZshiymNKoc--z86qlunk6znxZj98EGfIviKWbi7FOxQ&s},
+    ['Sinister S.'] = {Color = 0xE67E22, Image = https://static.wikia.nocookie.net/sol-rng/images/6/66/Sinister_S._Model.png/revision/latest?cb=20261031083112}
 }
 
--- // Config & State Tables (Gom gọn biến cục bộ)
+-- // Config & State
 Env.NyXConfig = Env.NyXConfig or {
     WebhookURL = '',
     DiscordID = '',
@@ -156,14 +156,13 @@ Env.NyXConfig = Env.NyXConfig or {
     LogGlitchedTimestamp = 0,
     AntiAFK = true,
     Disable3DRendering = false,
-    ShowMiniHUD = true,
     LockUIPosition = false,
     EnableSoundAlert = true,
     WalkSpeedBoost = false,
     CustomWalkSpeed = 24,
     UIAccentColor = Color3.fromRGB(110, 165, 255),
-    GlassTransparency = 0.12,
-    UIScalePercent = 95
+    GlassTransparency = 0.1,
+    UIScalePercent = 90
 }
 local NyXConfig = Env.NyXConfig
 
@@ -184,8 +183,10 @@ local State = {
     LastFullMerchantScan = 0,
     CachedBiomeLabels = {},
     LastGuiBiomeScan = 0,
+    WebhookQueue = {},
+    IsProcessingQueue = false,
     WebhookConfigFile = 'NyX_WebhookConfig.json',
-    EmbedFooterText = 'NyX Macro | Release v1.0.0'
+    EmbedFooterText = 'Meowsollution Detector | Release Version 1'
 }
 
 local UI = {
@@ -302,11 +303,11 @@ local function CleanRichText(str)
 end
 
 -- ==========================================
--- // DISCORD WEBHOOK SYSTEM
+-- // SEQUENTIAL WEBHOOK QUEUE (FIXES ENDED/STARTED ORDER BUG)
 -- ==========================================
-local function GetDiscordTimestampLine()
-    local now = os.time()
-    return string.format('<t:%d:T> ( <t:%d:R> )', now, now)
+local function GetDiscordTimestampLine(customTime)
+    local t = customTime or os.time()
+    return string.format('<t:%d:T> ( <t:%d:R> )', t, t)
 end
 
 local function GetFormattedPrivateServer()
@@ -320,6 +321,34 @@ local function BuildUserPingContent(shouldPing)
     return (cleanID ~= '') and ('<@' .. cleanID .. '>') or ''
 end
 
+-- Hàng đợi gửi tuần tự: gói tin trước (Biome Ended) phải gửi xong hoàn tất mới gửi gói tin sau (Biome Started)
+local function ProcessWebhookQueue()
+    if State.IsProcessingQueue then return end
+    State.IsProcessingQueue = true
+    task.spawn(function()
+        while #State.WebhookQueue > 0 do
+            local item = table.remove(State.WebhookQueue, 1)
+            local cleanUrl = tostring(NyXConfig.WebhookURL or ''):gsub('%s+', '')
+            local req = (syn and syn.request) or http_request or request
+            if cleanUrl ~= '' and type(req) == 'function' then
+                pcall(function()
+                    req({
+                        Url = cleanUrl,
+                        Method = 'POST',
+                        Headers = {['Content-Type'] = 'application/json'},
+                        Body = Svc.HttpService:JSONEncode(item)
+                    })
+                end)
+                -- Nghỉ 0.35s giữa 2 gói tin liên tiếp để Discord sắp xếp đúng thứ tự thời gian tuyệt đối
+                if #State.WebhookQueue > 0 then
+                    task.wait(0.35)
+                end
+            end
+        end
+        State.IsProcessingQueue = false
+    end)
+end
+
 local function SendRawWebhook(payload)
     local cleanUrl = tostring(NyXConfig.WebhookURL or ''):gsub('%s+', '')
     if cleanUrl == '' then return end
@@ -328,19 +357,8 @@ local function SendRawWebhook(payload)
         ['parse'] = {'users', 'everyone'},
         ['users'] = cleanID ~= '' and {cleanID} or {}
     }
-    local req = (syn and syn.request) or http_request or request
-    if type(req) == 'function' then
-        task.spawn(function()
-            pcall(function()
-                req({
-                    Url = cleanUrl,
-                    Method = 'POST',
-                    Headers = {['Content-Type'] = 'application/json'},
-                    Body = Svc.HttpService:JSONEncode(payload)
-                })
-            end)
-        end)
-    end
+    table.insert(State.WebhookQueue, payload)
+    ProcessWebhookQueue()
 end
 
 local function SendTestWebhookEmbed(withUserPing)
@@ -405,13 +423,33 @@ local function SendMacroStateEmbed(isStarted, finalElapsed)
     end
 end
 
-local function SendBiomeStartedEmbed(biomeName, color, imageUrl)
+local function SendBiomeEndedEmbed(biomeName, color, imageUrl, customTimestamp)
+    local displayBiome = (biomeName == 'SANDSTORM') and 'SAND STORM' or biomeName
+    local desc = table.concat({
+        GetDiscordTimestampLine(customTimestamp),
+        '**Username**',
+        '`' .. AccountUsername .. '`'
+    }, '\n')
+
+    SendRawWebhook({
+        ['content'] = '',
+        ['embeds'] = {{
+            ['title'] = 'Biome Ended - ' .. displayBiome,
+            ['description'] = desc,
+            ['color'] = color or 0x555555,
+            ['thumbnail'] = {['url'] = imageUrl},
+            ['footer'] = {['text'] = State.EmbedFooterText}
+        }}
+    })
+end
+
+local function SendBiomeStartedEmbed(biomeName, color, imageUrl, customTimestamp)
     local shouldPing = NyXConfig.PingBiomes[biomeName] == true
     local contentMsg = BuildUserPingContent(shouldPing)
     local displayBiome = (biomeName == 'SANDSTORM') and 'SAND STORM' or biomeName
 
     local desc = table.concat({
-        GetDiscordTimestampLine(),
+        GetDiscordTimestampLine(customTimestamp),
         '**Username**',
         '`' .. AccountUsername .. '`',
         '**Private Server**',
@@ -424,26 +462,6 @@ local function SendBiomeStartedEmbed(biomeName, color, imageUrl)
             ['title'] = 'Biome Started - ' .. displayBiome,
             ['description'] = desc,
             ['color'] = color or 0xCC9955,
-            ['thumbnail'] = {['url'] = imageUrl},
-            ['footer'] = {['text'] = State.EmbedFooterText}
-        }}
-    })
-end
-
-local function SendBiomeEndedEmbed(biomeName, color, imageUrl)
-    local displayBiome = (biomeName == 'SANDSTORM') and 'SAND STORM' or biomeName
-    local desc = table.concat({
-        GetDiscordTimestampLine(),
-        '**Username**',
-        '`' .. AccountUsername .. '`'
-    }, '\n')
-
-    SendRawWebhook({
-        ['content'] = '',
-        ['embeds'] = {{
-            ['title'] = 'Biome Ended - ' .. displayBiome,
-            ['description'] = desc,
-            ['color'] = color or 0x555555,
             ['thumbnail'] = {['url'] = imageUrl},
             ['footer'] = {['text'] = State.EmbedFooterText}
         }}
@@ -787,10 +805,10 @@ local function WalkToActiveMerchantNow()
             mName = NyXConfig.CurrentMerchant
         end
         if not mPos then
-            Notify('Merchant Pathfinding', 'No active merchant coordinates found in world!', 3)
+            Notify('Merchant', 'No active merchant found!', 2.5)
             return
         end
-        Notify('Merchant Pathfinding', 'Walking safely to ' .. tostring(mName or 'Merchant') .. '...', 3.5)
+        Notify('Merchant', 'Walking to ' .. tostring(mName or 'Merchant') .. '...', 3)
         WalkSafelyToTargetPosition(mPos, function()
             return NyXConfig.CurrentMerchant == 'NONE'
         end, true)
@@ -820,7 +838,7 @@ local function SetMerchantArrivedState(merchantName, worldPos, customDuration)
 
     PlayAlertSound()
     SendMerchantArrivedEmbed(canonicalName)
-    Notify('Merchant Spawned!', canonicalName .. ' has spawned!', 4)
+    Notify('Merchant', canonicalName .. ' spawned!', 3.5)
     if NyXConfig.AutoWalkToMerchant and worldPos then
         WalkToActiveMerchantNow()
     end
@@ -833,9 +851,8 @@ local function SetMerchantLeftState(reason)
     NyXConfig.MerchantSpawnTimestamp = 0
     NyXConfig.MerchantPosition = nil
     State.CachedMerchantObj = nil
-    Notify('Merchant Left', prevMerchant .. ' has left! (' .. tostring(reason or 'Despawned') .. ')', 4)
+    Notify('Merchant', prevMerchant .. ' left (' .. tostring(reason or 'Despawned') .. ')', 3.5)
     if NyXConfig.RespawnIfMerchantLeft then
-        Notify('Auto Respawn', 'Respawning character because merchant left...', 3)
         task.wait(0.8)
         RespawnCharacterSafely()
     end
@@ -1101,7 +1118,7 @@ local function UseItemWithInventoryFailsafe(itemName)
 end
 
 -- ==========================================
--- // LIQUID GLASS LITE UI CREATION (INSTANT NON-BLOCKING LOAD)
+-- // UNIFIED TOP BAR + CLEAN MINIMAL UI CREATION
 -- ==========================================
 local ParentGui = nil
 pcall(function()
@@ -1139,10 +1156,10 @@ local BlackSaverLabel = Instance.new('TextLabel', UI.BlackSaverFrame)
 BlackSaverLabel.Size = UDim2.new(1, 0, 0, 30)
 BlackSaverLabel.Position = UDim2.new(0, 0, 0.46, 0)
 BlackSaverLabel.BackgroundTransparency = 1
-BlackSaverLabel.Text = 'OLED BATTERY SAVER ACTIVE'
+BlackSaverLabel.Text = 'OLED SAVER'
 BlackSaverLabel.Font = Enum.Font.GothamBold
 BlackSaverLabel.TextSize = 13
-BlackSaverLabel.TextColor3 = Color3.fromRGB(100, 105, 125)
+BlackSaverLabel.TextColor3 = Color3.fromRGB(95, 100, 120)
 BlackSaverLabel.ZIndex = 2
 
 local function RegisterAccent(obj, prop)
@@ -1165,147 +1182,61 @@ local function UpdateAccentColor(newColor)
 end
 
 UI.ToastHolder = Instance.new('Frame', UI.ScreenGui)
-UI.ToastHolder.Size = UDim2.new(0, 210, 1, -16)
-UI.ToastHolder.Position = UDim2.new(1, -220, 0, 8)
+UI.ToastHolder.Size = UDim2.new(0, 200, 1, -16)
+UI.ToastHolder.Position = UDim2.new(1, -210, 0, 8)
 UI.ToastHolder.BackgroundTransparency = 1
 UI.ToastHolder.ZIndex = 20
 
 local ToastLayout = Instance.new('UIListLayout', UI.ToastHolder)
 ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-ToastLayout.Padding = UDim.new(0, 5)
+ToastLayout.Padding = UDim.new(0, 4)
 
 Notify = function(title, text, duration)
     task.spawn(function()
         if not UI.ScreenGui or not UI.ScreenGui.Parent then return end
         local Card = Instance.new('Frame', UI.ToastHolder)
-        Card.Size = UDim2.new(1, 0, 0, 44)
+        Card.Size = UDim2.new(1, 0, 0, 38)
         Card.BackgroundColor3 = Color3.fromRGB(16, 20, 30)
         Card.BackgroundTransparency = 0.08
         Card.BorderSizePixel = 0
         Card.ZIndex = 21
-        Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 8)
+        Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
 
         local AccentLeft = Instance.new('Frame', Card)
-        AccentLeft.Size = UDim2.new(0, 3, 1, -10)
-        AccentLeft.Position = UDim2.new(0, 4, 0, 5)
+        AccentLeft.Size = UDim2.new(0, 3, 1, -8)
+        AccentLeft.Position = UDim2.new(0, 4, 0, 4)
         AccentLeft.BackgroundColor3 = NyXConfig.UIAccentColor
         AccentLeft.BorderSizePixel = 0
         AccentLeft.ZIndex = 22
         Instance.new('UICorner', AccentLeft).CornerRadius = UDim.new(1, 0)
 
         local Tbl = Instance.new('TextLabel', Card)
-        Tbl.Size = UDim2.new(1, -18, 0, 16)
-        Tbl.Position = UDim2.new(0, 12, 0, 4)
+        Tbl.Size = UDim2.new(1, -16, 0, 14)
+        Tbl.Position = UDim2.new(0, 12, 0, 3)
         Tbl.BackgroundTransparency = 1
         Tbl.Text = title
         Tbl.TextColor3 = Color3.fromRGB(245, 247, 255)
         Tbl.Font = Enum.Font.GothamBold
-        Tbl.TextSize = 11
+        Tbl.TextSize = 10
         Tbl.ZIndex = 22
         Tbl.TextXAlignment = Enum.TextXAlignment.Left
 
         local Sub = Instance.new('TextLabel', Card)
-        Sub.Size = UDim2.new(1, -18, 0, 18)
-        Sub.Position = UDim2.new(0, 12, 0, 20)
+        Sub.Size = UDim2.new(1, -16, 0, 14)
+        Sub.Position = UDim2.new(0, 12, 0, 18)
         Sub.BackgroundTransparency = 1
         Sub.Text = text
-        Sub.TextColor3 = Color3.fromRGB(175, 185, 205)
+        Sub.TextColor3 = Color3.fromRGB(170, 180, 200)
         Sub.Font = Enum.Font.Gotham
         Sub.TextSize = 9
-        Sub.TextWrapped = true
+        Sub.TextTruncate = Enum.TextTruncate.AtEnd
         Sub.ZIndex = 22
         Sub.TextXAlignment = Enum.TextXAlignment.Left
 
-        task.wait(duration or 3)
+        task.wait(duration or 2.5)
         if Card and Card.Parent then Card:Destroy() end
     end)
 end
-
--- // Mini Status HUD Bar
-UI.MiniHUD = Instance.new('Frame', UI.ScreenGui)
-UI.MiniHUD.AnchorPoint = Vector2.new(0.5, 0)
-UI.MiniHUD.Size = UDim2.new(0, 340, 0, 26)
-UI.MiniHUD.Position = UDim2.new(0.5, 0, 0, 8)
-UI.MiniHUD.BackgroundColor3 = Color3.fromRGB(14, 18, 28)
-UI.MiniHUD.BackgroundTransparency = 0.14
-UI.MiniHUD.BorderSizePixel = 0
-UI.MiniHUD.Active = true
-UI.MiniHUD.Visible = NyXConfig.ShowMiniHUD
-UI.MiniHUD.ZIndex = 25
-Instance.new('UICorner', UI.MiniHUD).CornerRadius = UDim.new(1, 0)
-
-local MiniStroke = Instance.new('UIStroke', UI.MiniHUD)
-MiniStroke.Thickness = 1
-MiniStroke.Transparency = 0.55
-RegisterAccent(MiniStroke, 'Color')
-
-UI.MiniHUDText = Instance.new('TextLabel', UI.MiniHUD)
-UI.MiniHUDText.Size = UDim2.new(1, -16, 1, 0)
-UI.MiniHUDText.Position = UDim2.new(0, 8, 0, 0)
-UI.MiniHUDText.BackgroundTransparency = 1
-UI.MiniHUDText.Text = 'BIOME: NORMAL  |  MERCH: NONE  |  00:00:00'
-UI.MiniHUDText.Font = Enum.Font.GothamBold
-UI.MiniHUDText.TextSize = 10
-UI.MiniHUDText.TextColor3 = Color3.fromRGB(240, 245, 255)
-UI.MiniHUDText.ZIndex = 26
-
--- // Main Window
-UI.MainWindow = Instance.new('Frame', UI.ScreenGui)
-UI.MainWindow.Name = 'MainWindow'
-UI.MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
-UI.MainWindow.Size = UDim2.new(0, 485, 0, 290)
-UI.MainWindow.Position = UDim2.new(0.5, 0, 0.5, 0)
-UI.MainWindow.BackgroundColor3 = Color3.fromRGB(15, 19, 29)
-UI.MainWindow.BackgroundTransparency = NyXConfig.GlassTransparency
-UI.MainWindow.BorderSizePixel = 0
-UI.MainWindow.Active = true
-UI.MainWindow.ZIndex = 5
-Instance.new('UICorner', UI.MainWindow).CornerRadius = UDim.new(0, 12)
-
-local GlassGrad = Instance.new('UIGradient', UI.MainWindow)
-GlassGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 200, 225))
-})
-GlassGrad.Rotation = 35
-
-local MainStroke = Instance.new('UIStroke', UI.MainWindow)
-MainStroke.Thickness = 1.1
-MainStroke.Transparency = 0.45
-RegisterAccent(MainStroke, 'Color')
-
-UI.WindowScale = Instance.new('UIScale', UI.MainWindow)
-local function RecalculateResponsiveScale()
-    pcall(function()
-        local cam = Svc.Workspace.CurrentCamera
-        local vp = cam and cam.ViewportSize or Vector2.new(800, 480)
-        local autoRatio = math.clamp(math.min(vp.X / 550, vp.Y / 335), 0.65, 1.1)
-        UI.WindowScale.Scale = autoRatio * (NyXConfig.UIScalePercent / 100)
-    end)
-end
-RecalculateResponsiveScale()
-if Svc.Workspace.CurrentCamera then
-    TrackConnection(Svc.Workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(RecalculateResponsiveScale))
-end
-
--- // Floating Hsin Toggle Button (Loads fallback icon first, updates to Hsin icon asynchronously)
-local FallbackLogo = 'rbxassetid://18648155233'
-UI.LogoToggleBtn = Instance.new('ImageButton', UI.ScreenGui)
-UI.LogoToggleBtn.Name = 'HsinToggleBtn'
-UI.LogoToggleBtn.Size = UDim2.new(0, 44, 0, 44)
-UI.LogoToggleBtn.Position = UDim2.new(0.03, 0, 0.2, 0)
-UI.LogoToggleBtn.BackgroundColor3 = Color3.fromRGB(16, 20, 30)
-UI.LogoToggleBtn.BackgroundTransparency = 0.1
-UI.LogoToggleBtn.Image = FallbackLogo
-UI.LogoToggleBtn.ScaleType = Enum.ScaleType.Fit
-UI.LogoToggleBtn.Active = true
-UI.LogoToggleBtn.ZIndex = 30
-Instance.new('UICorner', UI.LogoToggleBtn).CornerRadius = UDim.new(0, 11)
-
-local LogoBtnStroke = Instance.new('UIStroke', UI.LogoToggleBtn)
-LogoBtnStroke.Thickness = 1.3
-LogoBtnStroke.Transparency = 0.3
-RegisterAccent(LogoBtnStroke, 'Color')
 
 local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
     local dragging, hasMoved, dragStart, startPos = false, false, nil, nil
@@ -1336,31 +1267,143 @@ local function MakeDraggable(dragHandle, targetFrame, onClickCallback)
     end))
 end
 
-MakeDraggable(UI.LogoToggleBtn, UI.LogoToggleBtn, function()
-    UI.MainWindow.Visible = not UI.MainWindow.Visible
-end)
-MakeDraggable(UI.MiniHUD, UI.MiniHUD, function()
+-- // UNIFIED TOP BAR (Tích hợp [Biome | Merchant | Uptime | Nút Logo mở Full UI] đúng theo ảnh thiết kế)
+local FallbackLogo = 'rbxassetid://18648155233'
+UI.TopBar = Instance.new('Frame', UI.ScreenGui)
+UI.TopBar.Name = 'UnifiedTopBar'
+UI.TopBar.AnchorPoint = Vector2.new(0.5, 0)
+UI.TopBar.Size = UDim2.new(0, 390, 0, 36)
+UI.TopBar.Position = UDim2.new(0.5, 0, 0, 8)
+UI.TopBar.BackgroundColor3 = Color3.fromRGB(14, 18, 27)
+UI.TopBar.BackgroundTransparency = 0.08
+UI.TopBar.BorderSizePixel = 0
+UI.TopBar.Active = true
+UI.TopBar.ZIndex = 25
+Instance.new('UICorner', UI.TopBar).CornerRadius = UDim.new(0, 8)
+
+local TopBarStroke = Instance.new('UIStroke', UI.TopBar)
+TopBarStroke.Thickness = 1.2
+TopBarStroke.Transparency = 0.35
+RegisterAccent(TopBarStroke, 'Color')
+
+local function CreateTopBarCell(parent, xPosScale, widthScale, titleText, defaultValText)
+    local Cell = Instance.new('Frame', parent)
+    Cell.Size = UDim2.new(widthScale, 0, 1, 0)
+    Cell.Position = UDim2.new(xPosScale, 0, 0, 0)
+    Cell.BackgroundTransparency = 1
+    Cell.ZIndex = 26
+
+    local Hdr = Instance.new('TextLabel', Cell)
+    Hdr.Size = UDim2.new(1, -12, 0, 11)
+    Hdr.Position = UDim2.new(0, 8, 0, 4)
+    Hdr.BackgroundTransparency = 1
+    Hdr.Text = titleText
+    Hdr.Font = Enum.Font.GothamBold
+    Hdr.TextSize = 8
+    Hdr.TextColor3 = Color3.fromRGB(140, 150, 175)
+    Hdr.TextXAlignment = Enum.TextXAlignment.Left
+    Hdr.ZIndex = 27
+
+    local Val = Instance.new('TextLabel', Cell)
+    Val.Size = UDim2.new(1, -12, 0, 16)
+    Val.Position = UDim2.new(0, 8, 0, 16)
+    Val.BackgroundTransparency = 1
+    Val.Text = defaultValText
+    Val.Font = Enum.Font.GothamBlack
+    Val.TextSize = 11
+    Val.TextColor3 = Color3.fromRGB(240, 245, 255)
+    Val.TextTruncate = Enum.TextTruncate.AtEnd
+    Val.TextXAlignment = Enum.TextXAlignment.Left
+    Val.ZIndex = 27
+
+    local Div = Instance.new('Frame', parent)
+    Div.Size = UDim2.new(0, 1, 1, -10)
+    Div.Position = UDim2.new(xPosScale + widthScale, 0, 0, 5)
+    Div.BackgroundColor3 = Color3.fromRGB(45, 52, 72)
+    Div.BorderSizePixel = 0
+    Div.ZIndex = 27
+
+    return Val
+end
+
+-- 3 Ô Thông tin (Biome | Merchant | Uptime) + 1 Ô Nút bấm Logo bên phải cùng
+UI.BarBiomeVal = CreateTopBarCell(UI.TopBar, 0.00, 0.31, 'BIOME', 'NORMAL')
+UI.BarBiomeVal.TextColor3 = Color3.fromRGB(80, 250, 123)
+
+UI.BarMerchVal = CreateTopBarCell(UI.TopBar, 0.31, 0.31, 'MERCHANT', 'NONE')
+UI.BarMerchVal.TextColor3 = Color3.fromRGB(255, 200, 80)
+
+UI.BarUptimeVal = CreateTopBarCell(UI.TopBar, 0.62, 0.27, 'UPTIME', '00:00:00')
+RegisterAccent(UI.BarUptimeVal, 'TextColor3')
+
+-- Ô thứ 4 bên phải cùng: Nút Logo mở Full UI (Kéo thả được cả thanh TopBar)
+UI.TopBarOpenBtn = Instance.new('ImageButton', UI.TopBar)
+UI.TopBarOpenBtn.Name = 'OpenFullUIBtn'
+UI.TopBarOpenBtn.Size = UDim2.new(0.11, -6, 1, -6)
+UI.TopBarOpenBtn.Position = UDim2.new(0.89, 3, 0, 3)
+UI.TopBarOpenBtn.BackgroundColor3 = Color3.fromRGB(22, 28, 42)
+UI.TopBarOpenBtn.BorderSizePixel = 0
+UI.TopBarOpenBtn.Image = FallbackLogo
+UI.TopBarOpenBtn.ScaleType = Enum.ScaleType.Fit
+UI.TopBarOpenBtn.ZIndex = 28
+Instance.new('UICorner', UI.TopBarOpenBtn).CornerRadius = UDim.new(0, 6)
+
+-- // Main Window (Full UI)
+UI.MainWindow = Instance.new('Frame', UI.ScreenGui)
+UI.MainWindow.Name = 'MainWindow'
+UI.MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
+UI.MainWindow.Size = UDim2.new(0, 460, 0, 275)
+UI.MainWindow.Position = UDim2.new(0.5, 0, 0.53, 0)
+UI.MainWindow.BackgroundColor3 = Color3.fromRGB(15, 19, 29)
+UI.MainWindow.BackgroundTransparency = NyXConfig.GlassTransparency
+UI.MainWindow.BorderSizePixel = 0
+UI.MainWindow.Active = true
+UI.MainWindow.ZIndex = 5
+Instance.new('UICorner', UI.MainWindow).CornerRadius = UDim.new(0, 10)
+
+local MainStroke = Instance.new('UIStroke', UI.MainWindow)
+MainStroke.Thickness = 1
+MainStroke.Transparency = 0.45
+RegisterAccent(MainStroke, 'Color')
+
+UI.WindowScale = Instance.new('UIScale', UI.MainWindow)
+local function RecalculateResponsiveScale()
+    pcall(function()
+        local cam = Svc.Workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize or Vector2.new(800, 480)
+        local autoRatio = math.clamp(math.min(vp.X / 540, vp.Y / 330), 0.65, 1.1)
+        UI.WindowScale.Scale = autoRatio * (NyXConfig.UIScalePercent / 100)
+    end)
+end
+RecalculateResponsiveScale()
+if Svc.Workspace.CurrentCamera then
+    TrackConnection(Svc.Workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(RecalculateResponsiveScale))
+end
+
+-- Kéo thả thanh TopBar & Bấm nút Logo để đóng/mở Full UI
+MakeDraggable(UI.TopBar, UI.TopBar)
+MakeDraggable(UI.TopBarOpenBtn, UI.TopBar, function()
     UI.MainWindow.Visible = not UI.MainWindow.Visible
 end)
 
--- // Sidebar
+-- // Sidebar gọn nhẹ
 local Sidebar = Instance.new('Frame', UI.MainWindow)
-Sidebar.Size = UDim2.new(0, 126, 1, 0)
+Sidebar.Size = UDim2.new(0, 114, 1, 0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(20, 25, 38)
-Sidebar.BackgroundTransparency = 0.35
+Sidebar.BackgroundTransparency = 0.3
 Sidebar.BorderSizePixel = 0
-Instance.new('UICorner', Sidebar).CornerRadius = UDim.new(0, 12)
+Instance.new('UICorner', Sidebar).CornerRadius = UDim.new(0, 10)
 
 UI.BrandImage = Instance.new('ImageLabel', Sidebar)
-UI.BrandImage.Size = UDim2.new(0, 28, 0, 28)
+UI.BrandImage.Size = UDim2.new(0, 24, 0, 24)
 UI.BrandImage.Position = UDim2.new(0, 10, 0, 10)
 UI.BrandImage.BackgroundColor3 = Color3.fromRGB(12, 15, 22)
 UI.BrandImage.BackgroundTransparency = 0.2
 UI.BrandImage.Image = FallbackLogo
 UI.BrandImage.ScaleType = Enum.ScaleType.Fit
-Instance.new('UICorner', UI.BrandImage).CornerRadius = UDim.new(0, 7)
+Instance.new('UICorner', UI.BrandImage).CornerRadius = UDim.new(0, 6)
 
--- Tải ảnh Hsin chạy ngầm (Async) để không bao giờ làm kẹt lúc khởi động script
+-- Tải ảnh Hsin chạy ngầm (Async) cập nhật cho cả Nút TopBar và Sidebar
 task.spawn(function()
     pcall(function()
         local customAssetFunc = getcustomasset or getsynasset
@@ -1380,7 +1423,7 @@ task.spawn(function()
             if isfile(HsinLogoFile) then
                 local assetId = customAssetFunc(HsinLogoFile)
                 if assetId and assetId ~= '' then
-                    UI.LogoToggleBtn.Image = assetId
+                    UI.TopBarOpenBtn.Image = assetId
                     UI.BrandImage.Image = assetId
                 end
             end
@@ -1389,83 +1432,63 @@ task.spawn(function()
 end)
 
 local BrandTitle = Instance.new('TextLabel', Sidebar)
-BrandTitle.Size = UDim2.new(1, -44, 0, 15)
-BrandTitle.Position = UDim2.new(0, 42, 0, 10)
+BrandTitle.Size = UDim2.new(1, -40, 0, 24)
+BrandTitle.Position = UDim2.new(0, 38, 0, 10)
 BrandTitle.BackgroundTransparency = 1
-BrandTitle.Text = 'NyX Macro'
+BrandTitle.Text = 'NyX v9'
 BrandTitle.Font = Enum.Font.GothamBlack
 BrandTitle.TextSize = 12
 BrandTitle.TextColor3 = Color3.fromRGB(245, 248, 255)
 BrandTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-local BrandSub = Instance.new('TextLabel', Sidebar)
-BrandSub.Size = UDim2.new(1, -44, 0, 12)
-BrandSub.Position = UDim2.new(0, 42, 0, 24)
-BrandSub.BackgroundTransparency = 1
-BrandSub.Text = 'GLASS v8.1'
-BrandSub.Font = Enum.Font.GothamBold
-BrandSub.TextSize = 9
-BrandSub.TextXAlignment = Enum.TextXAlignment.Left
-RegisterAccent(BrandSub, 'TextColor3')
-
 MakeDraggable(Sidebar, UI.MainWindow)
 
 local CloseBtn = Instance.new('TextButton', UI.MainWindow)
-CloseBtn.Size = UDim2.new(0, 24, 0, 24)
-CloseBtn.Position = UDim2.new(1, -30, 0, 8)
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+CloseBtn.Position = UDim2.new(1, -28, 0, 8)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 48)
 CloseBtn.BackgroundTransparency = 0.25
 CloseBtn.BorderSizePixel = 0
 CloseBtn.Text = '×'
 CloseBtn.TextColor3 = Color3.fromRGB(210, 215, 235)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 15
+CloseBtn.TextSize = 14
 Instance.new('UICorner', CloseBtn).CornerRadius = UDim.new(0, 6)
 CloseBtn.MouseButton1Click:Connect(function()
     UI.MainWindow.Visible = false
 end)
 
 local NavHolder = Instance.new('Frame', Sidebar)
-NavHolder.Size = UDim2.new(1, -14, 1, -52)
-NavHolder.Position = UDim2.new(0, 7, 0, 44)
+NavHolder.Size = UDim2.new(1, -12, 1, -48)
+NavHolder.Position = UDim2.new(0, 6, 0, 42)
 NavHolder.BackgroundTransparency = 1
 local NavLayout = Instance.new('UIListLayout', NavHolder)
 NavLayout.Padding = UDim.new(0, 4)
 
 local ContentArea = Instance.new('Frame', UI.MainWindow)
-ContentArea.Size = UDim2.new(1, -130, 1, 0)
-ContentArea.Position = UDim2.new(0, 130, 0, 0)
+ContentArea.Size = UDim2.new(1, -118, 1, 0)
+ContentArea.Position = UDim2.new(0, 118, 0, 0)
 ContentArea.BackgroundTransparency = 1
 
-local function CreateTabPage(tabName, subtitleText)
+local function CreateTabPage(tabName)
     local Page = Instance.new('Frame', ContentArea)
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.BackgroundTransparency = 1
     Page.Visible = false
 
     local HeaderTitle = Instance.new('TextLabel', Page)
-    HeaderTitle.Size = UDim2.new(1, -48, 0, 18)
-    HeaderTitle.Position = UDim2.new(0, 12, 0, 8)
+    HeaderTitle.Size = UDim2.new(1, -44, 0, 22)
+    HeaderTitle.Position = UDim2.new(0, 10, 0, 8)
     HeaderTitle.BackgroundTransparency = 1
     HeaderTitle.Text = tabName
     HeaderTitle.Font = Enum.Font.GothamBlack
-    HeaderTitle.TextSize = 14
+    HeaderTitle.TextSize = 13
     HeaderTitle.TextColor3 = Color3.fromRGB(245, 248, 255)
     HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    local HeaderSub = Instance.new('TextLabel', Page)
-    HeaderSub.Size = UDim2.new(1, -48, 0, 12)
-    HeaderSub.Position = UDim2.new(0, 12, 0, 25)
-    HeaderSub.BackgroundTransparency = 1
-    HeaderSub.Text = subtitleText
-    HeaderSub.Font = Enum.Font.Gotham
-    HeaderSub.TextSize = 9
-    HeaderSub.TextColor3 = Color3.fromRGB(155, 165, 190)
-    HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
-
     local Scroll = Instance.new('ScrollingFrame', Page)
-    Scroll.Size = UDim2.new(1, -18, 1, -46)
-    Scroll.Position = UDim2.new(0, 10, 0, 40)
+    Scroll.Size = UDim2.new(1, -16, 1, -38)
+    Scroll.Position = UDim2.new(0, 8, 0, 32)
     Scroll.BackgroundTransparency = 1
     Scroll.BorderSizePixel = 0
     Scroll.ScrollBarThickness = 2
@@ -1473,26 +1496,26 @@ local function CreateTabPage(tabName, subtitleText)
     RegisterAccent(Scroll, 'ScrollBarImageColor3')
 
     local ScrollLayout = Instance.new('UIListLayout', Scroll)
-    ScrollLayout.Padding = UDim.new(0, 5)
+    ScrollLayout.Padding = UDim.new(0, 4)
     TrackConnection(ScrollLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-        Scroll.CanvasSize = UDim2.new(0, 0, 0, ScrollLayout.AbsoluteContentSize.Y + 10)
+        Scroll.CanvasSize = UDim2.new(0, 0, 0, ScrollLayout.AbsoluteContentSize.Y + 8)
     end))
 
     local NavBtn = Instance.new('TextButton', NavHolder)
-    NavBtn.Size = UDim2.new(1, 0, 0, 27)
+    NavBtn.Size = UDim2.new(1, 0, 0, 26)
     NavBtn.BackgroundColor3 = Color3.fromRGB(32, 38, 56)
     NavBtn.BackgroundTransparency = 1
     NavBtn.BorderSizePixel = 0
     NavBtn.Text = '   ' .. tabName
     NavBtn.Font = Enum.Font.GothamBold
-    NavBtn.TextSize = 11
+    NavBtn.TextSize = 10
     NavBtn.TextColor3 = Color3.fromRGB(160, 170, 195)
     NavBtn.TextXAlignment = Enum.TextXAlignment.Left
     Instance.new('UICorner', NavBtn).CornerRadius = UDim.new(0, 6)
 
     local ActiveBar = Instance.new('Frame', NavBtn)
-    ActiveBar.Size = UDim2.new(0, 3, 0, 14)
-    ActiveBar.Position = UDim2.new(0, 0, 0.5, -7)
+    ActiveBar.Size = UDim2.new(0, 3, 0, 13)
+    ActiveBar.Position = UDim2.new(0, 0, 0.5, -6)
     ActiveBar.BorderSizePixel = 0
     ActiveBar.Visible = false
     Instance.new('UICorner', ActiveBar).CornerRadius = UDim.new(1, 0)
@@ -1518,55 +1541,46 @@ end
 
 local function AddSectionLabel(parent, text)
     local Lbl = Instance.new('TextLabel', parent)
-    Lbl.Size = UDim2.new(1, -4, 0, 15)
+    Lbl.Size = UDim2.new(1, -4, 0, 14)
     Lbl.BackgroundTransparency = 1
-    Lbl.Text = '• ' .. text:upper()
+    Lbl.Text = text:upper()
     Lbl.Font = Enum.Font.GothamBold
-    Lbl.TextSize = 9
+    Lbl.TextSize = 8
     Lbl.TextXAlignment = Enum.TextXAlignment.Left
     RegisterAccent(Lbl, 'TextColor3')
 end
 
-local function AddToggle(parent, title, subtext, defaultVal, callback)
+-- Toggle tinh gọn: chỉ hiển thị đúng tên chức năng + nút gạt (Bỏ dòng mô tả thừa)
+local function AddToggle(parent, title, defaultVal, callback)
     local Card = Instance.new('TextButton', parent)
-    Card.Size = UDim2.new(1, -4, 0, 35)
+    Card.Size = UDim2.new(1, -4, 0, 28)
     Card.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
     Card.BackgroundTransparency = 0.25
     Card.BorderSizePixel = 0
     Card.Text = ''
     Card.AutoButtonColor = false
-    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 7)
+    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
 
     local TitleLbl = Instance.new('TextLabel', Card)
-    TitleLbl.Size = UDim2.new(1, -58, 0, 15)
-    TitleLbl.Position = UDim2.new(0, 10, 0, 3)
+    TitleLbl.Size = UDim2.new(1, -54, 1, 0)
+    TitleLbl.Position = UDim2.new(0, 10, 0, 0)
     TitleLbl.BackgroundTransparency = 1
     TitleLbl.Text = title
     TitleLbl.Font = Enum.Font.GothamBold
     TitleLbl.TextSize = 10
-    TitleLbl.TextColor3 = Color3.fromRGB(242, 245, 255)
+    TitleLbl.TextColor3 = Color3.fromRGB(240, 244, 255)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-    local SubLbl = Instance.new('TextLabel', Card)
-    SubLbl.Size = UDim2.new(1, -58, 0, 13)
-    SubLbl.Position = UDim2.new(0, 10, 0, 18)
-    SubLbl.BackgroundTransparency = 1
-    SubLbl.Text = subtext
-    SubLbl.Font = Enum.Font.Gotham
-    SubLbl.TextSize = 8
-    SubLbl.TextColor3 = Color3.fromRGB(150, 160, 185)
-    SubLbl.TextXAlignment = Enum.TextXAlignment.Left
-
     local SwitchBg = Instance.new('Frame', Card)
-    SwitchBg.Size = UDim2.new(0, 34, 0, 16)
-    SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
+    SwitchBg.Size = UDim2.new(0, 32, 0, 15)
+    SwitchBg.Position = UDim2.new(1, -40, 0.5, -7)
     SwitchBg.BorderSizePixel = 0
     SwitchBg.BackgroundColor3 = defaultVal and NyXConfig.UIAccentColor or Color3.fromRGB(48, 54, 72)
     Instance.new('UICorner', SwitchBg).CornerRadius = UDim.new(1, 0)
 
     local Knob = Instance.new('Frame', SwitchBg)
-    Knob.Size = UDim2.new(0, 12, 0, 12)
-    Knob.Position = defaultVal and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
+    Knob.Size = UDim2.new(0, 11, 0, 11)
+    Knob.Position = defaultVal and UDim2.new(1, -13, 0.5, -5) or UDim2.new(0, 2, 0.5, -5)
     Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Knob.BorderSizePixel = 0
     Instance.new('UICorner', Knob).CornerRadius = UDim.new(1, 0)
@@ -1579,32 +1593,32 @@ local function AddToggle(parent, title, subtext, defaultVal, callback)
     Card.MouseButton1Click:Connect(function()
         state = not state
         SwitchBg.BackgroundColor3 = state and NyXConfig.UIAccentColor or Color3.fromRGB(48, 54, 72)
-        Knob.Position = state and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
+        Knob.Position = state and UDim2.new(1, -13, 0.5, -5) or UDim2.new(0, 2, 0.5, -5)
         if callback then callback(state) end
     end)
 end
 
 local function AddInput(parent, title, defaultText, placeholder, callback)
     local Card = Instance.new('Frame', parent)
-    Card.Size = UDim2.new(1, -4, 0, 42)
+    Card.Size = UDim2.new(1, -4, 0, 38)
     Card.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
     Card.BackgroundTransparency = 0.25
     Card.BorderSizePixel = 0
-    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 7)
+    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
 
     local TitleLbl = Instance.new('TextLabel', Card)
-    TitleLbl.Size = UDim2.new(1, -16, 0, 13)
+    TitleLbl.Size = UDim2.new(1, -16, 0, 12)
     TitleLbl.Position = UDim2.new(0, 8, 0, 3)
     TitleLbl.BackgroundTransparency = 1
     TitleLbl.Text = title
     TitleLbl.Font = Enum.Font.GothamBold
     TitleLbl.TextSize = 9
-    TitleLbl.TextColor3 = Color3.fromRGB(225, 230, 245)
+    TitleLbl.TextColor3 = Color3.fromRGB(210, 220, 240)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
 
     local Box = Instance.new('TextBox', Card)
-    Box.Size = UDim2.new(1, -16, 0, 20)
-    Box.Position = UDim2.new(0, 8, 0, 18)
+    Box.Size = UDim2.new(1, -16, 0, 18)
+    Box.Position = UDim2.new(0, 8, 0, 16)
     Box.BackgroundColor3 = Color3.fromRGB(14, 18, 26)
     Box.BackgroundTransparency = 0.15
     Box.BorderSizePixel = 0
@@ -1616,7 +1630,7 @@ local function AddInput(parent, title, defaultText, placeholder, callback)
     Box.TextSize = 9
     Box.ClearTextOnFocus = false
     Box.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new('UICorner', Box).CornerRadius = UDim.new(0, 5)
+    Instance.new('UICorner', Box).CornerRadius = UDim.new(0, 4)
 
     Box:GetPropertyChangedSignal('Text'):Connect(function()
         if callback then callback(Box.Text) end
@@ -1626,7 +1640,7 @@ end
 
 local function AddButton(parent, title, callback)
     local Btn = Instance.new('TextButton', parent)
-    Btn.Size = UDim2.new(1, -4, 0, 27)
+    Btn.Size = UDim2.new(1, -4, 0, 26)
     Btn.BackgroundColor3 = Color3.fromRGB(30, 38, 56)
     Btn.BackgroundTransparency = 0.2
     Btn.BorderSizePixel = 0
@@ -1642,15 +1656,15 @@ end
 
 local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, callback)
     local Card = Instance.new('Frame', parent)
-    Card.Size = UDim2.new(1, -4, 0, 36)
+    Card.Size = UDim2.new(1, -4, 0, 32)
     Card.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
     Card.BackgroundTransparency = 0.25
     Card.BorderSizePixel = 0
-    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 7)
+    Instance.new('UICorner', Card).CornerRadius = UDim.new(0, 6)
 
     local TitleLbl = Instance.new('TextLabel', Card)
-    TitleLbl.Size = UDim2.new(1, -16, 0, 14)
-    TitleLbl.Position = UDim2.new(0, 8, 0, 3)
+    TitleLbl.Size = UDim2.new(1, -16, 0, 13)
+    TitleLbl.Position = UDim2.new(0, 8, 0, 2)
     TitleLbl.BackgroundTransparency = 1
     TitleLbl.Text = title .. ': ' .. tostring(defaultVal) .. (suffix or '')
     TitleLbl.Font = Enum.Font.GothamBold
@@ -1659,8 +1673,8 @@ local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, call
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
 
     local BarBg = Instance.new('TextButton', Card)
-    BarBg.Size = UDim2.new(1, -16, 0, 7)
-    BarBg.Position = UDim2.new(0, 8, 0, 22)
+    BarBg.Size = UDim2.new(1, -16, 0, 6)
+    BarBg.Position = UDim2.new(0, 8, 0, 19)
     BarBg.BackgroundColor3 = Color3.fromRGB(13, 16, 24)
     BarBg.BorderSizePixel = 0
     BarBg.Text = ''
@@ -1700,14 +1714,14 @@ local function AddSlider(parent, title, minVal, maxVal, defaultVal, suffix, call
 end
 
 -- ==========================================
--- // BUILD THE 6 TABS
+-- // BUILD THE 6 TABS (CLEAN & DIRECT)
 -- ==========================================
-local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home', 'Live status, Graveyard timer & macro start')
-local MainScroll = CreateTabPage('Main', '19 Biomes filter, ground collector & items')
-local MerchantScroll = CreateTabPage('Merchant', '4 Merchants + Sinister S. Graveyard tracker')
-local ConnScroll = CreateTabPage('Webhook', 'Discord Webhook, User ID & Server link')
-local PingsScroll = CreateTabPage('Pings', '19 Biomes & 4 Merchants ping selector')
-local SettingScroll = CreateTabPage('Settings', 'Liquid Glass UI, speed, FPS & system')
+local HomeScroll, HomeNavBtn, HomeNavBar = CreateTabPage('Home')
+local MainScroll = CreateTabPage('Main')
+local MerchantScroll = CreateTabPage('Merchant')
+local ConnScroll = CreateTabPage('Webhook')
+local PingsScroll = CreateTabPage('Pings')
+local SettingScroll = CreateTabPage('Settings')
 
 UI.Pages[1].Visible = true
 HomeNavBtn.BackgroundTransparency = 0.25
@@ -1716,112 +1730,26 @@ HomeNavBar.Visible = true
 
 -- // TAB 1: HOME
 do
-    local StatusRow = Instance.new('Frame', HomeScroll)
-    StatusRow.Size = UDim2.new(1, -4, 0, 44)
-    StatusRow.BackgroundTransparency = 1
-
-    local UptimeCard = Instance.new('Frame', StatusRow)
-    UptimeCard.Size = UDim2.new(0.49, 0, 1, 0)
-    UptimeCard.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
-    UptimeCard.BackgroundTransparency = 0.25
-    UptimeCard.BorderSizePixel = 0
-    Instance.new('UICorner', UptimeCard).CornerRadius = UDim.new(0, 7)
-
-    local UpTitle = Instance.new('TextLabel', UptimeCard)
-    UpTitle.Size = UDim2.new(1, -16, 0, 12)
-    UpTitle.Position = UDim2.new(0, 10, 0, 5)
-    UpTitle.BackgroundTransparency = 1
-    UpTitle.Text = 'MACRO UPTIME'
-    UpTitle.Font = Enum.Font.GothamBold
-    UpTitle.TextSize = 8
-    UpTitle.TextColor3 = Color3.fromRGB(150, 160, 185)
-    UpTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    UI.UptimeValueLabel = Instance.new('TextLabel', UptimeCard)
-    UI.UptimeValueLabel.Size = UDim2.new(1, -16, 0, 18)
-    UI.UptimeValueLabel.Position = UDim2.new(0, 10, 0, 18)
-    UI.UptimeValueLabel.BackgroundTransparency = 1
-    UI.UptimeValueLabel.Text = '00:00:00'
-    UI.UptimeValueLabel.Font = Enum.Font.GothamBlack
-    UI.UptimeValueLabel.TextSize = 13
-    UI.UptimeValueLabel.TextXAlignment = Enum.TextXAlignment.Left
-    RegisterAccent(UI.UptimeValueLabel, 'TextColor3')
-
-    local BiomeCard = Instance.new('Frame', StatusRow)
-    BiomeCard.Size = UDim2.new(0.49, 0, 1, 0)
-    BiomeCard.Position = UDim2.new(0.51, 0, 0, 0)
-    BiomeCard.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
-    BiomeCard.BackgroundTransparency = 0.25
-    BiomeCard.BorderSizePixel = 0
-    Instance.new('UICorner', BiomeCard).CornerRadius = UDim.new(0, 7)
-
-    local BmTitle = Instance.new('TextLabel', BiomeCard)
-    BmTitle.Size = UDim2.new(1, -16, 0, 12)
-    BmTitle.Position = UDim2.new(0, 10, 0, 5)
-    BmTitle.BackgroundTransparency = 1
-    BmTitle.Text = 'CURRENT BIOME'
-    BmTitle.Font = Enum.Font.GothamBold
-    BmTitle.TextSize = 8
-    BmTitle.TextColor3 = Color3.fromRGB(150, 160, 185)
-    BmTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    UI.BiomeValueLabel = Instance.new('TextLabel', BiomeCard)
-    UI.BiomeValueLabel.Size = UDim2.new(1, -16, 0, 18)
-    UI.BiomeValueLabel.Position = UDim2.new(0, 10, 0, 18)
-    UI.BiomeValueLabel.BackgroundTransparency = 1
-    UI.BiomeValueLabel.Text = 'NORMAL'
-    UI.BiomeValueLabel.Font = Enum.Font.GothamBlack
-    UI.BiomeValueLabel.TextSize = 12
-    UI.BiomeValueLabel.TextColor3 = Color3.fromRGB(80, 250, 123)
-    UI.BiomeValueLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local MerchantStatusCard = Instance.new('Frame', HomeScroll)
-    MerchantStatusCard.Size = UDim2.new(1, -4, 0, 30)
-    MerchantStatusCard.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
-    MerchantStatusCard.BackgroundTransparency = 0.25
-    MerchantStatusCard.BorderSizePixel = 0
-    Instance.new('UICorner', MerchantStatusCard).CornerRadius = UDim.new(0, 7)
-
-    local MerTitle = Instance.new('TextLabel', MerchantStatusCard)
-    MerTitle.Size = UDim2.new(0.55, 0, 1, 0)
-    MerTitle.Position = UDim2.new(0, 10, 0, 0)
-    MerTitle.BackgroundTransparency = 1
-    MerTitle.Text = 'Active Merchant:'
-    MerTitle.Font = Enum.Font.GothamBold
-    MerTitle.TextSize = 10
-    MerTitle.TextColor3 = Color3.fromRGB(185, 195, 215)
-    MerTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    UI.MerchantValueLabel = Instance.new('TextLabel', MerchantStatusCard)
-    UI.MerchantValueLabel.Size = UDim2.new(0.4, -10, 1, 0)
-    UI.MerchantValueLabel.Position = UDim2.new(0.6, 0, 0, 0)
-    UI.MerchantValueLabel.BackgroundTransparency = 1
-    UI.MerchantValueLabel.Text = 'NONE'
-    UI.MerchantValueLabel.Font = Enum.Font.GothamBlack
-    UI.MerchantValueLabel.TextSize = 10
-    UI.MerchantValueLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
-    UI.MerchantValueLabel.TextXAlignment = Enum.TextXAlignment.Right
-
     local GraveyardHomeCard = Instance.new('Frame', HomeScroll)
-    GraveyardHomeCard.Size = UDim2.new(1, -4, 0, 30)
+    GraveyardHomeCard.Size = UDim2.new(1, -4, 0, 28)
     GraveyardHomeCard.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
     GraveyardHomeCard.BackgroundTransparency = 0.25
     GraveyardHomeCard.BorderSizePixel = 0
-    Instance.new('UICorner', GraveyardHomeCard).CornerRadius = UDim.new(0, 7)
+    Instance.new('UICorner', GraveyardHomeCard).CornerRadius = UDim.new(0, 6)
 
     local GraveHomeTitle = Instance.new('TextLabel', GraveyardHomeCard)
-    GraveHomeTitle.Size = UDim2.new(0.55, 0, 1, 0)
+    GraveHomeTitle.Size = UDim2.new(0.5, 0, 1, 0)
     GraveHomeTitle.Position = UDim2.new(0, 10, 0, 0)
     GraveHomeTitle.BackgroundTransparency = 1
-    GraveHomeTitle.Text = 'Graveyard Timer (5m = Sinister S.):'
+    GraveHomeTitle.Text = 'Graveyard Timer:'
     GraveHomeTitle.Font = Enum.Font.GothamBold
-    GraveHomeTitle.TextSize = 9
+    GraveHomeTitle.TextSize = 10
     GraveHomeTitle.TextColor3 = Color3.fromRGB(185, 195, 215)
     GraveHomeTitle.TextXAlignment = Enum.TextXAlignment.Left
 
     UI.GraveyardHomeValue = Instance.new('TextLabel', GraveyardHomeCard)
-    UI.GraveyardHomeValue.Size = UDim2.new(0.4, -10, 1, 0)
-    UI.GraveyardHomeValue.Position = UDim2.new(0.6, 0, 0, 0)
+    UI.GraveyardHomeValue.Size = UDim2.new(0.45, -10, 1, 0)
+    UI.GraveyardHomeValue.Position = UDim2.new(0.55, 0, 0, 0)
     UI.GraveyardHomeValue.BackgroundTransparency = 1
     UI.GraveyardHomeValue.Text = 'INACTIVE'
     UI.GraveyardHomeValue.Font = Enum.Font.GothamBlack
@@ -1829,24 +1757,24 @@ do
     UI.GraveyardHomeValue.TextColor3 = Color3.fromRGB(165, 185, 200)
     UI.GraveyardHomeValue.TextXAlignment = Enum.TextXAlignment.Right
 
-    AddSectionLabel(HomeScroll, 'Unified Macro Control')
-    AddToggle(HomeScroll, 'Start Macro (Biome & Merchant Detector)', 'Starts Biome, Log Glitched & Sinister S. Graveyard tracking.', NyXConfig.MacroActive, function(val)
+    AddSectionLabel(HomeScroll, 'Control')
+    AddToggle(HomeScroll, 'Start Macro', NyXConfig.MacroActive, function(val)
         if val then
             NyXConfig.MacroActive = true
             State.MacroStartTime = os.time()
             SendMacroStateEmbed(true)
-            Notify('NyX Macro', 'Macro Started (All Detectors Active)!', 2.5)
+            Notify('Macro', 'Started!', 2)
         else
             local finalElapsed = (State.MacroStartTime > 0) and (os.time() - State.MacroStartTime) or 0
             NyXConfig.MacroActive = false
             SendMacroStateEmbed(false, finalElapsed)
             State.MacroStartTime = 0
-            UI.UptimeValueLabel.Text = '00:00:00'
-            Notify('NyX Macro', 'Macro Stopped!', 2.5)
+            UI.BarUptimeVal.Text = '00:00:00'
+            Notify('Macro', 'Stopped!', 2)
         end
     end)
 
-    AddButton(HomeScroll, 'Unstuck Character Jump (Thoát kẹt gạch)', function()
+    AddButton(HomeScroll, 'Unstuck Character', function()
         pcall(function()
             local char = LocalPlayer.Character
             local hum = char and char:FindFirstChildOfClass('Humanoid')
@@ -1854,7 +1782,6 @@ do
             if hum and root then
                 ForceCharacterJump(hum)
                 root.CFrame = root.CFrame + Vector3.new(0, 4, 0)
-                Notify('Unstuck', 'Character lifted out of obstacle!', 2)
             end
         end)
     end)
@@ -1862,26 +1789,24 @@ end
 
 -- // TAB 2: MAIN (19 BIOMES)
 do
-    AddSectionLabel(MainScroll, 'Ground Item Collector')
-    AddToggle(MainScroll, 'Auto Collect Ground Items', 'Walks & jumps safely to nearby potions/coins.', NyXConfig.AutoCollectItems, function(val)
+    AddSectionLabel(MainScroll, 'Automation')
+    AddToggle(MainScroll, 'Auto Collect Ground Items', NyXConfig.AutoCollectItems, function(val)
         NyXConfig.AutoCollectItems = val
     end)
-
-    AddSectionLabel(MainScroll, 'Inventory Automation')
-    AddButton(MainScroll, 'Use Now: Biome Randomizer', function()
-        task.spawn(function() UseItemWithInventoryFailsafe('Biome Randomizer') end)
-    end)
-    AddButton(MainScroll, 'Use Now: Strange Controller', function()
-        task.spawn(function() UseItemWithInventoryFailsafe('Strange Controller') end)
-    end)
-    AddSlider(MainScroll, 'Item Use Interval', 5, 300, NyXConfig.UseInterval, 's', function(val)
-        NyXConfig.UseInterval = val
-    end)
-    AddToggle(MainScroll, 'Auto Biome Randomizer', 'Uses Biome Randomizer on interval.', NyXConfig.AutoBiomeRandomizer, function(val)
+    AddToggle(MainScroll, 'Auto Biome Randomizer', NyXConfig.AutoBiomeRandomizer, function(val)
         NyXConfig.AutoBiomeRandomizer = val
     end)
-    AddToggle(MainScroll, 'Auto Strange Controller', 'Uses Strange Controller on interval.', NyXConfig.AutoStrangeController, function(val)
+    AddToggle(MainScroll, 'Auto Strange Controller', NyXConfig.AutoStrangeController, function(val)
         NyXConfig.AutoStrangeController = val
+    end)
+    AddSlider(MainScroll, 'Item Interval', 5, 300, NyXConfig.UseInterval, 's', function(val)
+        NyXConfig.UseInterval = val
+    end)
+    AddButton(MainScroll, 'Use Biome Randomizer', function()
+        task.spawn(function() UseItemWithInventoryFailsafe('Biome Randomizer') end)
+    end)
+    AddButton(MainScroll, 'Use Strange Controller', function()
+        task.spawn(function() UseItemWithInventoryFailsafe('Strange Controller') end)
     end)
 
     AddSectionLabel(MainScroll, 'Stop Auto In (19 Biomes)')
@@ -1919,70 +1844,57 @@ end
 
 -- // TAB 3: MERCHANT
 do
-    AddSectionLabel(MerchantScroll, 'Merchant & Graveyard Sinister S. Status')
     local MerchantLiveCard = Instance.new('Frame', MerchantScroll)
-    MerchantLiveCard.Size = UDim2.new(1, -4, 0, 56)
+    MerchantLiveCard.Size = UDim2.new(1, -4, 0, 40)
     MerchantLiveCard.BackgroundColor3 = Color3.fromRGB(25, 31, 46)
     MerchantLiveCard.BackgroundTransparency = 0.25
     MerchantLiveCard.BorderSizePixel = 0
-    Instance.new('UICorner', MerchantLiveCard).CornerRadius = UDim.new(0, 7)
+    Instance.new('UICorner', MerchantLiveCard).CornerRadius = UDim.new(0, 6)
 
     UI.MTabStatusLbl = Instance.new('TextLabel', MerchantLiveCard)
-    UI.MTabStatusLbl.Size = UDim2.new(1, -16, 0, 15)
+    UI.MTabStatusLbl.Size = UDim2.new(1, -16, 0, 16)
     UI.MTabStatusLbl.Position = UDim2.new(0, 8, 0, 4)
     UI.MTabStatusLbl.BackgroundTransparency = 1
-    UI.MTabStatusLbl.Text = 'Merchant: NONE (Waiting for Spawn)'
+    UI.MTabStatusLbl.Text = 'Merchant: NONE'
     UI.MTabStatusLbl.Font = Enum.Font.GothamBold
     UI.MTabStatusLbl.TextSize = 10
     UI.MTabStatusLbl.TextColor3 = Color3.fromRGB(240, 245, 255)
     UI.MTabStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-    UI.MTabGraveLbl = Instance.new('TextLabel', MerchantLiveCard)
-    UI.MTabGraveLbl.Size = UDim2.new(1, -16, 0, 15)
-    UI.MTabGraveLbl.Position = UDim2.new(0, 8, 0, 20)
-    UI.MTabGraveLbl.BackgroundTransparency = 1
-    UI.MTabGraveLbl.Text = 'Graveyard Timer: INACTIVE (5m+ triggers Sinister S.)'
-    UI.MTabGraveLbl.Font = Enum.Font.GothamBold
-    UI.MTabGraveLbl.TextSize = 9
-    UI.MTabGraveLbl.TextColor3 = Color3.fromRGB(255, 175, 70)
-    UI.MTabGraveLbl.TextXAlignment = Enum.TextXAlignment.Left
-
     UI.MTabCoordsLbl = Instance.new('TextLabel', MerchantLiveCard)
     UI.MTabCoordsLbl.Size = UDim2.new(1, -16, 0, 14)
-    UI.MTabCoordsLbl.Position = UDim2.new(0, 8, 0, 37)
+    UI.MTabCoordsLbl.Position = UDim2.new(0, 8, 0, 21)
     UI.MTabCoordsLbl.BackgroundTransparency = 1
-    UI.MTabCoordsLbl.Text = 'XYZ Coordinates: N/A'
+    UI.MTabCoordsLbl.Text = 'XYZ: N/A'
     UI.MTabCoordsLbl.Font = Enum.Font.Gotham
     UI.MTabCoordsLbl.TextSize = 9
     UI.MTabCoordsLbl.TextColor3 = Color3.fromRGB(150, 160, 185)
     UI.MTabCoordsLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-    AddSectionLabel(MerchantScroll, 'Merchant Walk & Actions')
-    AddToggle(MerchantScroll, 'Auto Walk & Jump to Merchant', 'Smart obstacle jump & river avoidance.', NyXConfig.AutoWalkToMerchant, function(val)
+    AddSectionLabel(MerchantScroll, 'Actions')
+    AddToggle(MerchantScroll, 'Auto Walk to Merchant', NyXConfig.AutoWalkToMerchant, function(val)
         NyXConfig.AutoWalkToMerchant = val
     end)
-    AddToggle(MerchantScroll, 'Auto Open Shop on Arrival', 'Fires ProximityPrompt when reaching merchant.', NyXConfig.AutoInteractMerchant, function(val)
+    AddToggle(MerchantScroll, 'Auto Open Shop', NyXConfig.AutoInteractMerchant, function(val)
         NyXConfig.AutoInteractMerchant = val
     end)
-    AddToggle(MerchantScroll, 'Respawn When Merchant Leaves', 'Resets character after merchant despawns.', NyXConfig.RespawnIfMerchantLeft, function(val)
+    AddToggle(MerchantScroll, 'Respawn When Merchant Leaves', NyXConfig.RespawnIfMerchantLeft, function(val)
         NyXConfig.RespawnIfMerchantLeft = val
     end)
-    AddButton(MerchantScroll, 'Walk Safely to Active Merchant Now', function()
+    AddButton(MerchantScroll, 'Walk to Merchant Now', function()
         WalkToActiveMerchantNow()
     end)
-    AddButton(MerchantScroll, 'Stop Walking Path', function()
+    AddButton(MerchantScroll, 'Stop Walking', function()
         State.CancelCurrentWalk = true
-        Notify('Pathfinding', 'Stopped walking.', 2)
     end)
 end
 
 -- // TAB 4 & 5: WEBHOOK & PINGS
 do
-    AddSectionLabel(ConnScroll, 'Discord Configuration')
     AddInput(ConnScroll, 'Webhook URL', NyXConfig.WebhookURL, 'https://discord.com/api/webhooks/...', function(txt)
         NyXConfig.WebhookURL = txt:gsub('%s+', '')
     end)
-    UI.ConnUserIDBox = AddInput(ConnScroll, 'Discord User ID', NyXConfig.DiscordID, 'Numeric ID (Ex: 1234567890)', function(txt)
+    UI.ConnUserIDBox = AddInput(ConnScroll, 'Discord User ID', NyXConfig.DiscordID, 'Numeric ID', function(txt)
         local clean = txt:gsub('%D+', '')
         NyXConfig.DiscordID = clean
         if UI.PingUserIDBox and UI.PingUserIDBox.Text ~= clean then UI.PingUserIDBox.Text = clean end
@@ -1990,17 +1902,16 @@ do
     AddInput(ConnScroll, 'Private Server Link', NyXConfig.PrivateServerLink, 'https://www.roblox.com/share?code=...', function(txt)
         NyXConfig.PrivateServerLink = txt
     end)
-    AddButton(ConnScroll, 'Save Config to File', function()
+    AddButton(ConnScroll, 'Save Config', function()
         SaveWebhookConfig()
-        Notify('Saved', 'Configuration saved!', 2.5)
+        Notify('Config', 'Saved!', 2)
     end)
-    AddButton(ConnScroll, 'Test Webhook Connection', function()
+    AddButton(ConnScroll, 'Test Webhook', function()
         SendTestWebhookEmbed(false)
-        Notify('Webhook Test', 'Sent test embed to Discord!', 2.5)
+        Notify('Webhook', 'Test sent!', 2)
     end)
 
-    AddSectionLabel(PingsScroll, 'User ID for Mention Pings')
-    UI.PingUserIDBox = AddInput(PingsScroll, 'Your Discord User ID', NyXConfig.DiscordID, 'Enter numeric Discord ID...', function(txt)
+    UI.PingUserIDBox = AddInput(PingsScroll, 'Discord User ID', NyXConfig.DiscordID, 'Numeric ID...', function(txt)
         local clean = txt:gsub('%D+', '')
         NyXConfig.DiscordID = clean
         if UI.ConnUserIDBox and UI.ConnUserIDBox.Text ~= clean then UI.ConnUserIDBox.Text = clean end
@@ -2008,14 +1919,14 @@ do
     AddButton(PingsScroll, 'Test User ID Ping', function()
         local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
         if cleanID == '' then
-            Notify('User ID Required', 'Enter your Discord User ID first!', 3)
+            Notify('Ping', 'Enter User ID first!', 2.5)
             return
         end
         SendTestWebhookEmbed(true)
-        Notify('Ping Sent', 'Sent ping to <@' .. cleanID .. '>!', 2.5)
+        Notify('Ping', 'Sent!', 2)
     end)
 
-    AddSectionLabel(PingsScroll, 'Biome Pings (19 Biomes)')
+    AddSectionLabel(PingsScroll, 'Biomes (19)')
     local PingBiomeGrid = Instance.new('Frame', PingsScroll)
     PingBiomeGrid.Size = UDim2.new(1, -4, 0, 136)
     PingBiomeGrid.BackgroundTransparency = 1
@@ -2042,7 +1953,7 @@ do
         Chip.MouseButton1Click:Connect(function()
             local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
             if not NyXConfig.PingBiomes[bName] and cleanID == '' then
-                Notify('User ID Required', 'Enter your Discord ID above first!', 3)
+                Notify('Ping', 'Enter User ID first!', 2.5)
                 return
             end
             NyXConfig.PingBiomes[bName] = not NyXConfig.PingBiomes[bName]
@@ -2053,7 +1964,7 @@ do
         end)
     end
 
-    AddSectionLabel(PingsScroll, 'Merchant Pings (Mari / Jester / Rin / Sinister S.)')
+    AddSectionLabel(PingsScroll, 'Merchants (4)')
     local PingMerchantRow = Instance.new('Frame', PingsScroll)
     PingMerchantRow.Size = UDim2.new(1, -4, 0, 28)
     PingMerchantRow.BackgroundTransparency = 1
@@ -2080,7 +1991,7 @@ do
         MChip.MouseButton1Click:Connect(function()
             local cleanID = tostring(NyXConfig.DiscordID or ''):gsub('%D+', '')
             if not NyXConfig.PingMerchants[mName] and cleanID == '' then
-                Notify('User ID Required', 'Enter your Discord ID above first!', 3)
+                Notify('Ping', 'Enter User ID first!', 2.5)
                 return
             end
             NyXConfig.PingMerchants[mName] = not NyXConfig.PingMerchants[mName]
@@ -2094,33 +2005,28 @@ end
 
 -- // TAB 6: SETTINGS
 do
-    AddSectionLabel(SettingScroll, 'UI Utilities & Alerts')
-    AddToggle(SettingScroll, 'Show Floating Mini HUD', 'Compact status & Graveyard bar at top.', NyXConfig.ShowMiniHUD, function(val)
-        NyXConfig.ShowMiniHUD = val
-        UI.MiniHUD.Visible = val
-    end)
-    AddToggle(SettingScroll, 'Lock UI & Logo Position', 'Prevents accidental dragging.', NyXConfig.LockUIPosition, function(val)
+    AddSectionLabel(SettingScroll, 'UI & Alerts')
+    AddToggle(SettingScroll, 'Lock UI Position', NyXConfig.LockUIPosition, function(val)
         NyXConfig.LockUIPosition = val
     end)
-    AddToggle(SettingScroll, 'Sound Alert on Target Spawn', 'Plays chime when rare biome/merchant spawns.', NyXConfig.EnableSoundAlert, function(val)
+    AddToggle(SettingScroll, 'Sound Alert', NyXConfig.EnableSoundAlert, function(val)
         NyXConfig.EnableSoundAlert = val
     end)
-    AddButton(SettingScroll, 'Reset UI Positions to Default', function()
-        UI.MainWindow.Position = UDim2.new(0.5, 0, 0.5, 0)
-        UI.LogoToggleBtn.Position = UDim2.new(0.03, 0, 0.2, 0)
-        UI.MiniHUD.Position = UDim2.new(0.5, 0, 0, 8)
+    AddButton(SettingScroll, 'Reset UI Position', function()
+        UI.MainWindow.Position = UDim2.new(0.5, 0, 0.53, 0)
+        UI.TopBar.Position = UDim2.new(0.5, 0, 0, 8)
         UI.MainWindow.Visible = true
     end)
 
-    AddSectionLabel(SettingScroll, 'Movement & Liquid Glass Theme')
-    AddToggle(SettingScroll, 'WalkSpeed Boost', 'Speeds up walking to merchants/items.', NyXConfig.WalkSpeedBoost, function(val)
+    AddSectionLabel(SettingScroll, 'Movement & Theme')
+    AddToggle(SettingScroll, 'WalkSpeed Boost', NyXConfig.WalkSpeedBoost, function(val)
         NyXConfig.WalkSpeedBoost = val
         pcall(function()
             local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid')
             if hum then hum.WalkSpeed = val and NyXConfig.CustomWalkSpeed or 16 end
         end)
     end)
-    AddSlider(SettingScroll, 'WalkSpeed Value', 16, 45, NyXConfig.CustomWalkSpeed, '', function(val)
+    AddSlider(SettingScroll, 'WalkSpeed', 16, 45, NyXConfig.CustomWalkSpeed, '', function(val)
         NyXConfig.CustomWalkSpeed = val
         if NyXConfig.WalkSpeedBoost then
             pcall(function()
@@ -2133,7 +2039,7 @@ do
         NyXConfig.UIScalePercent = val
         RecalculateResponsiveScale()
     end)
-    AddSlider(SettingScroll, 'Liquid Glass Transparency', 0, 50, math.floor(NyXConfig.GlassTransparency * 100), '%', function(val)
+    AddSlider(SettingScroll, 'Glass Transparency', 0, 50, math.floor(NyXConfig.GlassTransparency * 100), '%', function(val)
         NyXConfig.GlassTransparency = val / 100
         UI.MainWindow.BackgroundTransparency = NyXConfig.GlassTransparency
     end)
@@ -2170,22 +2076,22 @@ do
         end)
     end
 
-    AddSectionLabel(SettingScroll, 'Performance & System')
-    AddToggle(SettingScroll, 'OLED Black Screen Saver', 'Covers screen in black to save battery.', NyXConfig.BlackScreenSaver, function(val)
+    AddSectionLabel(SettingScroll, 'System')
+    AddToggle(SettingScroll, 'OLED Black Screen', NyXConfig.BlackScreenSaver, function(val)
         NyXConfig.BlackScreenSaver = val
         UI.BlackSaverFrame.Visible = val
     end)
-    AddToggle(SettingScroll, 'Disable 3D Rendering', 'Maximizes FPS & reduces CPU/GPU load.', NyXConfig.Disable3DRendering, function(val)
+    AddToggle(SettingScroll, 'Disable 3D Rendering', NyXConfig.Disable3DRendering, function(val)
         NyXConfig.Disable3DRendering = val
         pcall(function() Svc.RunService:Set3dRenderingEnabled(not val) end)
     end)
-    AddToggle(SettingScroll, 'Enable Anti-AFK', 'Prevents 20m idle kick.', NyXConfig.AntiAFK, function(val)
+    AddToggle(SettingScroll, 'Anti-AFK', NyXConfig.AntiAFK, function(val)
         NyXConfig.AntiAFK = val
     end)
-    AddToggle(SettingScroll, 'Auto Reconnect', 'Rejoins server on disconnect.', NyXConfig.AutoReconnect, function(val)
+    AddToggle(SettingScroll, 'Auto Reconnect', NyXConfig.AutoReconnect, function(val)
         NyXConfig.AutoReconnect = val
     end)
-    AddButton(SettingScroll, 'Boost FPS (Clear Particles & Shadows)', function()
+    AddButton(SettingScroll, 'Boost FPS', function()
         pcall(function()
             Svc.Lighting.GlobalShadows = false
             for _, v in ipairs(Svc.Workspace:GetDescendants()) do
@@ -2196,15 +2102,15 @@ do
                 end
             end
         end)
-        Notify('FPS Boost', 'Optimized world materials & particles!', 2.5)
+        Notify('FPS', 'Optimized!', 2)
     end)
-    AddButton(SettingScroll, 'Copy Current Server JobId', function()
+    AddButton(SettingScroll, 'Copy JobId', function()
         if type(setclipboard) == 'function' then
             pcall(setclipboard, tostring(game.JobId))
-            Notify('Copied', 'JobId copied to clipboard!', 2)
+            Notify('JobId', 'Copied!', 2)
         end
     end)
-    AddButton(SettingScroll, 'Rejoin Current Server', function()
+    AddButton(SettingScroll, 'Rejoin Server', function()
         Svc.TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
     end)
 
@@ -2227,7 +2133,7 @@ do
         end
     end
 
-    AddButton(SettingScroll, 'Uninstall / Destroy Script', function()
+    AddButton(SettingScroll, 'Destroy Script', function()
         NyXEnv.Cleanup()
     end)
 end
@@ -2240,9 +2146,9 @@ task.spawn(function()
     local pendingBiome = confirmedBiome
     local pendingCount = 0
     NyXConfig.CurrentDetectedBiome = confirmedBiome
-    UI.BiomeValueLabel.Text = confirmedBiome
+    UI.BarBiomeVal.Text = confirmedBiome
     if BiomeData[confirmedBiome] and BiomeData[confirmedBiome].Hex then
-        UI.BiomeValueLabel.TextColor3 = BiomeData[confirmedBiome].Hex
+        UI.BarBiomeVal.TextColor3 = BiomeData[confirmedBiome].Hex
     end
 
     if confirmedBiome == 'GRAVEYARD' then
@@ -2274,9 +2180,9 @@ task.spawn(function()
             local previousBiome = confirmedBiome
             confirmedBiome = pendingBiome
             NyXConfig.CurrentDetectedBiome = confirmedBiome
-            UI.BiomeValueLabel.Text = confirmedBiome
+            UI.BarBiomeVal.Text = confirmedBiome
             if BiomeData[confirmedBiome] and BiomeData[confirmedBiome].Hex then
-                UI.BiomeValueLabel.TextColor3 = BiomeData[confirmedBiome].Hex
+                UI.BarBiomeVal.TextColor3 = BiomeData[confirmedBiome].Hex
             end
 
             if confirmedBiome == 'GRAVEYARD' then
@@ -2284,7 +2190,6 @@ task.spawn(function()
                 NyXConfig.GraveyardStartTimestamp = os.time()
                 NyXConfig.GraveyardElapsed = 0
                 NyXConfig.SinisterTriggeredInGraveyard = false
-                Notify('Graveyard Started', 'Graveyard timer started! (5m+ = Sinister S.)', 3.5)
             end
 
             if previousBiome == 'GRAVEYARD' and confirmedBiome ~= 'GRAVEYARD' then
@@ -2300,22 +2205,26 @@ task.spawn(function()
             if NyXConfig.PingBiomes[confirmedBiome] or NyXConfig.StopAutoBiomes[confirmedBiome] then
                 PlayAlertSound()
             end
+
+            -- Đảm bảo gửi Biome Ended trước, rồi mới gửi Biome Started qua WebhookQueue tuần tự
             if NyXConfig.MacroActive then
+                local nowTs = os.time()
                 if previousBiome ~= 'NORMAL' and BiomeData[previousBiome] then
                     local prevInfo = BiomeData[previousBiome]
-                    SendBiomeEndedEmbed(previousBiome, prevInfo.Color, prevInfo.Image)
+                    SendBiomeEndedEmbed(previousBiome, prevInfo.Color, prevInfo.Image, nowTs)
                 end
                 if confirmedBiome ~= 'NORMAL' and BiomeData[confirmedBiome] then
                     local newInfo = BiomeData[confirmedBiome]
-                    SendBiomeStartedEmbed(confirmedBiome, newInfo.Color, newInfo.Image)
+                    SendBiomeStartedEmbed(confirmedBiome, newInfo.Color, newInfo.Image, nowTs)
                 end
             end
+
             if NyXConfig.StopAutoBiomes[confirmedBiome] then
-                Notify('Stop Auto In', 'Detected ' .. confirmedBiome .. '! Pausing items.', 4)
+                Notify('Stop Auto', 'Detected ' .. confirmedBiome, 3)
             end
         end
 
-        local graveMiniTag = ''
+        -- Bộ đếm Graveyard (Hiển thị trực tiếp trên ô Biome của TopBar & Home)
         if NyXConfig.CurrentDetectedBiome == 'GRAVEYARD' then
             if not NyXConfig.GraveyardActive or NyXConfig.GraveyardStartTimestamp == 0 then
                 NyXConfig.GraveyardActive = true
@@ -2323,7 +2232,7 @@ task.spawn(function()
             end
             NyXConfig.GraveyardElapsed = os.time() - NyXConfig.GraveyardStartTimestamp
             local gTimeStr = FormatMMSS(NyXConfig.GraveyardElapsed)
-            graveMiniTag = '  |  GY: ' .. gTimeStr
+            UI.BarBiomeVal.Text = 'GRAVEYARD (' .. gTimeStr .. ')'
 
             if NyXConfig.GraveyardElapsed >= 300 and not NyXConfig.SinisterTriggeredInGraveyard then
                 NyXConfig.SinisterTriggeredInGraveyard = true
@@ -2334,24 +2243,22 @@ task.spawn(function()
 
             if UI.MainWindow.Visible then
                 if NyXConfig.SinisterTriggeredInGraveyard then
-                    local rem11m = math.max(0, 660 - NyXConfig.GraveyardElapsed)
-                    UI.GraveyardHomeValue.Text = gTimeStr .. ' / 11:00 (SINISTER S.!)'
+                    UI.GraveyardHomeValue.Text = gTimeStr .. ' / 11:00 (SINISTER)'
                     UI.GraveyardHomeValue.TextColor3 = Color3.fromRGB(255, 140, 50)
-                    UI.MTabGraveLbl.Text = 'Graveyard: ' .. gTimeStr .. ' elapsed (' .. FormatMMSS(rem11m) .. ' left of 11m)'
                 else
-                    UI.GraveyardHomeValue.Text = gTimeStr .. ' (Wait 05:00)'
+                    UI.GraveyardHomeValue.Text = gTimeStr .. ' / 05:00'
                     UI.GraveyardHomeValue.TextColor3 = Color3.fromRGB(165, 220, 255)
-                    UI.MTabGraveLbl.Text = 'Graveyard Timer: ' .. gTimeStr .. ' / 05:00 for Sinister S.'
                 end
             end
         else
+            UI.BarBiomeVal.Text = NyXConfig.CurrentDetectedBiome
             if UI.MainWindow.Visible then
                 UI.GraveyardHomeValue.Text = 'INACTIVE'
                 UI.GraveyardHomeValue.TextColor3 = Color3.fromRGB(150, 160, 185)
-                UI.MTabGraveLbl.Text = 'Graveyard Timer: INACTIVE (5m+ triggers Sinister S.)'
             end
         end
 
+        -- Kiểm tra Merchant & Cập nhật ô Merchant trên TopBar
         local worldMerchant, worldPos = FindMerchantWorldPosition(false)
         if worldMerchant and NyXConfig.CurrentMerchant == 'NONE' then
             SetMerchantArrivedState(worldMerchant, worldPos)
@@ -2363,40 +2270,35 @@ task.spawn(function()
         if NyXConfig.CurrentMerchant ~= 'NONE' then
             if NyXConfig.CurrentMerchant == 'SINISTER S.' and NyXConfig.CurrentDetectedBiome == 'GRAVEYARD' then
                 local rem = math.max(0, 660 - NyXConfig.GraveyardElapsed)
-                merchDisplayStr = string.format('SINISTER S. (%s)', FormatMMSS(rem))
-                if rem <= 0 then SetMerchantLeftState('11m Graveyard Expired') end
+                merchDisplayStr = string.format('SINISTER (%s)', FormatMMSS(rem))
+                if rem <= 0 then SetMerchantLeftState('11m Expired') end
             else
                 local elapsed = os.time() - NyXConfig.MerchantSpawnTimestamp
                 local remaining = math.max(0, NyXConfig.MerchantDuration - elapsed)
                 merchDisplayStr = string.format('%s (%s)', NyXConfig.CurrentMerchant, FormatMMSS(remaining))
                 if remaining <= 0 or (not worldMerchant and elapsed > 15 and NyXConfig.CurrentMerchant ~= 'SINISTER S.') then
-                    SetMerchantLeftState(remaining <= 0 and 'Timer Expired' or 'Model Despawned')
+                    SetMerchantLeftState(remaining <= 0 and '3m Expired' or 'Despawned')
                 end
             end
 
             if UI.MainWindow.Visible then
-                UI.MerchantValueLabel.Text = merchDisplayStr
                 UI.MTabStatusLbl.Text = 'Merchant: ' .. merchDisplayStr
                 if NyXConfig.MerchantPosition then
                     local p = NyXConfig.MerchantPosition
-                    UI.MTabCoordsLbl.Text = string.format('XYZ Coordinates: %.0f, %.0f, %.0f', p.X, p.Y, p.Z)
+                    UI.MTabCoordsLbl.Text = string.format('XYZ: %.0f, %.0f, %.0f', p.X, p.Y, p.Z)
                 else
-                    UI.MTabCoordsLbl.Text = 'XYZ Coordinates: Active via Biome Timer'
+                    UI.MTabCoordsLbl.Text = 'XYZ: Active via Timer'
                 end
             end
         else
             if UI.MainWindow.Visible then
-                UI.MerchantValueLabel.Text = 'NONE'
-                UI.MTabStatusLbl.Text = 'Merchant: NONE (Waiting for Spawn)'
-                UI.MTabCoordsLbl.Text = 'XYZ Coordinates: N/A'
+                UI.MTabStatusLbl.Text = 'Merchant: NONE'
+                UI.MTabCoordsLbl.Text = 'XYZ: N/A'
             end
         end
 
-        local upStr = GetMacroUptime()
-        if UI.MainWindow.Visible then UI.UptimeValueLabel.Text = upStr end
-        if NyXConfig.ShowMiniHUD then
-            UI.MiniHUDText.Text = string.format('BIOME: %s%s  |  MERCH: %s  |  %s', NyXConfig.CurrentDetectedBiome, graveMiniTag, merchDisplayStr, upStr)
-        end
+        UI.BarMerchVal.Text = merchDisplayStr
+        UI.BarUptimeVal.Text = GetMacroUptime()
     end
 end)
 
@@ -2468,4 +2370,4 @@ task.spawn(function()
     end
 end)
 
-Notify('NyX Macro v8.1', 'Loaded successfully!', 3)
+Notify('NyX v9', 'Ready!', 2)
