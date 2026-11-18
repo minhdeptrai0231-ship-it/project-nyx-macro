@@ -1,4 +1,4 @@
--- // NYX DETECTOR MACRO - v12.1 (ALWAYS SHOW SELECTOR UNLESS SAVED + INSTANT SWITCH + SLEEK UI)
+-- // NYX DETECTOR MACRO - v12.2 (100% FIXED FALSE GLITCHED + MULTI-MERCHANT + SLEEK UI)
 local GlobalEnv = (getgenv and getgenv()) or _G
 
 if type(GlobalEnv.NyX_Cleanup) == 'function' then
@@ -75,9 +75,9 @@ GlobalEnv.NyX_State = {
     ActiveHasMoved = false,
     ActiveDragClickCallback = nil,
     WebhookConfigFile = 'NyX_WebhookConfig.json',
-    VersionConfigFile = 'NyX_VersionPref_v12.json', -- Dùng file JSON tách rõ trạng thái Enabled (Bật/Tắt) & Mode
+    VersionConfigFile = 'NyX_VersionPref_v12.json',
     EmbedFooterText = 'Ryzen Detector | First Edition',
-    DefaultIcon = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRAY9waXDr6boLbl5cjTCs7Eax-c_afMiFQj3_GzwboXg&s=10',
+    DefaultIcon = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPBg2-mIlprnm-y6BtHU6cs3MXDHNuWE19UmWCyhZsN-iwW9oZtqCY8vU&s=10',
     FallbackLogo = 'rbxassetid://18648155233'
 }
 local S = GlobalEnv.NyX_State
@@ -145,11 +145,12 @@ local BiomeData = {
     ['BLOOD RAIN'] = {Color = 0x8B0000, Hex = Color3.fromRGB(245, 65, 85), Image = S.DefaultIcon}
 }
 
+-- Lưu ý: Đã bỏ từ khóa 'GLITCH' ngắn ngủi để tránh bắt nhầm tên Aura/Hiệu ứng, chỉ nhận đúng 'GLITCHED'
 local NormalizedBiomeLookup = {
     ['NORMAL'] = 'NORMAL', ['WINDY'] = 'WINDY', ['SNOWY'] = 'SNOWY', ['RAINY'] = 'RAINY',
     ['SANDSTORM'] = 'SANDSTORM', ['SANDY'] = 'SANDSTORM', ['HELL'] = 'HELL', ['STARFALL'] = 'STARFALL',
     ['HEAVEN'] = 'HEAVEN', ['LOSTFOREST'] = 'LOST FOREST', ['CORRUPTION'] = 'CORRUPTION', ['CORRUPTED'] = 'CORRUPTION',
-    ['NULL'] = 'NULL', ['GLITCHED'] = 'GLITCHED', ['GLITCH'] = 'GLITCHED', ['DREAMSPACE'] = 'DREAMSPACE',
+    ['NULL'] = 'NULL', ['GLITCHED'] = 'GLITCHED', ['DREAMSPACE'] = 'DREAMSPACE',
     ['CYBERSPACE'] = 'CYBERSPACE', ['SINGULARITY'] = 'SINGULARITY',
     ['THERADIANTFOREST'] = 'THE RADIANT FOREST', ['RADIANTFOREST'] = 'THE RADIANT FOREST',
     ['PUMPKINMOON'] = 'PUMPKIN MOON', ['GRAVEYARD'] = 'GRAVEYARD', ['BLOODRAIN'] = 'BLOOD RAIN'
@@ -196,7 +197,7 @@ GlobalEnv.NyXConfig = {
     AutoBiomeRandomizer = false,
     AutoStrangeController = false,
     UseInterval = 20,
-    AutoSaveVersionEnabled = false, -- Mặc định TẮT để 100% hiện bảng chọn khi chạy script
+    AutoSaveVersionEnabled = false,
     SavedVersionMode = 'MAIN',
     StopAutoBiomes = {
         ['GLITCHED'] = true, ['DREAMSPACE'] = true, ['CYBERSPACE'] = true,
@@ -220,7 +221,6 @@ GlobalEnv.NyXConfig = {
     PumpkinMoonStartTimestamp = 0,
     PumpkinMoonElapsed = 0,
     SinisterPTriggeredInPumpkin = false,
-    LogGlitchedTimestamp = 0,
     AntiAFK = true,
     Disable3DRendering = false,
     LockUIPosition = false,
@@ -280,7 +280,6 @@ local function LoadWebhookConfig()
 end
 LoadWebhookConfig()
 
--- Xóa file txt cũ của v11 để không bị kẹt auto-load ngoài ý muốn
 if delfile and isfile and isfile('NyX_VersionPref.txt') then
     pcall(function() delfile('NyX_VersionPref.txt') end)
 end
@@ -461,21 +460,8 @@ local function SendMerchantArrivedEmbed(merchantName)
 end
 
 -- ==========================================
--- // CORE DETECTION FUNCTIONS (MULTI-MERCHANT + BIOME)
+-- // CORE DETECTION FUNCTIONS (STRICT BIOME + MULTI-MERCHANT)
 -- ==========================================
-local function InspectLogForGlitched(msg)
-    if type(msg) ~= 'string' or msg == '' then return end
-    local u = msg:upper()
-    if u:find('NYX') or u:find('WEBHOOK') then return end
-    if u:find('%[%s*GLITCHED%s*%]') or u:find('BIOME:%s*GLITCHED') or u:find('CURRENTBIOME:%s*GLITCHED')
-       or u:find('"BIOME"%s*:%s*"GLITCHED"') or u:find('01000111%s*01001100%s*01001001%s*01010100')
-       or (u:find('GLITCHED') and (u:find('BIOME') or u:find('SPAWN') or u:find('WEATHER') or u:find('MAP'))) then
-        NyXConfig.LogGlitchedTimestamp = os.time()
-    elseif u:find('BIOME') and (u:find('NORMAL') or u:find('ENDED')) and NyXConfig.LogGlitchedTimestamp > 0 then
-        NyXConfig.LogGlitchedTimestamp = 0
-    end
-end
-
 local function MatchMerchantObj(obj)
     if not obj or not obj.Parent then return nil, nil, nil end
     if obj:IsA('ProximityPrompt') then
@@ -553,22 +539,64 @@ local function ScanAllMerchantsInWorld(forceScan)
     return results
 end
 
+-- Kiểm tra xem 1 TextLabel có nằm trong các cửa sổ Menu/Chat/Collection/Quest hay không
+local ExcludedGuiKeywords = {
+    'INVENTORY', 'CHAT', 'SHOP', 'COLLECTION', 'INDEX', 'AURA', 'STORAGE',
+    'CRAFT', 'QUEST', 'ACHIEVEMENT', 'SETTING', 'LEADERBOARD', 'STAT',
+    'FILTER', 'SEARCH', 'NOTIFICATION', 'ANNOUNCE', 'ROLL', 'BANK', 'TRADE'
+}
+
+local function IsValidBiomeHudLabel(lbl)
+    if not lbl or not lbl.Parent or not lbl:IsA('TextLabel') or not lbl.Visible then return false end
+    if S.ScreenGui and lbl:IsDescendantOf(S.ScreenGui) then return false end
+
+    local curr = lbl
+    local depth = 0
+    while curr and curr ~= LocalPlayer and depth < 12 do
+        local uName = curr.Name:upper()
+        for _, kw in ipairs(ExcludedGuiKeywords) do
+            if uName:find(kw, 1, true) then
+                return false
+            end
+        end
+        if curr:IsA('ScrollingFrame') then
+            return false -- HUD Biome không bao giờ nằm trong danh sách cuộn (ScrollingFrame)
+        end
+        curr = curr.Parent
+        depth = depth + 1
+    end
+    return true
+end
+
 local function ParseStrictBiomeToken(rawText, requireBrackets)
     local clean = CleanRichText(rawText):upper()
-    if clean == '' or #clean > 38 then return nil end
+    if clean == '' or #clean > 36 then return nil end
+
+    -- Nhận diện chuỗi nhị phân đặc trưng của Glitched Biome trên HUD (ví dụ: [ 01000111... ])
+    local binaryCheck = clean:gsub('[%[%]]', ''):gsub('%s+', '')
+    if #binaryCheck >= 16 and binaryCheck:match('^[01]+$') then
+        return 'GLITCHED'
+    end
+
     local bInner = clean:match('^%[%s*(.-)%s*%]$')
-    if bInner then return NormalizedBiomeLookup[bInner:gsub('[^A-Z]', '')] end
-    if not requireBrackets then return NormalizedBiomeLookup[clean:gsub('[^A-Z]', '')] end
+    if bInner then
+        return NormalizedBiomeLookup[bInner:gsub('[^A-Z]', '')]
+    end
+    if not requireBrackets then
+        return NormalizedBiomeLookup[clean:gsub('[^A-Z]', '')]
+    end
     return nil
 end
 
 local function GetAccurateServerBiome()
     local found = nil
+
+    -- 1. Kiểm tra Attributes chính thức của Server (Độ chính xác tuyệt đối 100%)
     pcall(function()
         for _, val in ipairs({
             Workspace:GetAttribute('Biome'), Workspace:GetAttribute('CurrentBiome'), Workspace:GetAttribute('Weather'),
             ReplicatedStorage:GetAttribute('Biome'), ReplicatedStorage:GetAttribute('CurrentBiome'),
-            Lighting:GetAttribute('Biome'), LocalPlayer:GetAttribute('Biome')
+            Lighting:GetAttribute('Biome')
         }) do
             if type(val) == 'string' and val ~= '' then
                 local m = ParseStrictBiomeToken(val, false)
@@ -576,8 +604,9 @@ local function GetAccurateServerBiome()
             end
         end
     end)
-    if found and found ~= 'NORMAL' then return found end
+    if found then return found end
 
+    -- 2. Kiểm tra StringValue chính thức trong ReplicatedStorage / Workspace / Lighting
     pcall(function()
         for _, root in ipairs({ReplicatedStorage, Workspace, Lighting}) do
             for _, obj in ipairs(root:GetChildren()) do
@@ -591,15 +620,18 @@ local function GetAccurateServerBiome()
             end
         end
     end)
-    if found and found ~= 'NORMAL' then return found end
+    if found then return found end
 
+    -- 3. Kiểm tra các HUD Label đã được xác thực
     pcall(function()
         for i = #S.CachedBiomeLabels, 1, -1 do
             local lbl = S.CachedBiomeLabels[i]
-            if not lbl or not lbl.Parent then
+            if not IsValidBiomeHudLabel(lbl) then
                 table.remove(S.CachedBiomeLabels, i)
-            elseif lbl.Visible and lbl.Text ~= '' then
-                local bMatch = ParseStrictBiomeToken(lbl.Text, true) or ParseStrictBiomeToken(lbl.Text, false)
+            elseif lbl.Text ~= '' then
+                local ln = lbl.Name:upper()
+                local isExplicitBiomeNode = (ln == 'BIOME' or ln == 'BIOMELABEL' or ln == 'BIOMETEXT' or ln == 'CURRENTBIOME')
+                local bMatch = ParseStrictBiomeToken(lbl.Text, not isExplicitBiomeNode)
                 if bMatch then
                     found = bMatch
                     if bMatch ~= 'NORMAL' then return end
@@ -607,15 +639,11 @@ local function GetAccurateServerBiome()
             end
         end
     end)
-    if found and found ~= 'NORMAL' then return found end
-
-    if NyXConfig.LogGlitchedTimestamp > 0 and (os.time() - NyXConfig.LogGlitchedTimestamp) <= 160 then
-        return 'GLITCHED'
-    end
     if found then return found end
 
+    -- 4. Quét lại PlayerGui định kỳ (Chỉ nhận HUD Label hợp lệ, loại bỏ hoàn toàn Chat/Collection/Aura)
     local now = os.clock()
-    if (now - S.LastGuiBiomeScan) < 15 then
+    if (now - S.LastGuiBiomeScan) < 12 then
         return NyXConfig.CurrentDetectedBiome or 'NORMAL'
     end
     S.LastGuiBiomeScan = now
@@ -626,23 +654,22 @@ local function GetAccurateServerBiome()
         local bMatch, eMatch = nil, nil
         S.CachedBiomeLabels = {}
         for _, v in ipairs(pGui:GetDescendants()) do
-            if v:IsA('TextLabel') and v.Visible and v.Text ~= '' and (not S.ScreenGui or not v:IsDescendantOf(S.ScreenGui)) then
-                local pName = (v.Parent and v.Parent.Name or ''):upper()
-                if not pName:find('INVENTORY') and not pName:find('CHAT') and not pName:find('SHOP') then
+            if v:IsA('TextLabel') and v.Visible and v.Text ~= '' and IsValidBiomeHudLabel(v) then
+                local ln = v.Name:upper()
+                if ln == 'BIOME' or ln == 'BIOMELABEL' or ln == 'BIOMETEXT' or ln == 'CURRENTBIOME' then
+                    table.insert(S.CachedBiomeLabels, v)
+                    local em = ParseStrictBiomeToken(v.Text, false)
+                    if em then eMatch = em end
+                else
                     local bm = ParseStrictBiomeToken(v.Text, true)
-                    local ln = v.Name:upper()
                     if bm then
                         table.insert(S.CachedBiomeLabels, v)
                         bMatch = bm
-                    elseif ln == 'BIOME' or ln == 'BIOMELABEL' or ln == 'BIOMETEXT' or ln == 'CURRENTBIOME' then
-                        table.insert(S.CachedBiomeLabels, v)
-                        local em = ParseStrictBiomeToken(v.Text, false)
-                        if em then eMatch = em end
                     end
                 end
             end
         end
-        found = bMatch or eMatch
+        found = eMatch or bMatch
     end)
     return found or 'NORMAL'
 end
@@ -787,7 +814,6 @@ local function SwitchVersionLive(newVersionMode)
     if S.TopBar and S.TopBar.Parent then pcall(function() S.TopBar:Destroy() end) end
     if S.MainWindow and S.MainWindow.Parent then pcall(function() S.MainWindow:Destroy() end) end
 
-    -- Chỉ cập nhật Mode trong file Save nếu người dùng đang BẬT công tắc Auto-Save
     if NyXConfig.AutoSaveVersionEnabled then
         SaveVersionPreference(true, newVersionMode)
     end
@@ -842,15 +868,6 @@ StartSelectedVersionEngine = function(versionMode)
                 end)
             end
         end))
-    end)
-
-    pcall(function()
-        local LogService = game:GetService('LogService')
-        if LogService and LogService.MessageOut then
-            TrackEngineConn(LogService.MessageOut:Connect(function(msg)
-                if IsEngineAlive() then InspectLogForGlitched(msg) end
-            end))
-        end
     end)
 
     pcall(function()
@@ -1248,7 +1265,6 @@ StartSelectedVersionEngine = function(versionMode)
             TrackEngineConn(TextChatService.MessageReceived:Connect(function(message)
                 if not IsEngineAlive() or message.TextSource ~= nil then return end
                 local txt = CleanRichText((message.Text or '') .. ' ' .. (message.PrefixText or '')):upper()
-                InspectLogForGlitched(txt)
                 local mName = nil
                 if txt:find('SINISTER%s*P') then
                     mName = 'Sinister P.'
@@ -1275,7 +1291,7 @@ StartSelectedVersionEngine = function(versionMode)
     end)
 
     -- ==========================================
-    -- // BUILD SLEEK OBSIDIAN UI (v12.1)
+    -- // BUILD SLEEK OBSIDIAN UI (v12.2)
     -- ==========================================
     S.BlackSaverFrame = Instance.new('Frame', S.ScreenGui)
     S.BlackSaverFrame.Size = UDim2.new(1, 0, 1, 0)
@@ -2088,7 +2104,7 @@ StartSelectedVersionEngine = function(versionMode)
             end)
         end
 
-        -- Tab Setting (Main: Save là Toggle Bật/Tắt, Switch là Button chuyển ngay lập tức)
+        -- Tab Setting (Main)
         AddSectionLabel(SettingScroll, 'Version Control')
         local isMainSaved = (NyXConfig.AutoSaveVersionEnabled and NyXConfig.SavedVersionMode == 'MAIN')
         AddToggle(SettingScroll, 'Save Main Version (Skip Selector On Startup)', isMainSaved, function(state)
@@ -2230,7 +2246,7 @@ StartSelectedVersionEngine = function(versionMode)
     end
 
     -- ==========================================
-    -- // MAIN DETECTION LOOP (BIOME + MULTI-MERCHANT + SINISTER S. & SINISTER P.)
+    -- // MAIN DETECTION LOOP (STRICT BIOME + MULTI-MERCHANT + SINISTER S. & SINISTER P.)
     -- ==========================================
     task.spawn(function()
         local confirmedBiome = GetAccurateServerBiome()
@@ -2441,7 +2457,7 @@ StartSelectedVersionEngine = function(versionMode)
         end
     end)
 
-    Notify('NyX ' .. versionMode, 'Loaded ' .. versionMode .. ' Sleek Edition!', 2.5)
+    Notify('NyX ' .. versionMode, 'Loaded ' .. versionMode .. ' (v12.2 Anti-False-Glitch)!', 2.5)
 end
 
 -- ==========================================
@@ -2449,10 +2465,8 @@ end
 -- ==========================================
 local autoSavedMode = LoadVersionPreference()
 if autoSavedMode then
-    -- Chỉ vào thẳng khi công tắc Auto-Save đang được BẬT (Enabled == true)
     StartSelectedVersionEngine(autoSavedMode)
 else
-    -- 100% hiển thị bảng chọn Main / Lite khi chưa bật Save (hoặc đã tắt Save)
     local SelectorFrame = Instance.new('Frame', S.ScreenGui)
     SelectorFrame.Name = 'VersionSelector'
     SelectorFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -2489,7 +2503,6 @@ else
     HeaderTxt.TextColor3 = Color3.fromRGB(245, 248, 255)
     HeaderTxt.ZIndex = 32
 
-    -- Công tắc Bật/Tắt nhớ lựa chọn ngay trên bảng Selector
     local RememberToggleBtn = Instance.new('TextButton', SelectorFrame)
     RememberToggleBtn.AnchorPoint = Vector2.new(0.5, 1)
     RememberToggleBtn.Size = UDim2.new(1, -40, 0, 30)
